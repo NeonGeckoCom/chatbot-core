@@ -59,7 +59,7 @@ class ChatBot(KlatApi):
         self.selected_history = list()
         while not self.ready:
             time.sleep(1)
-        if username and on_server:
+        if username and password and on_server:
             self.login_klat(username, password)
         self.active_prompt = None
         self.state = ConversationState.IDLE

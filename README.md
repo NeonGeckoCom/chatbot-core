@@ -123,7 +123,7 @@ if __name__ == "__main__":
 ```
 ### Script Bot
 ```python
-from chatbot_core.neon_connector.neonbot import NeonBot
+from chatbot_core import NeonBot
 from chatbot_core import start_socket
 
 class ScriptBot(NeonBot):
