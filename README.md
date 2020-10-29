@@ -1,9 +1,13 @@
-# Chatbots
-Bots here connect to the Klat server and respond to user shouts. Bots will respond individually like any other user in 
-the conversation.
+# Chatbot Core
+Bots using this framework connect to the Klat server and respond to user shouts. Bots will respond individually,
+like any other user in the conversation.
 
 ## Getting Started
-To utilize this repository for
+To utilize this repository for creating your own chat bots, install this package via pip and then extend the `ChatBot` or
+`NeonBot` class to build your own chat bot (see the [Eexamples below](#python-examples)).
+
+You can install this package with the following command:
+`pip install git+https://github.com/neongeckocom/chatbot-core`
 
 ## Generating Responses
 ### Basic Bot
@@ -48,8 +52,7 @@ a bot; `options` provides a dictionary of valid names to vote for and their resp
 ## Python Examples
 ### Standard Bot
 ```python
-from chatbots.chat_bot import ChatBot
-from klat_connector import start_socket
+from chatbot_core import ChatBot, start_socket
 import random
 
 class MyBot(ChatBot):
@@ -102,6 +105,7 @@ class MyBot(ChatBot):
         pass
 
 if __name__ == "__main__":
+    # Testing
     bot = MyBot(start_socket("2222.us", 8888), f"chatbotsforum.org", None, None, False)
     while True:
         try:
@@ -112,11 +116,15 @@ if __name__ == "__main__":
             break
         except EOFError:
             break
+    # Running on the forum
+    MyBot(start_socket("2222.us", 8888), f"chatbotsforum.org", None, None, True)
+    while True:
+        pass
 ```
 ### Script Bot
 ```python
-from chatbots.neon_connector.neonbot import NeonBot
-from klat_connector import start_socket
+from chatbot_core.neon_connector.neonbot import NeonBot
+from chatbot_core import start_socket
 
 class ScriptBot(NeonBot):
     def __init__(self, socket, domain, user, password, on_server=True):
@@ -150,6 +158,7 @@ class ScriptBot(NeonBot):
         """
         pass
 if __name__ == "__main__":
+    # Testing
     bot = ScriptBot(start_socket("2222.us", 8888), f"chatbotsforum.org", None, None, False)
     while True:
         try:
@@ -160,4 +169,8 @@ if __name__ == "__main__":
             break
         except EOFError:
             break
+        # Running on the forum
+    ScriptBot(start_socket("2222.us", 8888), f"chatbotsforum.org", None, None, True)
+    while True:
+        pass
 ```

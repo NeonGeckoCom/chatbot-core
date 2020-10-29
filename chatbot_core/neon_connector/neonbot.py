@@ -21,7 +21,7 @@ import time
 
 from threading import Thread
 
-from chatbot_core.chat_bot import ChatBot
+from chatbot_core import ChatBot
 from chatbot_core.logger import LOG
 from chatbot_core.neon_connector.messagebus import Message, MessageBusClient
 

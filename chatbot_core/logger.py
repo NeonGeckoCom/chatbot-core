@@ -16,6 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2020: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
 import logging
 
 fmt = '%(asctime)s - %(levelname)-8s - %(name)s:%(module)s:%(funcName)s:%(lineno)d - %(message)s'
