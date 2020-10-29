@@ -46,11 +46,8 @@ setuptools.setup(
         "Operating System :: OS Independent"
     ],
     python_requires='>=3.6',
-    install_requires=["wheel",
-                      "pip>=19.0",
-                      "requests",
-                      "pyee==7.0.1",
-                      "websocket-client==0.54.0",
+    install_requires=[
+                      "mycroft-messagebus-client",
                       "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector"
                       ]
 )

@@ -20,10 +20,10 @@
 import time
 
 from threading import Thread
+from mycroft_bus_client import Message, MessageBusClient
 
 from chatbot_core import ChatBot
 from chatbot_core.logger import LOG
-from chatbot_core.neon_connector.messagebus import Message, MessageBusClient
 
 
 class NeonBot(ChatBot):
