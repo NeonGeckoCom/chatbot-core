@@ -23,11 +23,12 @@ from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
+from threading import Thread
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket  # Leave for extending classes to use without explicit klat_connector import
 from chatbot_core.logger import LOG
-from chatbot_core.neon_connector.neonbot import NeonBot
+from mycroft_bus_client import Message, MessageBusClient
 
 
 class ConversationControls:
@@ -344,3 +345,120 @@ class ChatBot(KlatApi):
         :return: true if shout should be considered a prompt
         """
         return shout.startswith("!PROMPT:")
+
+
+class NeonBot(ChatBot):
+    """
+    Extensible class to handle a chatbot implemented in custom-conversations skill
+    """
+    def __init__(self, socket, domain, username, password, on_server, script, bus_config=None):
+        super(NeonBot, self).__init__(socket, domain, username, password)
+        self.on_server = on_server
+        self.bot_type = "submind"
+        self.response = None
+        self.bus = None
+        self.bus_config = bus_config or {"host": "64.34.186.120",
+                                         "port": 8181,
+                                         "ssl": False,
+                                         "route": "/core"}
+        self.script = script
+        self.script_ended = False
+        self.script_started = False
+        self._init_bus()
+        self._set_bus_listeners()
+        timeout = time.time() + 60
+        while not self.script_started and time.time() < timeout:
+            time.sleep(1)
+        LOG.debug("Neon Bot Started!")
+
+    def ask_chatbot(self, nick: str, shout: str, timestamp: str):
+        """
+        Handles an incoming shout into the current conversation
+        :param nick: user associated with shout
+        :param shout: text shouted by user
+        :param timestamp: formatted timestamp of shout
+        """
+        LOG.debug(f"ask neon: {shout}")
+        # shout_time = datetime.datetime.strptime(timestamp, "%I:%M:%S %p")
+        # timestamp = round(shout_time.timestamp())
+        self.response = None
+        self._send_to_neon(shout, timestamp, self.nick)
+        if not self.on_server:
+            while not self.response:
+                time.sleep(0.5)
+            return self.response
+
+    def on_login(self):
+        while not self.bus:
+            LOG.error("Bus not configured yet!")
+            time.sleep(1)
+        self._send_to_neon("exit", str(round(time.time())), self.nick)
+        self.enable_responses = False
+        timeout = time.time() + 5
+        while not self.script_ended and time.time() < timeout:
+            time.sleep(1)
+        self._send_to_neon(f"run my {self.script} script", str(round(time.time())), self.nick)
+
+    def _init_bus(self):
+        self.bus = MessageBusClient(self.bus_config["host"], self.bus_config["port"],
+                                    self.bus_config["route"], self.bus_config["ssl"])
+        t = Thread(target=self.bus.run_forever)
+        t.daemon = True
+        t.start()
+        return t
+
+    def _set_bus_listeners(self):
+        self.bus.on("speak", self._handle_speak)
+
+    def _handle_speak(self, message: Message):
+        """
+        Forwards a Neon response into a shout by the logged in user in their current conversation
+        :param message: messagebus message associated with "speak"
+        """
+        # LOG.debug(message.context)
+        if message.context.get("client") == self.instance:
+            input_to_neon = message.context.get("cc_data", {}).get("raw_utterance")
+            if input_to_neon == "exit":
+                self.script_ended = True
+            elif input_to_neon == f"run my {self.script} script":
+                time.sleep(5)  # Matches timeout in cc skill for intro speak signal to be cleared
+                self.script_started = True
+                self.enable_responses = True
+            elif input_to_neon and self.enable_responses:
+                # LOG.debug(f'sending shout: {message.data.get("utterance")}')
+                if self.on_server:
+                    self.propose_response(message.data.get("utterance"))
+                else:
+                    self.response = message.data.get("utterance")
+
+    def _send_to_neon(self, shout: str, timestamp: str, nick: str = "nobody"):
+        """
+        Send input to Neon for skills processing
+        :param shout: shout to evaluate
+        :param timestamp: timestamp of shout
+        :param nick: user associated with shout
+        """
+        data = {
+            "raw_utterances": [shout],
+            "utterances": [shout],
+            "lang": "en-US",
+            "session": "api",
+            "user": nick  # This is the user "hosting" this api connection
+        }
+        context = {'client_name': 'neon_bot',
+                   'source': 'klat',
+                   "ident": f"chatbots_{timestamp}",
+                   'destination': ["skills"],
+                   "mobile": False,
+                   "client": self.instance,
+                   "flac_filename": None,
+                   "neon_should_respond": True,
+                   "nick_profiles": {},
+                   "cc_data": {"speak_execute": shout,
+                               "audio_file": None,
+                               "raw_utterance": shout
+                               },
+                   "timing": {"received": time.time()}
+                   }
+        # Emit to Neon for a response
+        self.bus.emit(Message("recognizer_loop:utterance", data, context))
