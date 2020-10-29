@@ -4,7 +4,7 @@ like any other user in the conversation.
 
 ## Getting Started
 To utilize this repository for creating your own chat bots, install this package via pip and then extend the `ChatBot` or
-`NeonBot` class to build your own chat bot (see the [Eexamples below](#python-examples)).
+`NeonBot` class to build your own chat bot (see the [Examples below](#python-examples)).
 
 You can install this package with the following command:
 `pip install git+https://github.com/neongeckocom/chatbot-core`

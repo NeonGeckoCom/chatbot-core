@@ -46,6 +46,8 @@ setuptools.setup(
         "Operating System :: OS Independent"
     ],
     python_requires='>=3.6',
+    entry_points={'console_scripts': ["start-klat-bots=chatbot_core.utils:cli_start_bots",
+                                      "debug-klat-bots=chatbot_core.utils:debug_bots"]},
     install_requires=[
                       "mycroft-messagebus-client",
                       "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector"
