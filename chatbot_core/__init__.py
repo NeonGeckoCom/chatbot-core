@@ -25,6 +25,7 @@ from enum import IntEnum
 from engineio.socket import Socket
 
 from klat_connector.klat_api import KlatApi
+from klat_connector import start_socket  # Leave for extending classes to use without explicit klat_connector import
 from chatbot_core.logger import LOG
 
 
