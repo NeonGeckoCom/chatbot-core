@@ -101,7 +101,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
 
     # Catch no bots found
     if len(bots_to_start.keys()) == 0:
-        LOG.warning(f"No bots in: {bot_dir}")
+        LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
             if d != "__pycache__" and not d.startswith(".") and os.path.isdir(os.path.join(bot_dir, d)):
                 LOG.info(f"Found bots dir {d}")
@@ -109,6 +109,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
 
     LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
+    logging.getLogger("tensorflow").setLevel(logging.ERROR)
     proctor = None
 
     # Load credentials
