@@ -47,10 +47,8 @@ def get_bots_in_dir(bot_path: str) -> dict:
     :param bot_path: file path containing bots
     :return: dict of bot name:ChatBot object
     """
-
     # Make sure we have a path and not a filename
     bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
-
     # Get all bots in the requested directory
     sys.path.append(bot_path)
     bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
@@ -77,7 +75,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     """
 
     domain = domain or "chatbotsforum.org"
-    bot_dir = bot_dir or os.getcwd()
+    bot_dir = os.path.expanduser(bot_dir) or os.path.expanduser(os.getcwd())
     server = server or SERVER
 
     bots_to_start = get_bots_in_dir(bot_dir)
@@ -92,8 +90,9 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         else:
             bots_in_dir = {}
         # Check for repo facilitators
-        if os.path.isdir(os.path.join(bot_dir, "facilitators")):
-            facilitators = get_bots_in_dir(os.path.join(bot_dir, "bots"))
+        if os.path.exists(os.path.join(bot_dir, "facilitators")):
+            facilitators = get_bots_in_dir(os.path.join(bot_dir, "facilitators"))
+            LOG.info(f"found facilitators: {facilitators}")
             bots_to_start = {**bots_in_dir, **facilitators}
         else:
             bots_to_start = bots_in_dir
@@ -145,6 +144,18 @@ def cli_start_bots():
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server)
 
 
+def cli_stop_bots():
+    """
+    Stops all start-klat-bot instances
+    """
+    import psutil
+
+    procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
+    for pid, name in procs.items():
+        if name == "start-klat-bots":
+            psutil.Process(pid).terminate()
+
+
 def debug_bots(bot_dir: str = os.getcwd()):
     """
     Debug bots in the passed directory
@@ -188,4 +199,3 @@ def debug_bots(bot_dir: str = os.getcwd()):
             running = False
         LOG.warning("Still Running")
     LOG.warning("Done Running")
-    exit(0)
