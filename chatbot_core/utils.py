@@ -76,7 +76,6 @@ def load_credentials_yml(cred_file: str) -> dict:
     """
     with open(cred_file, 'r') as f:
         credentials_dict = yaml.safe_load(f)
-    LOG.info(credentials_dict)
     return credentials_dict
 
 
@@ -108,7 +107,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 LOG.info(f"Found bots dir {d}")
                 bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
 
-    LOG.info(bots_to_start)
+    LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
     proctor = None
 
@@ -171,8 +170,14 @@ def cli_start_bots():
     parser.add_argument("--password", dest="password",
                         help="Klat password for a single bot", type=str)
     parser.add_argument("--server", dest="server", default="0000.us",
-                        help="Klat server (default: 0000.us", type=str)
+                        help="Klat server (default: 0000.us)", type=str)
+    parser.add_argument("--debug", action=argparse.BooleanOptionalAction)
+
     args = parser.parse_args()
+    if args.debug:
+        logging.getLogger("chatbots").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("chatbots").setLevel(logging.WARNING)
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
