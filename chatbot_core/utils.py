@@ -81,6 +81,23 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     server = server or SERVER
 
     bots_to_start = get_bots_in_dir(bot_dir)
+
+    # Catch no bots found
+    if len(bots_to_start.keys()) == 0:
+        LOG.warning(f"No bots in: {bot_dir}")
+        # TODO: Maybe some recursive check here instead of hard-coded dirs DM
+        # Try getting from repo default location
+        if os.path.isdir(os.path.join(bot_dir, "bots")):
+            bots_in_dir = get_bots_in_dir(os.path.join(bot_dir, "bots"))
+        else:
+            bots_in_dir = {}
+        # Check for repo facilitators
+        if os.path.isdir(os.path.join(bot_dir, "facilitators")):
+            facilitators = get_bots_in_dir(os.path.join(bot_dir, "bots"))
+            bots_to_start = {**bots_in_dir, **facilitators}
+        else:
+            bots_to_start = bots_in_dir
+
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
     proctor = None
 
@@ -101,8 +118,9 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             pass
     except KeyboardInterrupt:
         LOG.info("exiting")
-        proctor.pending_prompts.put(None)
-        proctor.thread.join(30)
+        if proctor:
+            proctor.pending_prompts.put(None)
+            proctor.thread.join(30)
 
 
 def cli_start_bots():
