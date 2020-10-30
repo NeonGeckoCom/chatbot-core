@@ -115,7 +115,7 @@ def cli_start_bots():
     parser.add_argument("--domain", dest="domain", default="chatbotsforum.org",
                         help="Domain to connect to (default: chatbotsforum.org)", type=str)
     parser.add_argument("--bots", dest="bot_dir",
-                        help="Path to chatbots", type=str)
+                        help="Path to chatbots (default: ./)", type=str)
     parser.add_argument("--username", dest="username",
                         help="Klat username for bot", type=str)
     parser.add_argument("--password", dest="password",

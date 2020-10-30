@@ -3,11 +3,65 @@ Bots using this framework connect to the Klat server and respond to user shouts.
 like any other user in the conversation.
 
 ## Getting Started
+### Installation
 To utilize this repository for creating your own chat bots, install this package via pip and then extend the `ChatBot` or
 `NeonBot` class to build your own chat bot (see the [Examples below](#python-examples)).
 
 You can install this package with the following command:
+
 `pip install git+https://github.com/neongeckocom/chatbot-core`
+
+*Note*: It is recommended to install this to a virtual environment to avoid conflicts with package versions and commandline 
+entry points. Most IDE's (i.e. [PyCharm](https://www.jetbrains.com/pycharm/)) handle this for individual projects.
+
+### Organizing your bots
+It is recommended to create a module for each of your bots. You should use subdirectories, each containing `__init__.py`
+that includes your `ChatBot` as well as any supporting configuration files, etc. You may also organize this as a
+directory of .py files that each contain a bot (these bots cannot be managed with the [utilities](#commandline-utilities)
+included with this package). To run multiple bots on the [Klat](https://klat.com) network, the directory names for each bot should correspond 
+to a registered [Klat](https://klat.com) username and your bot users should use the same password.
+Below are example file structures for each of these cases.
+
+```
+my_bots
+|
+|--venv
+|--alice
+|  |--aiml
+|  |  └--...
+|  └--__init__.py
+|--ELIZA
+|  └--__init__.py
+└--ima
+   └--__init__.py
+```
+
+```
+my_bots
+|
+|--venv
+└--my_bot.py
+```
+
+### Commandline Utilities
+There are commandline utilities provided to test and run bots you create. The examples for these utilities assumes you
+have your bots in a directory named `my_bots` as outlined [above](#organizing-your-bots).
+
+#### debug-klat-bots
+From a terminal that has sourced your virtual environment, you can run the following command to test any one of your bots:
+
+```shell script
+debug-klat-bots "/path/to/my_bots"
+```
+*Note:* You may omit the path argument if your terminal is in the same directory as your bots.
+
+#### start-klat-bots
+From a terminal that has sourced your virtual environment, you can run the following command to run all of your bots:
+
+```shell script
+start-klat-bots --domain chatbotsforum.org --bots "/path/to/my_bots" --password "klat_password"
+```
+*Note:* Call start-klat-bots -h for detailed help explaining each of the parameters
 
 ## Generating Responses
 ### Basic Bot
