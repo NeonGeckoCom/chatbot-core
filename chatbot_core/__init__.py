@@ -57,9 +57,12 @@ class ChatBot(KlatApi):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
-        while not self.ready:
+        klat_timeout = time.time() + 30
+        while not self.ready and time.time() < klat_timeout:
             time.sleep(1)
-        if username and password and on_server:
+        if not self.ready:
+            LOG.error("Klat connection timed out!")
+        elif username and password and on_server:
             self.login_klat(username, password)
         self.active_prompt = None
         self.state = ConversationState.IDLE
