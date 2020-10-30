@@ -93,7 +93,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     """
 
     domain = domain or "chatbotsforum.org"
-    bot_dir = os.path.expanduser(bot_dir) or os.path.expanduser(os.getcwd())
+    bot_dir = bot_dir or os.getcwd()
+    bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
 
     bots_to_start = get_bots_in_dir(bot_dir)
@@ -102,7 +103,6 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     if len(bots_to_start.keys()) == 0:
         LOG.warning(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
-            print(d)
             if d != "__pycache__" and not d.startswith(".") and os.path.isdir(os.path.join(bot_dir, d)):
                 LOG.info(f"Found bots dir {d}")
                 bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
@@ -174,10 +174,11 @@ def cli_start_bots():
     # parser.add_argument("--debug", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
+    # TODO: Get this terminal option to work DM
     # if args.debug:
     #     logging.getLogger("chatbots").setLevel(logging.DEBUG)
     # else:
-    logging.getLogger("chatbots").setLevel(logging.WARNING)
+    logging.getLogger("chatbots").setLevel(logging.DEBUG)
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
