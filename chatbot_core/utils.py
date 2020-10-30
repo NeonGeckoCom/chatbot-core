@@ -118,6 +118,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         credentials = {}
 
     if bot_name:
+        LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
             user = username or credentials.get(bot_name, {}).get("username")
@@ -129,6 +130,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     else:
         # Start a socket for each unique bot, bots handle login names
         for name, bot in bots_to_start.items():
+            LOG.debug(f"Starting: {name}")
             try:
                 user = username or credentials.get(name, {}).get("username")
                 password = password or credentials.get(name, {}).get("password")
