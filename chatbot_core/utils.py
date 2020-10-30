@@ -184,14 +184,15 @@ def cli_start_bots():
                         help="Klat password for a single bot", type=str)
     parser.add_argument("--server", dest="server", default="0000.us",
                         help="Klat server (default: 0000.us)", type=str)
-    # parser.add_argument("--debug", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--debug", dest="debug", action='store_true',
+                        help="Enable more verbose log output")
 
     args = parser.parse_args()
     # TODO: Get this terminal option to work DM
-    # if args.debug:
-    #     logging.getLogger("chatbots").setLevel(logging.DEBUG)
-    # else:
-    logging.getLogger("chatbots").setLevel(logging.DEBUG)
+    if args.debug:
+        logging.getLogger("chatbots").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("chatbots").setLevel(logging.ERROR)
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
