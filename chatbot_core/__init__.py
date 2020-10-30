@@ -91,7 +91,7 @@ class ChatBot(KlatApi):
                 LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
                 return
         elif shout.startswith("@"):  # Shout (Proctor response) leaving current conversation
-            LOG.warning(f"Ignoring @user reply in this cid: {shout}")
+            LOG.debug(f"Ignoring @user reply in this cid: {shout}")
             return
 
         # TODO: Strip HTML? DM

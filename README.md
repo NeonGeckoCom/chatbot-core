@@ -18,9 +18,7 @@ entry points. Most IDE's (i.e. [PyCharm](https://www.jetbrains.com/pycharm/)) ha
 It is recommended to create a module for each of your bots. You should use subdirectories, each containing `__init__.py`
 that includes your `ChatBot` as well as any supporting configuration files, etc. You may also organize this as a
 directory of .py files that each contain a bot (these bots cannot be managed with the [utilities](#commandline-utilities)
-included with this package). To run multiple bots on the [Klat](https://klat.com) network, the directory names for each bot should correspond 
-to a registered [Klat](https://klat.com) username and your bot users should use the same password.
-Below are example file structures for each of these cases.
+included with this package). Below are example file structures for each of these cases.
 
 ```
 my_bots
@@ -43,6 +41,20 @@ my_bots
 └--my_bot.py
 ```
 
+### Klat.com Credentials
+Bots should be able to login to [klat.com](https://klat.com); a YAML file containing credentials for each bot can be used
+to save usernames and passwords for each bot. Each bot module should have a key matching the module name, a `username`,
+and a `password`.
+
+```yaml
+ALICE:
+  username: alice
+  password: AliceKlatPassword
+kbot:
+  username: kbot
+  password: kBotKlatPassword
+```
+
 ### Commandline Utilities
 There are commandline utilities provided to test and run bots you create. The examples for these utilities assumes you
 have your bots in a directory named `my_bots` as outlined [above](#organizing-your-bots).
@@ -59,7 +71,7 @@ debug-klat-bots "/path/to/my_bots"
 From a terminal that has sourced your virtual environment, you can run the following command to run all of your bots:
 
 ```shell script
-start-klat-bots --domain chatbotsforum.org --bots "/path/to/my_bots" --password "klat_password"
+start-klat-bots --domain chatbotsforum.org --bots "/path/to/my_bots" --credentials "/path/to/credentials.yml"
 ```
 *Note:* Call start-klat-bots -h for detailed help explaining each of the parameters
 

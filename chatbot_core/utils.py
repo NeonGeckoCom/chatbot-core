@@ -28,6 +28,7 @@ import sys
 
 from datetime import datetime
 
+import yaml
 from klat_connector import start_socket
 from chatbot_core import LOG, ChatBot
 
@@ -44,27 +45,43 @@ SERVER = "0000.us" if ".112.7" in get_ip_address() else "2222.us"
 def get_bots_in_dir(bot_path: str) -> dict:
     """
     Gets all ChatBots in the given directory, imports them, and returns a dict of their names to modules.
-    :param bot_path: file path containing bots
+    :param bot_path: absoulute file path containing bots
     :return: dict of bot name:ChatBot object
     """
+
+    bots = {}
+
     # Make sure we have a path and not a filename
     bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
     # Get all bots in the requested directory
-    sys.path.append(bot_path)
     bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
-    bots = {}
+    if bot_names:
+        sys.path.append(bot_path)
 
-    for mod in bot_names:
-        module = __import__(mod)
-        for name, obj in inspect.getmembers(module, inspect.isclass):
-            # TODO: Why are facilitators not subclassed ChatBots? DM
-            if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                bots[mod.lower()] = obj
-    LOG.debug(bots)
+        for mod in bot_names:
+            module = __import__(mod)
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                # TODO: Why are facilitators not subclassed ChatBots? DM
+                if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                    bots[mod] = obj
+        LOG.debug(bots)
     return bots
 
 
-def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None):
+def load_credentials_yml(cred_file: str) -> dict:
+    """
+    Loads a credentials yml file and returns a dictionary of parsed credentials per-module
+    :param cred_file: Input yml file containing credentials for bot modules
+    :return: dict of bot modules to usernames and passwords
+    """
+    with open(cred_file, 'r') as f:
+        credentials_dict = yaml.safe_load(f)
+    LOG.info(credentials_dict)
+    return credentials_dict
+
+
+def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
+               cred_file: str = None, bot_name: str = None):
     """
     Start all of the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
@@ -72,6 +89,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param username: Username to login with (or bot name if not defined)
     :param password: Password to login with (or None to connect as guest)
     :param server: Klat server url to connect to
+    :param cred_file: Path to a credentials yml file
+    :param bot_name: Optional name of the bot to start (None for all bots)
     """
 
     domain = domain or "chatbotsforum.org"
@@ -83,34 +102,44 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     # Catch no bots found
     if len(bots_to_start.keys()) == 0:
         LOG.warning(f"No bots in: {bot_dir}")
-        # TODO: Maybe some recursive check here instead of hard-coded dirs DM
-        # Try getting from repo default location
-        if os.path.isdir(os.path.join(bot_dir, "bots")):
-            bots_in_dir = get_bots_in_dir(os.path.join(bot_dir, "bots"))
-        else:
-            bots_in_dir = {}
-        # Check for repo facilitators
-        if os.path.exists(os.path.join(bot_dir, "facilitators")):
-            facilitators = get_bots_in_dir(os.path.join(bot_dir, "facilitators"))
-            LOG.info(f"found facilitators: {facilitators}")
-            bots_to_start = {**bots_in_dir, **facilitators}
-        else:
-            bots_to_start = bots_in_dir
+        for d in os.listdir(bot_dir):
+            print(d)
+            if d != "__pycache__" and not d.startswith(".") and os.path.isdir(os.path.join(bot_dir, d)):
+                LOG.info(f"Found bots dir {d}")
+                bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
 
+    LOG.info(bots_to_start)
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
     proctor = None
 
-    # Start a socket for each unique bot, bots handle login names
-    for name, bot in bots_to_start.items():
-        try:
-            user = username or name
-            b = bot(start_socket(server, 8888), domain, user, password, True)
-            if b.bot_type == "proctor":
-                proctor = b
-        except Exception as e:
-            LOG.error(name)
-            LOG.error(e)
-            LOG.error(bot)
+    # Load credentials
+    if cred_file and os.path.isfile(os.path.expanduser(cred_file)):
+        credentials = load_credentials_yml(os.path.expanduser(cred_file))
+    else:
+        credentials = {}
+
+    if bot_name:
+        bot = bots_to_start.get(bot_name)
+        if bot:
+            user = username or credentials.get(bot_name, {}).get("username")
+            password = password or credentials.get(bot_name, {}).get("password")
+            bot(start_socket(server, 8888), domain, user, password, True)
+        else:
+            LOG.error(f"{bot_name} is not a valid bot!")
+            return
+    else:
+        # Start a socket for each unique bot, bots handle login names
+        for name, bot in bots_to_start.items():
+            try:
+                user = username or credentials.get(name, {}).get("username")
+                password = password or credentials.get(name, {}).get("password")
+                b = bot(start_socket(server, 8888), domain, user, password, True)
+                if b.bot_type == "proctor":
+                    proctor = b
+            except Exception as e:
+                LOG.error(name)
+                LOG.error(e)
+                LOG.error(bot)
     LOG.info(">>>STARTED<<<")
     try:
         while True:
@@ -131,17 +160,21 @@ def cli_start_bots():
     parser = argparse.ArgumentParser(description="Start some chatbots")
     parser.add_argument("--domain", dest="domain", default="chatbotsforum.org",
                         help="Domain to connect to (default: chatbotsforum.org)", type=str)
-    parser.add_argument("--bots", dest="bot_dir",
+    parser.add_argument("--dir", dest="bot_dir",
                         help="Path to chatbots (default: ./)", type=str)
+    parser.add_argument("--bot", dest="bot_name",
+                        help="Optional bot name to run a single bot only", type=str)
+    parser.add_argument("--credentials", dest="cred_file",
+                        help="Optional path to YAML credentials", type=str)
     parser.add_argument("--username", dest="username",
-                        help="Klat username for bot", type=str)
+                        help="Klat username for a single bot", type=str)
     parser.add_argument("--password", dest="password",
-                        help="Klat password for bot", type=str)
+                        help="Klat password for a single bot", type=str)
     parser.add_argument("--server", dest="server", default="0000.us",
                         help="Klat server (default: 0000.us", type=str)
     args = parser.parse_args()
     LOG.debug(args)
-    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server)
+    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
 
 def cli_stop_bots():
@@ -161,6 +194,9 @@ def debug_bots(bot_dir: str = os.getcwd()):
     Debug bots in the passed directory
     :param bot_dir: directory containing the bot to test
     """
+    # TODO: Generalize this to testing different modules? Leave one method for selecting a bot and then create an
+    #       options menu for this interactive testing, along with automated discusser and appraiser testing.
+    #       Automated testing could use pre-built response objects, or run n other bots and handle their outputs offline
 
     # Try handling passed directory
     if len(sys.argv) > 1:
@@ -180,7 +216,7 @@ def debug_bots(bot_dir: str = os.getcwd()):
             print(f'BOTS: {subminds.keys()}.\n'
                   f'Please choose a bot to talk to')
             bot_name = input('[In]: ')
-            if bot_name.lower() in subminds:
+            if bot_name in subminds:
                 bot = subminds[bot_name](start_socket("2222.us", 8888), None, None, None, on_server=False)
                 while running:
                     utterance = input('[In]: ')

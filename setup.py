@@ -50,7 +50,7 @@ setuptools.setup(
                                       "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
                                       "debug-klat-bots=chatbot_core.utils:debug_bots"]},
     install_requires=[
-                      "mycroft-messagebus-client",
-                      "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector"
-                      ]
+        "mycroft-messagebus-client",
+        "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector"
+    ]
 )
