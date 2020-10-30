@@ -112,11 +112,22 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     proctor = None
 
     # Load credentials
-    if cred_file and os.path.isfile(os.path.expanduser(cred_file)):
-        credentials = load_credentials_yml(os.path.expanduser(cred_file))
+    if cred_file:
+        cred_file = os.path.expanduser(cred_file)
+        if not os.path.isfile(cred_file) and os.path.isfile(os.path.join(os.getcwd(), cred_file)):
+            cred_file = os.path.join(os.getcwd(), cred_file)
+        else:
+            cred_file = None
+    elif os.path.isfile(os.path.join(os.getcwd(), "credentials.yml")):
+        cred_file = os.path.join(os.getcwd(), "credentials.yml")
+
+    LOG.debug(f"Found credentials at: {cred_file}")
+    if cred_file:
+        credentials = load_credentials_yml(cred_file)
     else:
         credentials = {}
 
+    # Check for specified bot to start
     if bot_name:
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
