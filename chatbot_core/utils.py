@@ -171,13 +171,13 @@ def cli_start_bots():
                         help="Klat password for a single bot", type=str)
     parser.add_argument("--server", dest="server", default="0000.us",
                         help="Klat server (default: 0000.us)", type=str)
-    parser.add_argument("--debug", action=argparse.BooleanOptionalAction)
+    # parser.add_argument("--debug", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
-    if args.debug:
-        logging.getLogger("chatbots").setLevel(logging.DEBUG)
-    else:
-        logging.getLogger("chatbots").setLevel(logging.WARNING)
+    # if args.debug:
+    #     logging.getLogger("chatbots").setLevel(logging.DEBUG)
+    # else:
+    logging.getLogger("chatbots").setLevel(logging.WARNING)
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
