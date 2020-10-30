@@ -51,6 +51,6 @@ setuptools.setup(
                                       "debug-klat-bots=chatbot_core.utils:debug_bots"]},
     install_requires=[
         "mycroft-messagebus-client",
-        "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector >= 0.1.0"
+        "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector"
     ]
 )
