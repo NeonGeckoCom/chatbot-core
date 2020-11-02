@@ -92,10 +92,18 @@ class ChatBot(KlatApi):
         if not self.is_current_cid(cid):
             if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
                 LOG.info("@Proctor shout incoming")
-                shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
+                try:
+                    shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
+                except Exception as e:
+                    LOG.error(e)
+                    LOG.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "observer" and shout.lower().startswith(f"@{self.nick.lower()}"):
                 LOG.info("@observer shout incoming")
-                shout = f'{shout.split(" ", 1)[1]}'
+                try:
+                    shout = f'{shout.split(" ", 1)[1]}'
+                except Exception as e:
+                    LOG.error(e)
+                    LOG.error(f'Ignoring incoming: {shout}')
             else:
                 LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
                 return
@@ -220,26 +228,34 @@ class ChatBot(KlatApi):
         Called when a bot as a proposed response to the input prompt
         :param shout: Proposed response to the prompt
         """
-        # TODO: Check conversation state! DM
-        self.send_shout(shout)
-        if not self.conversation_is_proctored:
-            self.pause_responses()
+        if not self.conversation_is_proctored or self.state == ConversationState.RESP:
+            self.send_shout(shout)
+            if not self.conversation_is_proctored:
+                self.pause_responses()
+        elif self.conversation_is_proctored:
+            LOG.warn(f"Late Response! {shout}")
+        else:
+            LOG.error(f"Unknown response error! Ignored: {shout}")
 
-    def discuss_response(self, response: str):
+    def discuss_response(self, shout: str):
         """
         Called when a bot has some discussion to share
-        :param response: Response to post to conversation
+        :param shout: Response to post to conversation
         """
-        # TODO: Check conversation state! DM
-        self.send_shout(response)
+        if self.state == ConversationState.DISC:
+            self.send_shout(shout)
+        else:
+            LOG.warn(f"Late Discussion! {shout}")
 
     def vote_response(self, response_user: str):
         """
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
-        # TODO: Check conversation state! DM
-        self.send_shout(f"I vote for {response_user}")
+        if self.state == ConversationState.VOTE:
+            self.send_shout(f"I vote for {response_user}")
+        else:
+            LOG.warn(f"Late Vote! {response_user}")
 
     def pause_responses(self, duration: int = 5):
         """
