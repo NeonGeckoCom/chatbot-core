@@ -64,9 +64,15 @@ class ChatBot(KlatApi):
             LOG.error("Klat connection timed out!")
         elif username and password and on_server:
             self.login_klat(username, password)
+            while self.logged_in != 2 and time.time() < klat_timeout:
+                time.sleep(1)
+        else:
+            self.enable_responses = True
+        if not self.enable_responses:
+            LOG.error("Login Error! Responses not enabled!!")
         self.active_prompt = None
         self.state = ConversationState.IDLE
-        self.chat_history = dict()
+        self.chat_history = list()
 
     def handle_login_return(self, status):
         # LOG.debug(f"login returned: {status}")
@@ -130,11 +136,14 @@ class ChatBot(KlatApi):
             try:
                 self.state = ConversationState.RESP
                 request_user, remainder = shout.split(ConversationControls.RESP, 1)
+                request_user = request_user.strip()
                 self.active_prompt = remainder.rsplit("(", 1)[0].strip()
-                if request_user in self.chat_history.keys():
-                    self.chat_history[request_user].append(self.active_prompt)
-                else:
-                    self.chat_history[request_user] = [self.active_prompt]
+                self.chat_history.append((request_user, self.active_prompt))
+                # if request_user in self.chat_history.keys():
+                #     self.chat_history[request_user].append(self.active_prompt)
+                # else:
+                #     self.chat_history[request_user] = [self.active_prompt]
+                self.proposed_responses[self.active_prompt] = {}
                 self.ask_chatbot(request_user, self.active_prompt, timestamp)
             except Exception as e:
                 LOG.error(e)
@@ -186,10 +195,10 @@ class ChatBot(KlatApi):
         :param response: bot response to prompt
         """
         if response:
-            if prompt in self.proposed_responses.keys():
-                self.proposed_responses[prompt][user] = response
-            else:
-                self.proposed_responses[prompt] = {user: response}
+            # if prompt in self.proposed_responses.keys():
+            self.proposed_responses[prompt][user] = response
+            # else:
+            #     self.proposed_responses[prompt] = {user: response}
         self.on_proposed_response()
 
 # Proctor Functions
@@ -211,6 +220,7 @@ class ChatBot(KlatApi):
         Called when a bot as a proposed response to the input prompt
         :param shout: Proposed response to the prompt
         """
+        # TODO: Check conversation state! DM
         self.send_shout(shout)
         if not self.conversation_is_proctored:
             self.pause_responses()
@@ -220,6 +230,7 @@ class ChatBot(KlatApi):
         Called when a bot has some discussion to share
         :param response: Response to post to conversation
         """
+        # TODO: Check conversation state! DM
         self.send_shout(response)
 
     def vote_response(self, response_user: str):
@@ -227,6 +238,7 @@ class ChatBot(KlatApi):
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
+        # TODO: Check conversation state! DM
         self.send_shout(f"I vote for {response_user}")
 
     def pause_responses(self, duration: int = 5):
