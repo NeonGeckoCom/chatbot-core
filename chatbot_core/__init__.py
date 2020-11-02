@@ -48,7 +48,7 @@ class ConversationState(IntEnum):
 
 
 class ChatBot(KlatApi):
-    def __init__(self, socket: Socket, domain: str = None,
+    def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
         # LOG.debug("Connector started")
