@@ -73,6 +73,7 @@ class ChatBot(KlatApi):
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.chat_history = list()
+        self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
 
     def handle_login_return(self, status):
         # LOG.debug(f"login returned: {status}")
