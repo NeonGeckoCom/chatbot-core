@@ -1,9 +1,14 @@
 from datetime import datetime
 import unittest
+import sys
+import os
+
 from time import sleep
 
 from klat_connector import start_socket
 
+# Required for pytest on GitHub
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from chatbot_core import ChatBot, ConversationControls, ConversationState
 
 bot = ChatBot(start_socket("2222.us"), "chatbotsforum.org", "testrunner", "testpassword", True)
