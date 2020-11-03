@@ -1,15 +1,21 @@
 from datetime import datetime
 import unittest
+import sys
+import os
+import pytest
 from time import sleep
 
 from klat_connector import start_socket
 
+# Required for pytest on GitHub
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from chatbot_core import ChatBot, ConversationControls, ConversationState
 
 bot = ChatBot(start_socket("2222.us"), "chatbotsforum.org", "testrunner", "testpassword", True)
 
 
 class ChatbotCoreTests(unittest.TestCase):
+    @pytest.mark.timeout(30)
     def test_1_initial_connection_settings(self):
         bot.bot_type = "submind"
         while not bot.ready:
@@ -17,6 +23,7 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(bot.nick, "testrunner")
         self.assertEqual(bot.logged_in, 2)
 
+    @pytest.mark.timeout(30)
     def test_2_submind_conversation_input(self):
         test_input = "input test"
         self.assertEqual(bot.state, ConversationState.IDLE)
@@ -30,6 +37,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     # TODO: Test bot responses here DM
 
+    @pytest.mark.timeout(30)
     def test_3_submind_conversation_discussion(self):
         # bot.active_prompt = "input test"
         # bot.proposed_responses["input test"] = {}
@@ -39,6 +47,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     # TODO: Test bot conversation here DM
 
+    @pytest.mark.timeout(30)
     def test_4_submind_conversation_voting(self):
         bot.handle_incoming_shout("Proctor", f"{ConversationControls.VOTE} 0 seconds.",
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
@@ -46,16 +55,22 @@ class ChatbotCoreTests(unittest.TestCase):
 
     # TODO: Test bot votes here DM
 
+    @pytest.mark.timeout(30)
     def test_5_submind_conversation_pick(self):
         bot.handle_incoming_shout("Proctor", ConversationControls.PICK,
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(ConversationState.PICK, bot.state)
 
+    @pytest.mark.timeout(30)
     def test_6_submind_conversation_idle(self):
         bot.handle_incoming_shout("Proctor", "The selected response is testrunner: \"test response\"",
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(ConversationState.IDLE, bot.state)
         self.assertEqual(bot.selected_history, ["testrunner"])
+
+    def test_7_shutdown_testing(self):
+        bot.socket.disconnect()
+        self.assertFalse(bot.socket.connected)
 
 
 if __name__ == '__main__':
