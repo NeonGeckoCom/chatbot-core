@@ -389,8 +389,6 @@ class NeonBot(ChatBot):
     Extensible class to handle a chatbot implemented in custom-conversations skill
     """
     def __init__(self, socket, domain, username, password, on_server, script, bus_config=None):
-        super(NeonBot, self).__init__(socket, domain, username, password)
-        self.on_server = on_server
         self.bot_type = "submind"
         self.response = None
         self.bus = None
@@ -403,6 +401,8 @@ class NeonBot(ChatBot):
         self.script_started = False
         self._init_bus()
         self._set_bus_listeners()
+        super(NeonBot, self).__init__(socket, domain, username, password, on_server)
+
         timeout = time.time() + 60
         while not self.script_started and time.time() < timeout:
             time.sleep(1)
