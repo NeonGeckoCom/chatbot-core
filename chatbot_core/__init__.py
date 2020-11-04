@@ -52,6 +52,7 @@ class ChatBot(KlatApi):
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
         # LOG.debug("Connector started")
+        self.on_server = on_server
         self.start_domain = domain
         self.enable_responses = False
         self.bot_type = None
@@ -62,7 +63,7 @@ class ChatBot(KlatApi):
             time.sleep(1)
         if not self.ready:
             LOG.error("Klat connection timed out!")
-        elif username and password and on_server:
+        elif username and password:
             self.login_klat(username, password)
             while self.logged_in != 2 and time.time() < klat_timeout:
                 time.sleep(1)
@@ -90,27 +91,28 @@ class ChatBot(KlatApi):
         :param dom: domain conversation belongs to
         :param timestamp: formatted timestamp of shout
         """
-        if not self.is_current_cid(cid):
-            if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
-                LOG.info("@Proctor shout incoming")
-                try:
-                    shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
-                except Exception as e:
-                    LOG.error(e)
-                    LOG.error(f'Ignoring incoming: {shout}')
-            elif self.bot_type == "observer" and shout.lower().startswith(f"@{self.nick.lower()}"):
-                LOG.info("@observer shout incoming")
-                try:
-                    shout = f'{shout.split(" ", 1)[1]}'
-                except Exception as e:
-                    LOG.error(e)
-                    LOG.error(f'Ignoring incoming: {shout}')
-            else:
-                LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
-                return
-        elif shout.startswith("@"):  # Shout (Proctor response) leaving current conversation
-            LOG.debug(f"Ignoring @user reply in this cid: {shout}")
+        # if not self.is_current_cid(cid):
+        if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
+            LOG.info("@Proctor shout incoming")
+            try:
+                shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
+            except Exception as e:
+                LOG.error(e)
+                LOG.error(f'Ignoring incoming: {shout}')
+        elif self.bot_type == "observer" and shout.lower().startswith(f"@{self.nick.lower()}"):
+            LOG.info("@observer shout incoming")
+            try:
+                shout = f'{shout.split(" ", 1)[1]}'
+            except Exception as e:
+                LOG.error(e)
+                LOG.error(f'Ignoring incoming: {shout}')
+        elif not self.is_current_cid(cid):
+            LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
+
+        # elif shout.startswith("@"):  # Shout (Proctor response) leaving current conversation
+        #     LOG.debug(f"Ignoring @user reply in this cid: {shout}")
+        #     return
 
         # TODO: Strip HTML? DM
         # Cleanup nick for comparison to logged in user
@@ -322,6 +324,7 @@ class ChatBot(KlatApi):
         :param shout: text shouted by user
         :param timestamp: formatted timestamp of shout
         """
+        # TODO: Return response here for simplified unit testing DM
         pass
 
     def ask_history(self, user: str, shout: str, dom: str, cid: str):
@@ -339,6 +342,7 @@ class ChatBot(KlatApi):
         Override in bot to handle selecting a response to the given prompt. Vote is for the name of the best responder.
         :param options: proposed responses (botname: response)
         """
+        # TODO: Return response here for simplified unit testing DM
         pass
 
     def ask_discusser(self, options: dict):
@@ -346,6 +350,7 @@ class ChatBot(KlatApi):
         Override in bot to handle discussing options for the given prompt. Discussion can be anything.
         :param options: proposed responses (botname: response)
         """
+        # TODO: Return response here for simplified unit testing DM
         pass
 
     @staticmethod
@@ -384,8 +389,6 @@ class NeonBot(ChatBot):
     Extensible class to handle a chatbot implemented in custom-conversations skill
     """
     def __init__(self, socket, domain, username, password, on_server, script, bus_config=None):
-        super(NeonBot, self).__init__(socket, domain, username, password)
-        self.on_server = on_server
         self.bot_type = "submind"
         self.response = None
         self.bus = None
@@ -398,6 +401,8 @@ class NeonBot(ChatBot):
         self.script_started = False
         self._init_bus()
         self._set_bus_listeners()
+        super(NeonBot, self).__init__(socket, domain, username, password, on_server)
+
         timeout = time.time() + 60
         while not self.script_started and time.time() < timeout:
             time.sleep(1)
