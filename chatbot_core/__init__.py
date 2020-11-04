@@ -324,6 +324,7 @@ class ChatBot(KlatApi):
         :param shout: text shouted by user
         :param timestamp: formatted timestamp of shout
         """
+        # TODO: Return response here for simplified unit testing DM
         pass
 
     def ask_history(self, user: str, shout: str, dom: str, cid: str):
@@ -341,6 +342,7 @@ class ChatBot(KlatApi):
         Override in bot to handle selecting a response to the given prompt. Vote is for the name of the best responder.
         :param options: proposed responses (botname: response)
         """
+        # TODO: Return response here for simplified unit testing DM
         pass
 
     def ask_discusser(self, options: dict):
@@ -348,6 +350,7 @@ class ChatBot(KlatApi):
         Override in bot to handle discussing options for the given prompt. Discussion can be anything.
         :param options: proposed responses (botname: response)
         """
+        # TODO: Return response here for simplified unit testing DM
         pass
 
     @staticmethod

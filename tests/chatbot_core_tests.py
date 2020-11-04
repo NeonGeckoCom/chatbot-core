@@ -17,7 +17,7 @@ test_input = "prompt goes here"
 
 class ChatbotCoreTests(unittest.TestCase):
     @pytest.mark.timeout(5)
-    def test_1_initial_connection_settings(self):
+    def test_01_initial_connection_settings(self):
         bot.bot_type = "submind"
         while not bot.ready:
             sleep(1)
@@ -25,7 +25,7 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(bot.logged_in, 2)
 
     @pytest.mark.timeout(5)
-    def test_2_submind_response(self):
+    def test_02_submind_response(self):
         self.assertEqual(bot.state, ConversationState.IDLE)
         bot.handle_incoming_shout("Proctor", f"testrunner {ConversationControls.RESP} "
                                              f"{test_input} (for 0 seconds).", bot._cid, bot._dom,
@@ -37,7 +37,7 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(len(bot.proposed_responses[test_input]), 0)
 
     @pytest.mark.timeout(5)
-    def test_3_other_submind_responses(self):
+    def test_03_other_submind_responses(self):
         self.assertEqual(bot.state, ConversationState.RESP)
         bot.handle_incoming_shout("Other", "Other Bot Response.", bot._cid, bot._dom,
                                   datetime.now().strftime("%I:%M:%S %p"))
@@ -49,13 +49,13 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertIn("Other Bot Response.", bot.proposed_responses[test_input].values())
 
     @pytest.mark.timeout(5)
-    def test_4_submind_discussion(self):
+    def test_04_submind_discussion(self):
         bot.handle_incoming_shout("Proctor", f"{ConversationControls.DISC} 0 seconds.",
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(ConversationState.DISC, bot.state)
 
     @pytest.mark.timeout(5)
-    def test_5_other_submind_discussion(self):
+    def test_05_other_submind_discussion(self):
         self.assertEqual(bot.state, ConversationState.DISC)
         len_responses = len(bot.proposed_responses[test_input])
         bot.handle_incoming_shout("Other", "Other Bot Discussion.", bot._cid, bot._dom,
@@ -63,13 +63,13 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(len(bot.proposed_responses[test_input]), len_responses, "Discussion counted as a response!")
 
     @pytest.mark.timeout(5)
-    def test_6_submind_conversation_voting(self):
+    def test_06_submind_conversation_voting(self):
         bot.handle_incoming_shout("Proctor", f"{ConversationControls.VOTE} 0 seconds.",
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(ConversationState.VOTE, bot.state)
 
     @pytest.mark.timeout(5)
-    def test_7_handle_votes(self):
+    def test_07_handle_votes(self):
         len_responses = len(bot.proposed_responses[test_input])
         self.assertEqual(bot.state, ConversationState.VOTE)
         bot.handle_incoming_shout("Other", "I vote for testrunner", bot._cid, bot._dom,
@@ -77,13 +77,13 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(len(bot.proposed_responses[test_input]), len_responses, "Vote counted as a response!")
 
     @pytest.mark.timeout(5)
-    def test_8_submind_conversation_pick(self):
+    def test_08_submind_conversation_pick(self):
         bot.handle_incoming_shout("Proctor", ConversationControls.PICK,
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(ConversationState.PICK, bot.state)
 
     @pytest.mark.timeout(5)
-    def test_9_submind_conversation_idle(self):
+    def test_09_submind_conversation_idle(self):
         bot.handle_incoming_shout("Proctor", "The selected response is testrunner: \"test response\"",
                                   bot._cid, bot._dom, datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(ConversationState.IDLE, bot.state)
