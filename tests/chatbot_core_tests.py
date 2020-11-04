@@ -11,7 +11,7 @@ from klat_connector import start_socket
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from chatbot_core import ChatBot, ConversationControls, ConversationState
 
-bot = ChatBot(start_socket("2222.us"), "chatbotsforum.org", "testrunner", "testpassword", True)
+bot = ChatBot(start_socket("2222.us"), "Private", "testrunner", "testpassword", True)
 test_input = "prompt goes here"
 
 
