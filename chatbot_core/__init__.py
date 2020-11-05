@@ -123,13 +123,15 @@ class ChatBot(KlatApi):
         if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
             self.state = ConversationState.DISC
             options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-            self.ask_discusser(options)
+            discussion = self.ask_discusser(options)
+            self.discuss_response(discussion)
         elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Appraise Options and Vote
             self.state = ConversationState.VOTE
             options: dict = deepcopy(self.proposed_responses[self.active_prompt])
             if self.nick in options.keys():
                 options.pop(self.nick)
-            self.ask_appraiser(options)
+            selected = self.ask_appraiser(options)
+            self.vote_response(selected)
         elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
             self.state = ConversationState.PICK
 
@@ -155,7 +157,8 @@ class ChatBot(KlatApi):
                 # else:
                 #     self.chat_history[request_user] = [self.active_prompt]
                 self.proposed_responses[self.active_prompt] = {}
-                self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                response = self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                self.propose_response(response)
             except Exception as e:
                 LOG.error(e)
                 LOG.error(shout)
@@ -189,7 +192,8 @@ class ChatBot(KlatApi):
                 LOG.info(f"{self.nick} handling {shout}")
                 # Submind handle prompt
                 if not self.conversation_is_proctored:
-                    self.ask_chatbot(user, shout, timestamp)
+                    response = self.ask_chatbot(user, shout, timestamp)
+                    self.propose_response(response)
             elif self.bot_type == "proctor":
                 pass
             else:
@@ -317,15 +321,15 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def ask_chatbot(self, user: str, shout: str, timestamp: str):
+    def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         """
         Override in subminds to handle an incoming shout that requires some response
         :param user: user associated with shout
         :param shout: text shouted by user
         :param timestamp: formatted timestamp of shout
+        :return: response from chatbot
         """
-        # TODO: Return response here for simplified unit testing DM
-        pass
+        return ""
 
     def ask_history(self, user: str, shout: str, dom: str, cid: str):
         """
@@ -337,21 +341,21 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def ask_appraiser(self, options: dict):
+    def ask_appraiser(self, options: dict) -> str:
         """
         Override in bot to handle selecting a response to the given prompt. Vote is for the name of the best responder.
         :param options: proposed responses (botname: response)
+        :return: user selected from options or "abstain" for no vote
         """
-        # TODO: Return response here for simplified unit testing DM
-        pass
+        return "abstain"
 
     def ask_discusser(self, options: dict):
         """
         Override in bot to handle discussing options for the given prompt. Discussion can be anything.
         :param options: proposed responses (botname: response)
+        :return: Discussion response for the current prompt
         """
-        # TODO: Return response here for simplified unit testing DM
-        pass
+        return ""
 
     @staticmethod
     def _remove_prefix(prefixed_string: str, prefix: str):
