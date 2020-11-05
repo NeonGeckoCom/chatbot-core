@@ -235,7 +235,9 @@ class ChatBot(KlatApi):
         Called when a bot as a proposed response to the input prompt
         :param shout: Proposed response to the prompt
         """
-        if not self.conversation_is_proctored or self.state == ConversationState.RESP:
+        if not shout:
+            LOG.warn("Empty response provided!")
+        elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
             self.send_shout(shout)
             if not self.conversation_is_proctored:
                 self.pause_responses()
@@ -249,10 +251,12 @@ class ChatBot(KlatApi):
         Called when a bot has some discussion to share
         :param shout: Response to post to conversation
         """
-        if self.state == ConversationState.DISC:
-            self.send_shout(shout)
-        else:
+        if self.state != ConversationState.DISC:
             LOG.warn(f"Late Discussion! {shout}")
+        elif not shout:
+            LOG.warn("Empty discussion provided!")
+        else:
+            self.send_shout(shout)
 
     def vote_response(self, response_user: str):
         """
@@ -260,10 +264,12 @@ class ChatBot(KlatApi):
         :param response_user: bot username associated with chosen response
         """
         # TODO: Dialog case for "abstain"
-        if self.state == ConversationState.VOTE:
-            self.send_shout(f"I vote for {response_user}")
-        else:
+        if self.state != ConversationState.VOTE:
             LOG.warn(f"Late Vote! {response_user}")
+        elif not response_user:
+            LOG.warn("No user provided!")
+        else:
+            self.send_shout(f"I vote for {response_user}")
 
     def pause_responses(self, duration: int = 5):
         """
@@ -348,15 +354,15 @@ class ChatBot(KlatApi):
         :param options: proposed responses (botname: response)
         :return: user selected from options or "abstain" for no vote
         """
-        return "abstain"
+        pass
 
-    def ask_discusser(self, options: dict):
+    def ask_discusser(self, options: dict) -> str:
         """
         Override in bot to handle discussing options for the given prompt. Discussion can be anything.
         :param options: proposed responses (botname: response)
         :return: Discussion response for the current prompt
         """
-        return ""
+        pass
 
     @staticmethod
     def _remove_prefix(prefixed_string: str, prefix: str):
