@@ -52,6 +52,6 @@ setuptools.setup(
     install_requires=[
         "mycroft-messagebus-client",
         "psutil~=5.7.3",
-        "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector>=0.1.0"
+        "klat-connector @ git+https://github.com/neongeckocom/klat-connector@master#egg=klat-connector"
     ]
 )
