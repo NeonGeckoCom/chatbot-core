@@ -255,6 +255,7 @@ class ChatBot(KlatApi):
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
+        # TODO: Dialog case for "abstain"
         if self.state == ConversationState.VOTE:
             self.send_shout(f"I vote for {response_user}")
         else:
