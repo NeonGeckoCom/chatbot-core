@@ -103,7 +103,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     if len(bots_to_start.keys()) == 0:
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
-            if d != "__pycache__" and not d.startswith(".") and os.path.isdir(os.path.join(bot_dir, d)):
+            if d not in ("__pycache__", "tests") and not d.startswith(".") and os.path.isdir(os.path.join(bot_dir, d)):
                 LOG.info(f"Found bots dir {d}")
                 bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
 
