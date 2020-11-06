@@ -216,8 +216,8 @@ def cli_stop_bots():
 
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
-        if name == "start-klat-bots":
-            psutil.Process(pid).terminate()
+        if "start-klat-bots" in name:
+            psutil.Process(pid).kill()
 
 
 def debug_bots(bot_dir: str = os.getcwd()):
