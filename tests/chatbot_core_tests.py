@@ -97,6 +97,9 @@ class ChatbotCoreTests(unittest.TestCase):
         self.bot.socket.disconnect()
         self.assertFalse(self.bot.socket.connected)
 
+# TODO: Test CLI bot detection, credentials load, etc. DM
+
+
 
 if __name__ == '__main__':
     unittest.main()

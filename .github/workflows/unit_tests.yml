@@ -4,7 +4,6 @@ name: Run Unit Tests
 on:
   push:
     branches:
-      - dev
       - staging
   workflow_dispatch:
 

@@ -119,82 +119,89 @@ class ChatBot(KlatApi):
         if "#" in user:
             user = user.split("#")[0]
 
-        # Proctor Control Messages
-        if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
-            self.state = ConversationState.DISC
-            options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-            self.ask_discusser(options)
-        elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Appraise Options and Vote
-            self.state = ConversationState.VOTE
-            options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-            if self.nick in options.keys():
-                options.pop(self.nick)
-            self.ask_appraiser(options)
-        elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
-            self.state = ConversationState.PICK
+        try:
+            # Proctor Control Messages
+            if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
+                self.state = ConversationState.DISC
+                options: dict = deepcopy(self.proposed_responses[self.active_prompt])
+                discussion = self.ask_discusser(options)
+                self.discuss_response(discussion)
+            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Appraise Options and Vote
+                self.state = ConversationState.VOTE
+                options: dict = deepcopy(self.proposed_responses[self.active_prompt])
+                if self.nick in options.keys():
+                    options.pop(self.nick)
+                selected = self.ask_appraiser(options)
+                self.vote_response(selected)
+            elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
+                self.state = ConversationState.PICK
 
-        # Commands
-        elif ConversationControls.HIST in shout.lower():  # User asked for history
-            self.ask_history(user, shout, dom, cid)
+            # Commands
+            elif ConversationControls.HIST in shout.lower():  # User asked for history
+                self.ask_history(user, shout, dom, cid)
 
-        # Incoming prompt
-        elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
-            # self.state = ConversationState.RESP
-            # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
-            self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
-            # self.ask_chatbot(user, self.active_prompt, timestamp)
-        elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
-            try:
-                self.state = ConversationState.RESP
-                request_user, remainder = shout.split(ConversationControls.RESP, 1)
-                request_user = request_user.strip()
-                self.active_prompt = remainder.rsplit("(", 1)[0].strip()
-                self.chat_history.append((request_user, self.active_prompt))
-                # if request_user in self.chat_history.keys():
-                #     self.chat_history[request_user].append(self.active_prompt)
-                # else:
-                #     self.chat_history[request_user] = [self.active_prompt]
-                self.proposed_responses[self.active_prompt] = {}
-                self.ask_chatbot(request_user, self.active_prompt, timestamp)
-            except Exception as e:
-                LOG.error(e)
-                LOG.error(shout)
+            # Incoming prompt
+            elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
+                # self.state = ConversationState.RESP
+                # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
+                self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                # self.ask_chatbot(user, self.active_prompt, timestamp)
+            elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
+                try:
+                    self.state = ConversationState.RESP
+                    request_user, remainder = shout.split(ConversationControls.RESP, 1)
+                    request_user = request_user.strip()
+                    self.active_prompt = remainder.rsplit("(", 1)[0].strip()
+                    self.chat_history.append((request_user, self.active_prompt))
+                    # if request_user in self.chat_history.keys():
+                    #     self.chat_history[request_user].append(self.active_prompt)
+                    # else:
+                    #     self.chat_history[request_user] = [self.active_prompt]
+                    self.proposed_responses[self.active_prompt] = {}
+                    response = self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                    self.propose_response(response)
+                except Exception as e:
+                    LOG.error(e)
+                    LOG.error(shout)
+                    self.state = ConversationState.IDLE
+
+            # Chatbot communication related to a prompt
+            elif self.state == ConversationState.RESP and not self._user_is_proctor(user):
+                self.add_proposed_response(user, self.active_prompt, shout)
+            elif self.state == ConversationState.DISC and not self._user_is_proctor(user):
+                if user != self.nick:
+                    self.on_discussion(user, shout)
+            elif self.state == ConversationState.VOTE and not self._user_is_proctor(user):
+                for candidate in self.conversation_users:
+                    if candidate in shout.split():
+                        candidate_bot = candidate
+                        # LOG.debug(f"{user} voted for {candidate_bot}")
+                        self.on_vote(self.active_prompt, candidate_bot, user)
+                        break
+            elif self.state == ConversationState.PICK and self._user_is_proctor(user):
+                user, response = shout.split(":", 1)
+                user = user.split()[-1]
+                response = response.strip().strip('"')
+                self.on_selection(self.active_prompt, user, response)
+                self.selected_history.append(user)
                 self.state = ConversationState.IDLE
+                self.active_prompt = None
 
-        # Chatbot communication related to a prompt
-        elif self.state == ConversationState.RESP and not self._user_is_proctor(user):
-            self.add_proposed_response(user, self.active_prompt, shout)
-        elif self.state == ConversationState.DISC and not self._user_is_proctor(user):
-            if user != self.nick:
-                self.on_discussion(user, shout)
-        elif self.state == ConversationState.VOTE and not self._user_is_proctor(user):
-            for candidate in self.conversation_users:
-                if candidate in shout.split():
-                    candidate_bot = candidate
-                    # LOG.debug(f"{user} voted for {candidate_bot}")
-                    self.on_vote(self.active_prompt, candidate_bot, user)
-                    break
-        elif self.state == ConversationState.PICK and self._user_is_proctor(user):
-            user, response = shout.split(":", 1)
-            user = user.split()[-1]
-            response = response.strip().strip('"')
-            self.on_selection(self.active_prompt, user, response)
-            self.selected_history.append(user)
-            self.state = ConversationState.IDLE
-            self.active_prompt = None
-
-        # This came from a different non-neon user and is not related to a proctored conversation
-        elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
-            if self.bot_type == "submind":
-                LOG.info(f"{self.nick} handling {shout}")
-                # Submind handle prompt
-                if not self.conversation_is_proctored:
-                    self.ask_chatbot(user, shout, timestamp)
-            elif self.bot_type == "proctor":
-                pass
-            else:
-                LOG.error(f"{self.nick} has unknown bot type: {self.bot_type}")
-
+            # This came from a different non-neon user and is not related to a proctored conversation
+            elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
+                if self.bot_type == "submind":
+                    LOG.info(f"{self.nick} handling {shout}")
+                    # Submind handle prompt
+                    if not self.conversation_is_proctored:
+                        response = self.ask_chatbot(user, shout, timestamp)
+                        self.propose_response(response)
+                elif self.bot_type == "proctor":
+                    pass
+                else:
+                    LOG.error(f"{self.nick} has unknown bot type: {self.bot_type}")
+        except Exception as e:
+            LOG.error(e)
+            LOG.error(shout)
         # else:
         #     LOG.debug(f"{self.nick} Ignoring: {user} - {shout}")
 
@@ -231,7 +238,9 @@ class ChatBot(KlatApi):
         Called when a bot as a proposed response to the input prompt
         :param shout: Proposed response to the prompt
         """
-        if not self.conversation_is_proctored or self.state == ConversationState.RESP:
+        if not shout:
+            LOG.warn("Empty response provided!")
+        elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
             self.send_shout(shout)
             if not self.conversation_is_proctored:
                 self.pause_responses()
@@ -245,20 +254,25 @@ class ChatBot(KlatApi):
         Called when a bot has some discussion to share
         :param shout: Response to post to conversation
         """
-        if self.state == ConversationState.DISC:
-            self.send_shout(shout)
-        else:
+        if self.state != ConversationState.DISC:
             LOG.warn(f"Late Discussion! {shout}")
+        elif not shout:
+            LOG.warn("Empty discussion provided!")
+        else:
+            self.send_shout(shout)
 
     def vote_response(self, response_user: str):
         """
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
-        if self.state == ConversationState.VOTE:
-            self.send_shout(f"I vote for {response_user}")
-        else:
+        # TODO: Dialog case for "abstain"
+        if self.state != ConversationState.VOTE:
             LOG.warn(f"Late Vote! {response_user}")
+        elif not response_user:
+            LOG.warn("No user provided!")
+        else:
+            self.send_shout(f"I vote for {response_user}")
 
     def pause_responses(self, duration: int = 5):
         """
@@ -317,14 +331,14 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def ask_chatbot(self, user: str, shout: str, timestamp: str):
+    def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         """
         Override in subminds to handle an incoming shout that requires some response
         :param user: user associated with shout
         :param shout: text shouted by user
         :param timestamp: formatted timestamp of shout
+        :return: response from chatbot
         """
-        # TODO: Return response here for simplified unit testing DM
         pass
 
     def ask_history(self, user: str, shout: str, dom: str, cid: str):
@@ -337,18 +351,20 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def ask_appraiser(self, options: dict):
+    def ask_appraiser(self, options: dict) -> str:
         """
         Override in bot to handle selecting a response to the given prompt. Vote is for the name of the best responder.
         :param options: proposed responses (botname: response)
+        :return: user selected from options or "abstain" for no vote
         """
         # TODO: Return response here for simplified unit testing DM
         pass
 
-    def ask_discusser(self, options: dict):
+    def ask_discusser(self, options: dict) -> str:
         """
         Override in bot to handle discussing options for the given prompt. Discussion can be anything.
         :param options: proposed responses (botname: response)
+        :return: Discussion response for the current prompt
         """
         # TODO: Return response here for simplified unit testing DM
         pass
