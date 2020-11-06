@@ -39,7 +39,16 @@ def get_ip_address():
     return s.getsockname()[0]
 
 
-SERVER = "0000.us" if ".112.7" in get_ip_address() else "2222.us"
+ip = get_ip_address()
+if ip == "64.34.186.120":  # Test
+    SERVER = "2222.us"
+elif ip == "64.225.115.136":  # Cert
+    SERVER = "5555.us"
+elif ip == "167.172.112.7":  # Prod
+    SERVER = "0000.us"
+else:
+    # Default external connections to production server
+    SERVER = "0000.us"
 
 
 def get_bots_in_dir(bot_path: str) -> dict:
@@ -190,7 +199,7 @@ def cli_start_bots():
                         help="Enable more verbose log output")
 
     args = parser.parse_args()
-    # TODO: Get this terminal option to work DM
+
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
     else:
