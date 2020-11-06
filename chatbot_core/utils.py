@@ -193,8 +193,8 @@ def cli_start_bots():
                         help="Klat username for a single bot", type=str)
     parser.add_argument("--password", dest="password",
                         help="Klat password for a single bot", type=str)
-    parser.add_argument("--server", dest="server", default="0000.us",
-                        help="Klat server (default: 0000.us)", type=str)
+    parser.add_argument("--server", dest="server", default=SERVER,
+                        help=f"Klat server (default: {SERVER})", type=str)
     parser.add_argument("--debug", dest="debug", action='store_true',
                         help="Enable more verbose log output")
 
