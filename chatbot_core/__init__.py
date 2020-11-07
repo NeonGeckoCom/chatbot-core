@@ -357,7 +357,6 @@ class ChatBot(KlatApi):
         :param options: proposed responses (botname: response)
         :return: user selected from options or "abstain" for no vote
         """
-        # TODO: Return response here for simplified unit testing DM
         pass
 
     def ask_discusser(self, options: dict) -> str:
@@ -366,7 +365,6 @@ class ChatBot(KlatApi):
         :param options: proposed responses (botname: response)
         :return: Discussion response for the current prompt
         """
-        # TODO: Return response here for simplified unit testing DM
         pass
 
     @staticmethod

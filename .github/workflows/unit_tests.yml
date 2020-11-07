@@ -1,10 +1,11 @@
-# This workflow will generate a PR for changes in dev into master for a skill
+# This workflow will run unit tests
 
 name: Run Unit Tests
 on:
   push:
     branches:
-      - staging
+      - dev
+      - cert
   workflow_dispatch:
 
 jobs:

@@ -39,7 +39,16 @@ def get_ip_address():
     return s.getsockname()[0]
 
 
-SERVER = "0000.us" if ".112.7" in get_ip_address() else "2222.us"
+ip = get_ip_address()
+if ip == "64.34.186.120":  # Test
+    SERVER = "2222.us"
+elif ip == "64.225.115.136":  # Cert
+    SERVER = "5555.us"
+elif ip == "167.172.112.7":  # Prod
+    SERVER = "0000.us"
+else:
+    # Default external connections to production server
+    SERVER = "0000.us"
 
 
 def get_bots_in_dir(bot_path: str) -> dict:
@@ -96,7 +105,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
-
+    LOG.debug(f"Starting bots on server: {SERVER}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
     # Catch no bots found
@@ -184,13 +193,13 @@ def cli_start_bots():
                         help="Klat username for a single bot", type=str)
     parser.add_argument("--password", dest="password",
                         help="Klat password for a single bot", type=str)
-    parser.add_argument("--server", dest="server", default="0000.us",
-                        help="Klat server (default: 0000.us)", type=str)
+    parser.add_argument("--server", dest="server", default=SERVER,
+                        help=f"Klat server (default: {SERVER})", type=str)
     parser.add_argument("--debug", dest="debug", action='store_true',
                         help="Enable more verbose log output")
 
     args = parser.parse_args()
-    # TODO: Get this terminal option to work DM
+
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
     else:
@@ -207,8 +216,10 @@ def cli_stop_bots():
 
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
-        if name == "start-klat-bots":
-            psutil.Process(pid).terminate()
+        if "start-klat-bots" in name:
+            psutil.Process(pid).kill()
+    # TODO: Troubleshoot psutil kill DM
+    os.system("killall start-klat-bots")
 
 
 def debug_bots(bot_dir: str = os.getcwd()):
