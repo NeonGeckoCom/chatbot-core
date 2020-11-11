@@ -127,14 +127,15 @@ class ChatBot(KlatApi):
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
                 self.discuss_response(discussion)
-            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Appraise Options and Vote
+            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
-                options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-                if self.nick in options.keys():
-                    options.pop(self.nick)
-                # TODO: Remove options that match self.prompt
-                selected = self.ask_appraiser(options)
-                self.vote_response(selected)
+                if self.bot_type == "submind":  # Facilitators don't participate here
+                    options: dict = deepcopy(self.proposed_responses[self.active_prompt])
+                    if self.nick in options.keys():
+                        options.pop(self.nick)
+                    # TODO: Remove options that match self.prompt
+                    selected = self.ask_appraiser(options)
+                    self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
 
