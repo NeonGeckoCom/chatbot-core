@@ -181,6 +181,9 @@ class ChatBot(KlatApi):
                         # LOG.debug(f"{user} voted for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
+                # Keywords to indicate user will not vote
+                if "abstain" or "present" in shout.split():
+                    self.on_vote(self.active_prompt, "", user)
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
                 user, response = shout.split(":", 1)
                 user = user.split()[-1]
