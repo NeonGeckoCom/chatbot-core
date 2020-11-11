@@ -218,7 +218,7 @@ class ChatBot(KlatApi):
         :param prompt: prompt associated with response
         :param response: bot response to prompt
         """
-        if response:
+        if response and response != self.active_prompt:
             # if prompt in self.proposed_responses.keys():
             self.proposed_responses[prompt][user] = response
             # else:
