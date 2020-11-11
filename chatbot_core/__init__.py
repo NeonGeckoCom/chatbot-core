@@ -33,9 +33,9 @@ from mycroft_bus_client import Message, MessageBusClient
 
 class ConversationControls:
     RESP = " asks us to consider:"
-    DISC = "Discuss for"
-    VOTE = "Voting open for"
-    PICK = "One moment while I count the votes."
+    DISC = "Please Discuss"
+    VOTE = "Voting on the response to "
+    PICK = "Tallying the votes for the responses to "
     HIST = "history"
 
 
@@ -78,6 +78,7 @@ class ChatBot(KlatApi):
 
     def handle_login_return(self, status):
         # LOG.debug(f"login returned: {status}")
+        # TODO: Handle user doesn't exist status and register, re-login DM
         self.enable_responses = True
         self.change_domain(self.start_domain)
         self.on_login()
@@ -126,13 +127,15 @@ class ChatBot(KlatApi):
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
                 self.discuss_response(discussion)
-            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Appraise Options and Vote
+            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
-                options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-                if self.nick in options.keys():
-                    options.pop(self.nick)
-                selected = self.ask_appraiser(options)
-                self.vote_response(selected)
+                if self.bot_type == "submind":  # Facilitators don't participate here
+                    options: dict = deepcopy(self.proposed_responses[self.active_prompt])
+                    if self.nick in options.keys():
+                        options.pop(self.nick)
+                    # TODO: Remove options that match self.prompt
+                    selected = self.ask_appraiser(options)
+                    self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
 
@@ -151,7 +154,7 @@ class ChatBot(KlatApi):
                     self.state = ConversationState.RESP
                     request_user, remainder = shout.split(ConversationControls.RESP, 1)
                     request_user = request_user.strip()
-                    self.active_prompt = remainder.rsplit("(", 1)[0].strip()
+                    self.active_prompt = remainder.rsplit("(", 1)[0].strip().strip('"')
                     self.chat_history.append((request_user, self.active_prompt))
                     # if request_user in self.chat_history.keys():
                     #     self.chat_history[request_user].append(self.active_prompt)
@@ -178,6 +181,9 @@ class ChatBot(KlatApi):
                         # LOG.debug(f"{user} voted for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
+                # Keywords to indicate user will not vote
+                if "abstain" or "present" in shout.split():
+                    self.on_vote(self.active_prompt, "", user)
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
                 user, response = shout.split(":", 1)
                 user = user.split()[-1]
@@ -212,7 +218,7 @@ class ChatBot(KlatApi):
         :param prompt: prompt associated with response
         :param response: bot response to prompt
         """
-        if response:
+        if response and response != self.active_prompt:
             # if prompt in self.proposed_responses.keys():
             self.proposed_responses[prompt][user] = response
             # else:
@@ -224,13 +230,13 @@ class ChatBot(KlatApi):
         """
         Called by proctor to ask all subminds to discuss a response
         """
-        self.send_shout(f"{ConversationControls.DISC} {timeout} seconds.")
+        self.send_shout(f"{ConversationControls.DISC} \"{self.active_prompt}\" for {timeout} seconds.")
 
     def call_voting(self, timeout: int):
         """
         Called by proctor to ask all subminds to vote on a response
         """
-        self.send_shout(f"{ConversationControls.VOTE} {timeout} seconds.")
+        self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
 # Submind Functions
     def propose_response(self, shout: str):
@@ -266,11 +272,11 @@ class ChatBot(KlatApi):
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
-        # TODO: Dialog case for "abstain"
         if self.state != ConversationState.VOTE:
             LOG.warn(f"Late Vote! {response_user}")
-        elif not response_user:
+        elif not response_user or response_user == "abstain":
             LOG.warn("No user provided!")
+            self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
 
