@@ -33,9 +33,9 @@ from mycroft_bus_client import Message, MessageBusClient
 
 class ConversationControls:
     RESP = " asks us to consider:"
-    DISC = "Discuss for"
-    VOTE = "Voting open for"
-    PICK = "One moment while I count the votes."
+    DISC = "Please Discuss"
+    VOTE = "Voting on the response to "
+    PICK = "Tallying the votes for the responses to "
     HIST = "history"
 
 
@@ -132,6 +132,7 @@ class ChatBot(KlatApi):
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 if self.nick in options.keys():
                     options.pop(self.nick)
+                # TODO: Remove options that match self.prompt
                 selected = self.ask_appraiser(options)
                 self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
@@ -225,13 +226,13 @@ class ChatBot(KlatApi):
         """
         Called by proctor to ask all subminds to discuss a response
         """
-        self.send_shout(f"{ConversationControls.DISC} {timeout} seconds.")
+        self.send_shout(f"{ConversationControls.DISC} \"{self.active_prompt}\" for {timeout} seconds.")
 
     def call_voting(self, timeout: int):
         """
         Called by proctor to ask all subminds to vote on a response
         """
-        self.send_shout(f"{ConversationControls.VOTE} {timeout} seconds.")
+        self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
 # Submind Functions
     def propose_response(self, shout: str):
