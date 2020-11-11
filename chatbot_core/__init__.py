@@ -78,6 +78,7 @@ class ChatBot(KlatApi):
 
     def handle_login_return(self, status):
         # LOG.debug(f"login returned: {status}")
+        # TODO: Handle user doesn't exist status and register, re-login DM
         self.enable_responses = True
         self.change_domain(self.start_domain)
         self.on_login()
@@ -266,11 +267,11 @@ class ChatBot(KlatApi):
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
-        # TODO: Dialog case for "abstain"
         if self.state != ConversationState.VOTE:
             LOG.warn(f"Late Vote! {response_user}")
-        elif not response_user:
+        elif not response_user or response_user == "abstain":
             LOG.warn("No user provided!")
+            self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
 
