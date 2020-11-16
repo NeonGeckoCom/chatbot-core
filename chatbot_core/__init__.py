@@ -92,6 +92,8 @@ class ChatBot(KlatApi):
         :param dom: domain conversation belongs to
         :param timestamp: formatted timestamp of shout
         """
+        if not self.conversation_is_proctored:
+            LOG.warn("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
         if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
             LOG.info("@Proctor shout incoming")
@@ -110,16 +112,17 @@ class ChatBot(KlatApi):
         elif not self.is_current_cid(cid):
             LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
+        elif self.state == ConversationState.IDLE and shout.startswith("@"):
+            LOG.warn(f"Outgoing shout ignored ({shout})")
+            return
 
-        # elif shout.startswith("@"):  # Shout (Proctor response) leaving current conversation
-        #     LOG.debug(f"Ignoring @user reply in this cid: {shout}")
-        #     return
-
-        # TODO: Strip HTML? DM
         # Cleanup nick for comparison to logged in user
         if "#" in user:
             user = user.split("#")[0]
 
+        # TODO: Strip HTML? DM
+
+        # Handle Parsed Shout
         try:
             # Proctor Control Messages
             if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
@@ -145,6 +148,7 @@ class ChatBot(KlatApi):
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
+                LOG.info(f"Incoming prompt: {shout}")
                 # self.state = ConversationState.RESP
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
                 self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
@@ -201,7 +205,7 @@ class ChatBot(KlatApi):
                     if not self.conversation_is_proctored:
                         response = self.ask_chatbot(user, shout, timestamp)
                         self.propose_response(response)
-                elif self.bot_type == "proctor":
+                elif self.bot_type in ("proctor", "observer"):
                     pass
                 else:
                     LOG.error(f"{self.nick} has unknown bot type: {self.bot_type}")
