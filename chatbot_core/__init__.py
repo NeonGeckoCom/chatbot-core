@@ -36,6 +36,7 @@ class ConversationControls:
     DISC = "Please Discuss"
     VOTE = "Voting on the response to "
     PICK = "Tallying the votes for the responses to "
+    NEXT = "I'm ready for the next prompt."
     HIST = "history"
 
 
@@ -141,7 +142,6 @@ class ChatBot(KlatApi):
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
-
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
                 self.ask_history(user, shout, dom, cid)
@@ -196,7 +196,9 @@ class ChatBot(KlatApi):
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
-
+                self.send_shout(ConversationControls.NEXT)
+            elif shout == ConversationControls.NEXT and self._user_is_proctor(user):
+                self.on_ready_for_next(user)
             # This came from a different non-neon user and is not related to a proctored conversation
             elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
                 if self.bot_type == "submind":
@@ -328,6 +330,14 @@ class ChatBot(KlatApi):
         :param prompt: input prompt being considered
         :param user: user who proposed selected response
         :param response: selected response to prompt
+        """
+        pass
+
+    def on_ready_for_next(self, user: str):
+        """
+        Notifies when a bot is finished handling the current prompt and is ready for the next one. This should happen
+        shortly after the proctor selects a response.
+        :param user: user who is ready for the next prompt
         """
         pass
 
