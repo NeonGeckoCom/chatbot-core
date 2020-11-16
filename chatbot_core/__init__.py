@@ -112,7 +112,7 @@ class ChatBot(KlatApi):
         elif not self.is_current_cid(cid):
             LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
-        elif self.state == ConversationState.IDLE and shout.startswith("@"):
+        elif shout.startswith("@"):
             LOG.warn(f"Outgoing shout ignored ({shout})")
             return
 
