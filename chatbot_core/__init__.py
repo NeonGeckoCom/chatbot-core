@@ -114,7 +114,7 @@ class ChatBot(KlatApi):
             LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
         elif shout.startswith("@"):
-            LOG.warn(f"Outgoing shout ignored ({shout})")
+            LOG.debug(f"Outgoing shout ignored ({shout})")
             return
 
         # Cleanup nick for comparison to logged in user
@@ -148,7 +148,7 @@ class ChatBot(KlatApi):
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
-                LOG.info(f"Incoming prompt: {shout}")
+                LOG.debug(f"Incoming prompt: {shout}")
                 # self.state = ConversationState.RESP
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
                 self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
@@ -179,15 +179,19 @@ class ChatBot(KlatApi):
                 if user != self.nick:
                     self.on_discussion(user, shout)
             elif self.state == ConversationState.VOTE and not self._user_is_proctor(user):
+                candidate_bot = None
                 for candidate in self.conversation_users:
                     if candidate in shout.split():
                         candidate_bot = candidate
                         # LOG.debug(f"{user} voted for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
-                # Keywords to indicate user will not vote
-                if "abstain" or "present" in shout.split():
-                    self.on_vote(self.active_prompt, "", user)
+                if not candidate_bot:
+                    # Keywords to indicate user will not vote
+                    if "abstain" in shout.split() or "present" in shout.split():
+                        self.on_vote(self.active_prompt, "", user)
+                    else:
+                        LOG.warn(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
                 user, response = shout.split(":", 1)
                 user = user.split()[-1]

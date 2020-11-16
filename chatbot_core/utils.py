@@ -203,7 +203,7 @@ def cli_start_bots():
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
     else:
-        logging.getLogger("chatbots").setLevel(logging.ERROR)
+        logging.getLogger("chatbots").setLevel(logging.WARNING)
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
