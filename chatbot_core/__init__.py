@@ -196,8 +196,9 @@ class ChatBot(KlatApi):
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
-                self.send_shout(ConversationControls.NEXT)
-            elif shout == ConversationControls.NEXT and self._user_is_proctor(user):
+                if not self.bot_type == "proctor":
+                    self.send_shout(ConversationControls.NEXT)
+            elif shout == ConversationControls.NEXT:
                 self.on_ready_for_next(user)
             # This came from a different non-neon user and is not related to a proctored conversation
             elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
