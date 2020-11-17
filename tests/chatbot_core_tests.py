@@ -97,6 +97,17 @@ class ChatbotCoreTests(unittest.TestCase):
         self.bot.socket.disconnect()
         self.assertFalse(self.bot.socket.connected)
 
+    @pytest.mark.timeout(10)
+    def test_11_clean_options(self):
+        self.bot.active_prompt = "Test Prompt"
+        self.bot.proposed_responses[self.bot.active_prompt] = {self.bot.nick: "This is removed",
+                                                               "Other User": "Valid Response",
+                                                               "Removed User": "Test Prompt"}
+        opts = self.bot._clean_options()
+        self.assertIsInstance(opts, dict)
+        self.assertNotIn(self.bot.nick, opts.keys())
+        self.assertNotIn(self.bot.active_prompt, opts.values())
+
 # TODO: Test CLI bot detection, credentials load, etc. DM
 
 

@@ -135,10 +135,7 @@ class ChatBot(KlatApi):
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
                 if self.bot_type == "submind":  # Facilitators don't participate here
-                    options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-                    if self.nick in options.keys():
-                        options.pop(self.nick)
-                    # TODO: Remove options that match self.prompt
+                    options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
@@ -250,7 +247,19 @@ class ChatBot(KlatApi):
         """
         self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
-# Submind Functions
+    def close_voting(self):
+        """
+        Called by proctor to announce to all subminds that voting is over and the response will be selected
+        """
+        self.send_shout(f"{ConversationControls.PICK} \"{self.active_prompt}\"")
+
+    def announce_selection(self, user: str, selection: str):
+        """
+        Called by proctor to announce the selected user and response
+        """
+        self.send_shout(f"The selected response is from {user}: \"{selection}\"")
+
+    # Submind Functions
     def propose_response(self, shout: str):
         """
         Called when a bot as a proposed response to the input prompt
@@ -423,6 +432,13 @@ class ChatBot(KlatApi):
         :return: true if shout should be considered a prompt
         """
         return shout.startswith("!PROMPT:")
+
+    def _clean_options(self):
+        """
+        Gets a dict of options with the
+        """
+        return {nick: resp for nick, resp in self.proposed_responses[self.active_prompt].items()
+                if nick != self.nick and resp != self.active_prompt}
 
 
 class NeonBot(ChatBot):
