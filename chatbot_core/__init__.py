@@ -256,7 +256,7 @@ class ChatBot(KlatApi):
         :param shout: Proposed response to the prompt
         """
         if not shout:
-            LOG.warn("Empty response provided!")
+            LOG.warn(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
             self.send_shout(shout)
             if not self.conversation_is_proctored:
@@ -274,7 +274,7 @@ class ChatBot(KlatApi):
         if self.state != ConversationState.DISC:
             LOG.warn(f"Late Discussion! {shout}")
         elif not shout:
-            LOG.warn("Empty discussion provided!")
+            LOG.warn(f"Empty discussion provided! ({self.nick})")
         else:
             self.send_shout(shout)
 
@@ -286,7 +286,7 @@ class ChatBot(KlatApi):
         if self.state != ConversationState.VOTE:
             LOG.warn(f"Late Vote! {response_user}")
         elif not response_user or response_user == "abstain":
-            LOG.warn("No user provided!")
+            LOG.debug(f"No user provided! ({self.nick}")
             self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
