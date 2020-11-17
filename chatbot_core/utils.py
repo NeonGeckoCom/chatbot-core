@@ -203,7 +203,7 @@ def cli_start_bots():
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
     else:
-        logging.getLogger("chatbots").setLevel(logging.ERROR)
+        logging.getLogger("chatbots").setLevel(logging.WARNING)
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
 
@@ -237,7 +237,7 @@ def debug_bots(bot_dir: str = os.getcwd()):
         bot_dir = arg_dir if os.path.exists(arg_dir) else bot_dir
 
     logging.getLogger("chatbots").setLevel(logging.WARNING)
-    logging.getLogger("klat_connector").setLevel(logging.WARNING)
+    logging.getLogger("klat_connector").setLevel(logging.INFO)  # TODO: Warning
 
     subminds = get_bots_in_dir(bot_dir)
 
