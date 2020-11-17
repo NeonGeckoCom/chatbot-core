@@ -94,7 +94,7 @@ class ChatBot(KlatApi):
         :param timestamp: formatted timestamp of shout
         """
         if not self.conversation_is_proctored:
-            LOG.warn("Unproctored conversation!!")
+            LOG.warning("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
         if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
             LOG.info("@Proctor shout incoming")
@@ -111,7 +111,7 @@ class ChatBot(KlatApi):
                 LOG.error(e)
                 LOG.error(f'Ignoring incoming: {shout}')
         elif not self.is_current_cid(cid):
-            LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
+            LOG.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
         elif shout.startswith("@"):
             LOG.debug(f"Outgoing shout ignored ({shout})")
@@ -192,7 +192,7 @@ class ChatBot(KlatApi):
                     if "abstain" in shout.split() or "present" in shout.split():
                         self.on_vote(self.active_prompt, "", user)
                     else:
-                        LOG.warn(f"No valid vote cast! {shout}")
+                        LOG.warning(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
                 user, response = shout.split(":", 1)
                 user = user.split()[-1]
@@ -201,7 +201,7 @@ class ChatBot(KlatApi):
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
-                if not self.bot_type == "proctor":
+                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
                     self.send_shout(ConversationControls.NEXT)
             elif shout == ConversationControls.NEXT:
                 self.on_ready_for_next(user)
@@ -258,13 +258,13 @@ class ChatBot(KlatApi):
         """
         if not shout:
             if self.bot_type == "submind":
-                LOG.warn(f"Empty response provided! ({self.nick})")
+                LOG.warning(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
             self.send_shout(shout)
             if not self.conversation_is_proctored:
                 self.pause_responses()
         elif self.conversation_is_proctored:
-            LOG.warn(f"Late Response! {shout}")
+            LOG.warning(f"Late Response! {shout}")
         else:
             LOG.error(f"Unknown response error! Ignored: {shout}")
 
@@ -274,9 +274,9 @@ class ChatBot(KlatApi):
         :param shout: Response to post to conversation
         """
         if self.state != ConversationState.DISC:
-            LOG.warn(f"Late Discussion! {shout}")
+            LOG.warning(f"Late Discussion! {shout}")
         elif not shout:
-            LOG.warn(f"Empty discussion provided! ({self.nick})")
+            LOG.warning(f"Empty discussion provided! ({self.nick})")
         else:
             self.send_shout(shout)
 
@@ -286,9 +286,9 @@ class ChatBot(KlatApi):
         :param response_user: bot username associated with chosen response
         """
         if self.state != ConversationState.VOTE:
-            LOG.warn(f"Late Vote! {response_user}")
+            LOG.warning(f"Late Vote! {response_user}")
         elif not response_user or response_user == "abstain":
-            LOG.debug(f"No user provided! ({self.nick}")
+            LOG.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
