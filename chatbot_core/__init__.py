@@ -71,7 +71,7 @@ class ChatBot(KlatApi):
         else:
             self.enable_responses = True
         if not self.enable_responses:
-            LOG.error("Login Error! Responses not enabled!!")
+            LOG.error("Responses not enabled!!")
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.chat_history = list()
@@ -257,7 +257,8 @@ class ChatBot(KlatApi):
         :param shout: Proposed response to the prompt
         """
         if not shout:
-            LOG.warn(f"Empty response provided! ({self.nick})")
+            if self.bot_type == "submind":
+                LOG.warn(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
             self.send_shout(shout)
             if not self.conversation_is_proctored:
