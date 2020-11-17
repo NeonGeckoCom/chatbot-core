@@ -130,7 +130,8 @@ class ChatBot(KlatApi):
                 self.state = ConversationState.DISC
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
-                self.discuss_response(discussion)
+                if discussion:
+                    self.discuss_response(discussion)
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
                 if self.bot_type == "submind":  # Facilitators don't participate here
@@ -218,7 +219,7 @@ class ChatBot(KlatApi):
                     LOG.error(f"{self.nick} has unknown bot type: {self.bot_type}")
         except Exception as e:
             LOG.error(e)
-            LOG.error(shout)
+            LOG.error(f"{self.nick} | {shout}")
         # else:
         #     LOG.debug(f"{self.nick} Ignoring: {user} - {shout}")
 
