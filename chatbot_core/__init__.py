@@ -33,9 +33,10 @@ from mycroft_bus_client import Message, MessageBusClient
 
 class ConversationControls:
     RESP = " asks us to consider:"
-    DISC = "Discuss for"
-    VOTE = "Voting open for"
-    PICK = "One moment while I count the votes."
+    DISC = "Please Discuss"
+    VOTE = "Voting on the response to "
+    PICK = "Tallying the votes for the responses to "
+    NEXT = "I'm ready for the next prompt."
     HIST = "history"
 
 
@@ -70,7 +71,7 @@ class ChatBot(KlatApi):
         else:
             self.enable_responses = True
         if not self.enable_responses:
-            LOG.error("Login Error! Responses not enabled!!")
+            LOG.error("Responses not enabled!!")
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.chat_history = list()
@@ -78,6 +79,7 @@ class ChatBot(KlatApi):
 
     def handle_login_return(self, status):
         # LOG.debug(f"login returned: {status}")
+        # TODO: Handle user doesn't exist status and register, re-login DM
         self.enable_responses = True
         self.change_domain(self.start_domain)
         self.on_login()
@@ -91,6 +93,8 @@ class ChatBot(KlatApi):
         :param dom: domain conversation belongs to
         :param timestamp: formatted timestamp of shout
         """
+        if not self.conversation_is_proctored:
+            LOG.warning("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
         if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
             LOG.info("@Proctor shout incoming")
@@ -107,41 +111,45 @@ class ChatBot(KlatApi):
                 LOG.error(e)
                 LOG.error(f'Ignoring incoming: {shout}')
         elif not self.is_current_cid(cid):
-            LOG.warn(f"Crossposted shout ignored ({cid} != {self._cid})")
+            LOG.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
+            return
+        elif shout.startswith("@"):
+            LOG.debug(f"Outgoing shout ignored ({shout})")
             return
 
-        # elif shout.startswith("@"):  # Shout (Proctor response) leaving current conversation
-        #     LOG.debug(f"Ignoring @user reply in this cid: {shout}")
-        #     return
-
-        # TODO: Strip HTML? DM
         # Cleanup nick for comparison to logged in user
         if "#" in user:
             user = user.split("#")[0]
 
+        # TODO: Strip HTML? DM
+
+        # Handle Parsed Shout
         try:
             # Proctor Control Messages
             if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
                 self.state = ConversationState.DISC
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
-                self.discuss_response(discussion)
-            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Appraise Options and Vote
+                if discussion:
+                    self.discuss_response(discussion)
+            elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
-                options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-                if self.nick in options.keys():
-                    options.pop(self.nick)
-                selected = self.ask_appraiser(options)
-                self.vote_response(selected)
+                if self.bot_type == "submind":  # Facilitators don't participate here
+                    options: dict = deepcopy(self.proposed_responses[self.active_prompt])
+                    if self.nick in options.keys():
+                        options.pop(self.nick)
+                    # TODO: Remove options that match self.prompt
+                    selected = self.ask_appraiser(options)
+                    self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
-
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
                 self.ask_history(user, shout, dom, cid)
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
+                LOG.debug(f"Incoming prompt: {shout}")
                 # self.state = ConversationState.RESP
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
                 self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
@@ -151,7 +159,7 @@ class ChatBot(KlatApi):
                     self.state = ConversationState.RESP
                     request_user, remainder = shout.split(ConversationControls.RESP, 1)
                     request_user = request_user.strip()
-                    self.active_prompt = remainder.rsplit("(", 1)[0].strip()
+                    self.active_prompt = remainder.rsplit("(", 1)[0].strip().strip('"')
                     self.chat_history.append((request_user, self.active_prompt))
                     # if request_user in self.chat_history.keys():
                     #     self.chat_history[request_user].append(self.active_prompt)
@@ -172,12 +180,19 @@ class ChatBot(KlatApi):
                 if user != self.nick:
                     self.on_discussion(user, shout)
             elif self.state == ConversationState.VOTE and not self._user_is_proctor(user):
+                candidate_bot = None
                 for candidate in self.conversation_users:
                     if candidate in shout.split():
                         candidate_bot = candidate
                         # LOG.debug(f"{user} voted for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
+                if not candidate_bot:
+                    # Keywords to indicate user will not vote
+                    if "abstain" in shout.split() or "present" in shout.split():
+                        self.on_vote(self.active_prompt, "", user)
+                    else:
+                        LOG.warning(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
                 user, response = shout.split(":", 1)
                 user = user.split()[-1]
@@ -186,7 +201,10 @@ class ChatBot(KlatApi):
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
-
+                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
+                    self.send_shout(ConversationControls.NEXT)
+            elif shout == ConversationControls.NEXT:
+                self.on_ready_for_next(user)
             # This came from a different non-neon user and is not related to a proctored conversation
             elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
                 if self.bot_type == "submind":
@@ -195,13 +213,13 @@ class ChatBot(KlatApi):
                     if not self.conversation_is_proctored:
                         response = self.ask_chatbot(user, shout, timestamp)
                         self.propose_response(response)
-                elif self.bot_type == "proctor":
+                elif self.bot_type in ("proctor", "observer"):
                     pass
                 else:
                     LOG.error(f"{self.nick} has unknown bot type: {self.bot_type}")
         except Exception as e:
             LOG.error(e)
-            LOG.error(shout)
+            LOG.error(f"{self.nick} | {shout}")
         # else:
         #     LOG.debug(f"{self.nick} Ignoring: {user} - {shout}")
 
@@ -212,7 +230,7 @@ class ChatBot(KlatApi):
         :param prompt: prompt associated with response
         :param response: bot response to prompt
         """
-        if response:
+        if response and response != self.active_prompt:
             # if prompt in self.proposed_responses.keys():
             self.proposed_responses[prompt][user] = response
             # else:
@@ -224,13 +242,13 @@ class ChatBot(KlatApi):
         """
         Called by proctor to ask all subminds to discuss a response
         """
-        self.send_shout(f"{ConversationControls.DISC} {timeout} seconds.")
+        self.send_shout(f"{ConversationControls.DISC} \"{self.active_prompt}\" for {timeout} seconds.")
 
     def call_voting(self, timeout: int):
         """
         Called by proctor to ask all subminds to vote on a response
         """
-        self.send_shout(f"{ConversationControls.VOTE} {timeout} seconds.")
+        self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
 # Submind Functions
     def propose_response(self, shout: str):
@@ -239,13 +257,14 @@ class ChatBot(KlatApi):
         :param shout: Proposed response to the prompt
         """
         if not shout:
-            LOG.warn("Empty response provided!")
+            if self.bot_type == "submind":
+                LOG.warning(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
             self.send_shout(shout)
             if not self.conversation_is_proctored:
                 self.pause_responses()
         elif self.conversation_is_proctored:
-            LOG.warn(f"Late Response! {shout}")
+            LOG.warning(f"Late Response! {shout}")
         else:
             LOG.error(f"Unknown response error! Ignored: {shout}")
 
@@ -255,9 +274,9 @@ class ChatBot(KlatApi):
         :param shout: Response to post to conversation
         """
         if self.state != ConversationState.DISC:
-            LOG.warn(f"Late Discussion! {shout}")
+            LOG.warning(f"Late Discussion! {shout}")
         elif not shout:
-            LOG.warn("Empty discussion provided!")
+            LOG.warning(f"Empty discussion provided! ({self.nick})")
         else:
             self.send_shout(shout)
 
@@ -266,11 +285,11 @@ class ChatBot(KlatApi):
         Called when a bot appraiser has selected a response
         :param response_user: bot username associated with chosen response
         """
-        # TODO: Dialog case for "abstain"
         if self.state != ConversationState.VOTE:
-            LOG.warn(f"Late Vote! {response_user}")
-        elif not response_user:
-            LOG.warn("No user provided!")
+            LOG.warning(f"Late Vote! {response_user}")
+        elif not response_user or response_user == "abstain":
+            LOG.debug(f"Abstaining voter! ({self.nick})")
+            self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
 
@@ -318,6 +337,14 @@ class ChatBot(KlatApi):
         :param prompt: input prompt being considered
         :param user: user who proposed selected response
         :param response: selected response to prompt
+        """
+        pass
+
+    def on_ready_for_next(self, user: str):
+        """
+        Notifies when a bot is finished handling the current prompt and is ready for the next one. This should happen
+        shortly after the proctor selects a response.
+        :param user: user who is ready for the next prompt
         """
         pass
 
