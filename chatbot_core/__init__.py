@@ -146,10 +146,13 @@ class ChatBot(KlatApi):
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
-                LOG.debug(f"Incoming prompt: {shout}")
                 # self.state = ConversationState.RESP
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
-                self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                if self.bot_type == "proctor":
+                    LOG.debug(f"Incoming prompt: {shout}")
+                    self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                else:
+                    LOG.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
                 # self.ask_chatbot(user, self.active_prompt, timestamp)
             elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
                 try:
