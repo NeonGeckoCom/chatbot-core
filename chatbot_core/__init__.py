@@ -135,10 +135,7 @@ class ChatBot(KlatApi):
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
                 if self.bot_type == "submind":  # Facilitators don't participate here
-                    options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-                    if self.nick in options.keys():
-                        options.pop(self.nick)
-                    # TODO: Remove options that match self.prompt
+                    options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
@@ -149,10 +146,13 @@ class ChatBot(KlatApi):
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
-                LOG.debug(f"Incoming prompt: {shout}")
                 # self.state = ConversationState.RESP
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
-                self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                if self.bot_type == "proctor":
+                    LOG.debug(f"Incoming prompt: {shout}")
+                    self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                else:
+                    LOG.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
                 # self.ask_chatbot(user, self.active_prompt, timestamp)
             elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
                 try:
@@ -250,7 +250,19 @@ class ChatBot(KlatApi):
         """
         self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
-# Submind Functions
+    def close_voting(self):
+        """
+        Called by proctor to announce to all subminds that voting is over and the response will be selected
+        """
+        self.send_shout(f"{ConversationControls.PICK} \"{self.active_prompt}\"")
+
+    def announce_selection(self, user: str, selection: str):
+        """
+        Called by proctor to announce the selected user and response
+        """
+        self.send_shout(f"The selected response is from {user}: \"{selection}\"")
+
+    # Submind Functions
     def propose_response(self, shout: str):
         """
         Called when a bot as a proposed response to the input prompt
@@ -423,6 +435,13 @@ class ChatBot(KlatApi):
         :return: true if shout should be considered a prompt
         """
         return shout.startswith("!PROMPT:")
+
+    def _clean_options(self):
+        """
+        Gets a dict of options with the
+        """
+        return {nick: resp for nick, resp in self.proposed_responses[self.active_prompt].items()
+                if nick != self.nick and resp != self.active_prompt}
 
 
 class NeonBot(ChatBot):

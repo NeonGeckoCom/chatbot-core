@@ -237,7 +237,7 @@ def debug_bots(bot_dir: str = os.getcwd()):
         bot_dir = arg_dir if os.path.exists(arg_dir) else bot_dir
 
     logging.getLogger("chatbots").setLevel(logging.WARNING)
-    logging.getLogger("klat_connector").setLevel(logging.INFO)  # TODO: Warning
+    logging.getLogger("klat_connector").setLevel(logging.WARNING)
 
     subminds = get_bots_in_dir(bot_dir)
 
