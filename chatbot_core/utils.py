@@ -150,6 +150,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             LOG.error(f"{bot_name} is not a valid bot!")
             return
     else:
+        # TODO: Start Proctor first?
         # Start a socket for each unique bot, bots handle login names
         for name, bot in bots_to_start.items():
             LOG.debug(f"Starting: {name}")
