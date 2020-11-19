@@ -184,7 +184,7 @@ class ChatBot(KlatApi):
                 for candidate in self.conversation_users:
                     if candidate in shout.split():
                         candidate_bot = candidate
-                        # LOG.debug(f"{user} voted for {candidate_bot}")
+                        LOG.debug(f"{user} votes for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
                 if not candidate_bot:
@@ -271,11 +271,12 @@ class ChatBot(KlatApi):
         if not shout:
             if self.bot_type == "submind":
                 LOG.warning(f"Empty response provided! ({self.nick})")
-        elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
+        elif not self.conversation_is_proctored:
             self.send_shout(shout)
-            if not self.conversation_is_proctored:
-                self.pause_responses()
-        elif self.conversation_is_proctored:
+            self._pause_responses()
+        elif self.state == ConversationState.RESP:
+            self.send_shout(shout)
+        elif self.state == ConversationState.VOTE:
             LOG.warning(f"Late Response! {shout}")
         else:
             LOG.error(f"Unknown response error! Ignored: {shout}")
@@ -304,15 +305,6 @@ class ChatBot(KlatApi):
             self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
-
-    def pause_responses(self, duration: int = 5):
-        """
-        Pauses generation of bot responses
-        :param duration: seconds to pause
-        """
-        self.enable_responses = False
-        time.sleep(duration)
-        self.enable_responses = True
 
     def on_login(self):
         """
@@ -442,6 +434,15 @@ class ChatBot(KlatApi):
         """
         return {nick: resp for nick, resp in self.proposed_responses[self.active_prompt].items()
                 if nick != self.nick and resp != self.active_prompt}
+
+    def _pause_responses(self, duration: int = 5):
+        """
+        Pauses generation of bot responses
+        :param duration: seconds to pause
+        """
+        self.enable_responses = False
+        time.sleep(duration)
+        self.enable_responses = True
 
 
 class NeonBot(ChatBot):
