@@ -61,6 +61,10 @@ class ChatBot(KlatApi):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
+
+        self.username = username
+        self.password = password
+
         klat_timeout = time.time() + 30
         while not self.ready and time.time() < klat_timeout:
             time.sleep(1)
@@ -81,7 +85,9 @@ class ChatBot(KlatApi):
 
     def handle_login_return(self, status):
         # LOG.debug(f"login returned: {status}")
-        # TODO: Handle user doesn't exist status and register, re-login DM
+
+        if status == 888:
+            self.register_klat(self.username, self.password)
         self.enable_responses = True
         self.change_domain(self.start_domain)
         self.on_login()
