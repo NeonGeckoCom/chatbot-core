@@ -132,8 +132,6 @@ class ChatBot(KlatApi):
         if "#" in user:
             user = user.split("#")[0]
 
-        # TODO: Strip HTML? DM
-
         # Handle Parsed Shout
         try:
             # Proctor Control Messages
