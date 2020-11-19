@@ -94,6 +94,9 @@ class ChatBot(KlatApi):
         :param dom: domain conversation belongs to
         :param timestamp: formatted timestamp of shout
         """
+        if not shout:
+            LOG.error(f"No shout (user={user}")
+            return
         if not self.conversation_is_proctored:
             LOG.warning("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
@@ -198,7 +201,7 @@ class ChatBot(KlatApi):
                 if not candidate_bot:
                     # Keywords to indicate user will not vote
                     if "abstain" in shout.split() or "present" in shout.split():
-                        self.on_vote(self.active_prompt, "", user)
+                        self.on_vote(self.active_prompt, "abstain", user)
                     else:
                         LOG.warning(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
@@ -312,7 +315,7 @@ class ChatBot(KlatApi):
         if self.state != ConversationState.VOTE:
             LOG.warning(f"Late Vote! {response_user}")
         elif not response_user or response_user == "abstain":
-            LOG.debug(f"Abstaining voter! ({self.nick})")
+            # LOG.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
