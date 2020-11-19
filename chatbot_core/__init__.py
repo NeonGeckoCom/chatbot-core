@@ -16,6 +16,8 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2020: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import random
+from typing import Optional
 
 import time
 
@@ -93,6 +95,9 @@ class ChatBot(KlatApi):
         :param dom: domain conversation belongs to
         :param timestamp: formatted timestamp of shout
         """
+        if not shout:
+            LOG.error(f"No shout (user={user}")
+            return
         if not self.conversation_is_proctored:
             LOG.warning("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
@@ -128,18 +133,21 @@ class ChatBot(KlatApi):
             # Proctor Control Messages
             if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
                 self.state = ConversationState.DISC
+                start_time = time.time()
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
                 if discussion:
+                    self._hesitate_before_response(start_time)
                     self.discuss_response(discussion)
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
                 if self.bot_type == "submind":  # Facilitators don't participate here
-                    options: dict = deepcopy(self.proposed_responses[self.active_prompt])
-                    if self.nick in options.keys():
-                        options.pop(self.nick)
-                    # TODO: Remove options that match self.prompt
+                    start_time = time.time()
+                    options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
+                    self._hesitate_before_response(start_time)
+                    if not selected:
+                        selected = "abstain"
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
@@ -149,10 +157,13 @@ class ChatBot(KlatApi):
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
-                LOG.debug(f"Incoming prompt: {shout}")
                 # self.state = ConversationState.RESP
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
-                self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                if self.bot_type == "proctor":
+                    LOG.debug(f"Incoming prompt: {shout}")
+                    self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                else:
+                    LOG.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
                 # self.ask_chatbot(user, self.active_prompt, timestamp)
             elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
                 try:
@@ -166,7 +177,9 @@ class ChatBot(KlatApi):
                     # else:
                     #     self.chat_history[request_user] = [self.active_prompt]
                     self.proposed_responses[self.active_prompt] = {}
+                    start_time = time.time()
                     response = self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                    self._hesitate_before_response(start_time)
                     self.propose_response(response)
                 except Exception as e:
                     LOG.error(e)
@@ -184,13 +197,14 @@ class ChatBot(KlatApi):
                 for candidate in self.conversation_users:
                     if candidate in shout.split():
                         candidate_bot = candidate
-                        # LOG.debug(f"{user} voted for {candidate_bot}")
+                        if self.bot_type == "proctor":
+                            LOG.debug(f"{user} votes for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
                 if not candidate_bot:
                     # Keywords to indicate user will not vote
                     if "abstain" in shout.split() or "present" in shout.split():
-                        self.on_vote(self.active_prompt, "", user)
+                        self.on_vote(self.active_prompt, "abstain", user)
                     else:
                         LOG.warning(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
@@ -242,15 +256,30 @@ class ChatBot(KlatApi):
         """
         Called by proctor to ask all subminds to discuss a response
         """
+        self.state = ConversationState.DISC
         self.send_shout(f"{ConversationControls.DISC} \"{self.active_prompt}\" for {timeout} seconds.")
 
     def call_voting(self, timeout: int):
         """
         Called by proctor to ask all subminds to vote on a response
         """
+        self.state = ConversationState.VOTE
         self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
-# Submind Functions
+    def close_voting(self):
+        """
+        Called by proctor to announce to all subminds that voting is over and the response will be selected
+        """
+        self.state = ConversationState.PICK
+        self.send_shout(f"{ConversationControls.PICK} \"{self.active_prompt}\"")
+
+    def announce_selection(self, user: str, selection: str):
+        """
+        Called by proctor to announce the selected user and response
+        """
+        self.send_shout(f"The selected response is from {user}: \"{selection}\"")
+
+    # Submind Functions
     def propose_response(self, shout: str):
         """
         Called when a bot as a proposed response to the input prompt
@@ -259,11 +288,12 @@ class ChatBot(KlatApi):
         if not shout:
             if self.bot_type == "submind":
                 LOG.warning(f"Empty response provided! ({self.nick})")
-        elif not self.conversation_is_proctored or self.state == ConversationState.RESP:
+        elif not self.conversation_is_proctored:
             self.send_shout(shout)
-            if not self.conversation_is_proctored:
-                self.pause_responses()
-        elif self.conversation_is_proctored:
+            self._pause_responses()
+        elif self.state == ConversationState.RESP:
+            self.send_shout(shout)
+        elif self.state == ConversationState.VOTE:
             LOG.warning(f"Late Response! {shout}")
         else:
             LOG.error(f"Unknown response error! Ignored: {shout}")
@@ -287,20 +317,13 @@ class ChatBot(KlatApi):
         """
         if self.state != ConversationState.VOTE:
             LOG.warning(f"Late Vote! {response_user}")
-        elif not response_user or response_user == "abstain":
-            LOG.debug(f"Abstaining voter! ({self.nick})")
+        elif not response_user:
+            LOG.error("Null response user returned!")
+        elif response_user == "abstain":
+            # LOG.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
-
-    def pause_responses(self, duration: int = 5):
-        """
-        Pauses generation of bot responses
-        :param duration: seconds to pause
-        """
-        self.enable_responses = False
-        time.sleep(duration)
-        self.enable_responses = True
 
     def on_login(self):
         """
@@ -424,6 +447,29 @@ class ChatBot(KlatApi):
         """
         return shout.startswith("!PROMPT:")
 
+    def _clean_options(self):
+        """
+        Gets a dict of options with the
+        """
+        return {nick: resp for nick, resp in self.proposed_responses[self.active_prompt].items()
+                if nick != self.nick and resp != self.active_prompt}
+
+    def _pause_responses(self, duration: int = 5):
+        """
+        Pauses generation of bot responses
+        :param duration: seconds to pause
+        """
+        self.enable_responses = False
+        time.sleep(duration)
+        self.enable_responses = True
+
+    @staticmethod
+    def _hesitate_before_response(start_time):
+        if time.time() - start_time < 5:
+            LOG.debug("Applying some artificial wait!")
+            # Apply some random wait time if we got a response very quickly
+            time.sleep(random.randrange(0, 50) / 10)
+
 
 class NeonBot(ChatBot):
     """
@@ -432,8 +478,9 @@ class NeonBot(ChatBot):
     def __init__(self, socket, domain, username, password, on_server, script, bus_config=None):
         self.bot_type = "submind"
         self.response = None
-        self.bus = None
-        self.bus_config = bus_config or {"host": "64.34.186.120",
+        self.response_timeout = 15
+        self.bus: Optional[MessageBusClient] = None
+        self.bus_config = bus_config or {"host": "64.34.186.92",
                                          "port": 8181,
                                          "ssl": False,
                                          "route": "/core"}
@@ -461,10 +508,11 @@ class NeonBot(ChatBot):
         # timestamp = round(shout_time.timestamp())
         self.response = None
         self._send_to_neon(shout, timestamp, self.nick)
-        if not self.on_server:
-            while not self.response:
-                time.sleep(0.5)
-            return self.response
+        # if not self.on_server:
+        timeout = time.time() + self.response_timeout
+        while not self.response and time.time() < timeout:
+            time.sleep(0.5)
+        return self.response
 
     def on_login(self):
         while not self.bus:
@@ -504,10 +552,10 @@ class NeonBot(ChatBot):
                 self.enable_responses = True
             elif input_to_neon and self.enable_responses:
                 # LOG.debug(f'sending shout: {message.data.get("utterance")}')
-                if self.on_server:
-                    self.propose_response(message.data.get("utterance"))
-                else:
-                    self.response = message.data.get("utterance")
+                # if self.on_server:
+                #     self.propose_response(message.data.get("utterance"))
+                # else:
+                self.response = message.data.get("utterance")
 
     def _send_to_neon(self, shout: str, timestamp: str, nick: str = "nobody"):
         """
