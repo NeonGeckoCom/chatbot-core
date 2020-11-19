@@ -473,8 +473,9 @@ class NeonBot(ChatBot):
     def __init__(self, socket, domain, username, password, on_server, script, bus_config=None):
         self.bot_type = "submind"
         self.response = None
+        self.response_timeout = 15
         self.bus = None
-        self.bus_config = bus_config or {"host": "64.34.186.120",
+        self.bus_config = bus_config or {"host": "64.34.186.92",
                                          "port": 8181,
                                          "ssl": False,
                                          "route": "/core"}
@@ -502,10 +503,11 @@ class NeonBot(ChatBot):
         # timestamp = round(shout_time.timestamp())
         self.response = None
         self._send_to_neon(shout, timestamp, self.nick)
-        if not self.on_server:
-            while not self.response:
-                time.sleep(0.5)
-            return self.response
+        # if not self.on_server:
+        timeout = time.time() + self.response_timeout
+        while not self.response and time.time() < timeout:
+            time.sleep(0.5)
+        return self.response
 
     def on_login(self):
         while not self.bus:
