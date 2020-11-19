@@ -146,6 +146,8 @@ class ChatBot(KlatApi):
                     options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
                     self._hesitate_before_response(start_time)
+                    if not selected:
+                        selected = "abstain"
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
@@ -315,7 +317,9 @@ class ChatBot(KlatApi):
         """
         if self.state != ConversationState.VOTE:
             LOG.warning(f"Late Vote! {response_user}")
-        elif not response_user or response_user == "abstain":
+        elif not response_user:
+            LOG.error("Null response user returned!")
+        elif response_user == "abstain":
             # LOG.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
         else:
