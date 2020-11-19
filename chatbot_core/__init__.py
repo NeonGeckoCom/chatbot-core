@@ -16,6 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2020: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import random
 
 import time
 
@@ -128,15 +129,19 @@ class ChatBot(KlatApi):
             # Proctor Control Messages
             if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
                 self.state = ConversationState.DISC
+                start_time = time.time()
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
                 if discussion:
+                    self._hesitate_before_response(start_time)
                     self.discuss_response(discussion)
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
                 if self.bot_type == "submind":  # Facilitators don't participate here
+                    start_time = time.time()
                     options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
+                    self._hesitate_before_response(start_time)
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
@@ -166,7 +171,9 @@ class ChatBot(KlatApi):
                     # else:
                     #     self.chat_history[request_user] = [self.active_prompt]
                     self.proposed_responses[self.active_prompt] = {}
+                    start_time = time.time()
                     response = self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                    self._hesitate_before_response(start_time)
                     self.propose_response(response)
                 except Exception as e:
                     LOG.error(e)
@@ -243,18 +250,21 @@ class ChatBot(KlatApi):
         """
         Called by proctor to ask all subminds to discuss a response
         """
+        self.state = ConversationState.DISC
         self.send_shout(f"{ConversationControls.DISC} \"{self.active_prompt}\" for {timeout} seconds.")
 
     def call_voting(self, timeout: int):
         """
         Called by proctor to ask all subminds to vote on a response
         """
+        self.state = ConversationState.VOTE
         self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
 
     def close_voting(self):
         """
         Called by proctor to announce to all subminds that voting is over and the response will be selected
         """
+        self.state = ConversationState.PICK
         self.send_shout(f"{ConversationControls.PICK} \"{self.active_prompt}\"")
 
     def announce_selection(self, user: str, selection: str):
@@ -444,6 +454,13 @@ class ChatBot(KlatApi):
         self.enable_responses = False
         time.sleep(duration)
         self.enable_responses = True
+
+    @staticmethod
+    def _hesitate_before_response(start_time):
+        if time.time() - start_time < 5:
+            LOG.debug("Applying some artificial wait!")
+            # Apply some random wait time if we got a response very quickly
+            time.sleep(random.randrange(0, 50) / 10)
 
 
 class NeonBot(ChatBot):
