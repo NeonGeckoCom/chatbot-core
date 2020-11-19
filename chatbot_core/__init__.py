@@ -76,8 +76,7 @@ class ChatBot(KlatApi):
                 time.sleep(1)
         else:
             self.enable_responses = True
-        if not self.enable_responses:
-            LOG.error("Responses not enabled!!")
+            LOG.debug(f"Responses enabled for {self.nick}")
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.chat_history = list()
@@ -89,6 +88,7 @@ class ChatBot(KlatApi):
         if status == 888:
             self.register_klat(self.username, self.password)
         self.enable_responses = True
+        LOG.debug(f"Responses enabled for {self.nick}")
         self.change_domain(self.start_domain)
         self.on_login()
 
