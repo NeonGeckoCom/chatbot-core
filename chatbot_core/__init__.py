@@ -184,7 +184,8 @@ class ChatBot(KlatApi):
                 for candidate in self.conversation_users:
                     if candidate in shout.split():
                         candidate_bot = candidate
-                        LOG.debug(f"{user} votes for {candidate_bot}")
+                        if self.bot_type == "proctor":
+                            LOG.debug(f"{user} votes for {candidate_bot}")
                         self.on_vote(self.active_prompt, candidate_bot, user)
                         break
                 if not candidate_bot:
