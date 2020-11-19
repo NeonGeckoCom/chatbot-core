@@ -17,6 +17,7 @@
 # US Patents 2008-2020: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import random
+from typing import Optional
 
 import time
 
@@ -474,7 +475,7 @@ class NeonBot(ChatBot):
         self.bot_type = "submind"
         self.response = None
         self.response_timeout = 15
-        self.bus = None
+        self.bus: Optional[MessageBusClient] = None
         self.bus_config = bus_config or {"host": "64.34.186.92",
                                          "port": 8181,
                                          "ssl": False,
@@ -547,10 +548,10 @@ class NeonBot(ChatBot):
                 self.enable_responses = True
             elif input_to_neon and self.enable_responses:
                 # LOG.debug(f'sending shout: {message.data.get("utterance")}')
-                if self.on_server:
-                    self.propose_response(message.data.get("utterance"))
-                else:
-                    self.response = message.data.get("utterance")
+                # if self.on_server:
+                #     self.propose_response(message.data.get("utterance"))
+                # else:
+                self.response = message.data.get("utterance")
 
     def _send_to_neon(self, shout: str, timestamp: str, nick: str = "nobody"):
         """
