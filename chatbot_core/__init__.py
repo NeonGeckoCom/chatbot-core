@@ -185,8 +185,8 @@ class ChatBot(KlatApi):
                         self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
                     except Exception as x:
                         LOG.error(f"{self.nick} | {x}")
-                else:
-                    LOG.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
+                # else:
+                #     LOG.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
                 # self.ask_chatbot(user, self.active_prompt, timestamp)
             elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
                 try:

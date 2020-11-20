@@ -19,7 +19,7 @@
 
 import logging
 
-fmt = '%(asctime)s - %(levelname)-8s - %(name)s:%(module)s:%(funcName)s:%(lineno)d - %(message)s'
+fmt = '%(asctime)s - %(levelname)-8s - %(name)s:%(filename)s:%(module)s:%(funcName)s:%(lineno)d - %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt='%Y-%m-%d:%H:%M:%S')
 logging.getLogger("socketio.client").setLevel(logging.WARNING)
 logging.getLogger("engineio.client").setLevel(logging.WARNING)
