@@ -90,7 +90,10 @@ class ChatBot(KlatApi):
         if status == 888:
             self.register_klat(self.username, self.password)
         self.enable_responses = True
-        LOG.debug(f"Responses enabled for {self.nick}")
+        if not self.nick:
+            LOG.error(f"No nick!! expected: {self.username}")
+        else:
+            LOG.debug(f"Responses enabled for {self.nick}")
         self.change_domain(self.start_domain)
         self.on_login()
 
@@ -166,7 +169,7 @@ class ChatBot(KlatApi):
 
                 if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
                     self.send_shout(ConversationControls.NEXT)
-            elif self.state == ConversationState.WAIT:
+            elif self.state == ConversationState.WAIT and self.bot_type == "submind":
                 LOG.warning(f"{self.nick} is sitting this round out!")
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
