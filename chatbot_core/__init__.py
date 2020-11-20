@@ -33,6 +33,8 @@ from klat_connector import start_socket  # Leave for extending classes to use wi
 from chatbot_core.logger import make_logger
 from mycroft_bus_client import Message, MessageBusClient
 
+LOG = make_logger("chatbot")
+
 
 class ConversationControls:
     RESP = " asks us to consider:"
