@@ -111,6 +111,9 @@ class ChatBot(KlatApi):
         if not shout:
             self.log.error(f"No shout (user={user}")
             return
+        if not self.nick:
+            self.log.error(f"No nick! user is {self.username}")
+            return
         if not self.conversation_is_proctored:
             self.log.warning("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
