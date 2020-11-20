@@ -40,6 +40,7 @@ class ConversationControls:
     PICK = "Tallying the votes for the responses to "
     NEXT = "I'm ready for the next prompt."
     HIST = "history"
+    WAIT = " may respond to the next prompt."
 
 
 class ConversationState(IntEnum):
@@ -48,6 +49,7 @@ class ConversationState(IntEnum):
     DISC = 2  # Discussing responses
     VOTE = 3  # Voting on responses
     PICK = 4  # Proctor will select response
+    WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
 class ChatBot(KlatApi):
@@ -155,6 +157,17 @@ class ChatBot(KlatApi):
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
+            elif shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
+                if self.nick not in shout:
+                    LOG.warning(f"{self.nick} will sit this round out.")
+                    self.state = ConversationState.WAIT
+                else:
+                    self.state = ConversationState.IDLE
+
+                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
+                    self.send_shout(ConversationControls.NEXT)
+            elif self.state == ConversationState.WAIT:
+                LOG.warning(f"{self.nick} is sitting this round out!")
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
                 self.ask_history(user, shout, dom, cid)
@@ -220,8 +233,8 @@ class ChatBot(KlatApi):
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
-                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
-                    self.send_shout(ConversationControls.NEXT)
+                # if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
+                #     self.send_shout(ConversationControls.NEXT)
             elif shout == ConversationControls.NEXT:
                 self.on_ready_for_next(user)
             # This came from a different non-neon user and is not related to a proctored conversation
@@ -277,6 +290,13 @@ class ChatBot(KlatApi):
         """
         self.state = ConversationState.PICK
         self.send_shout(f"{ConversationControls.PICK} \"{self.active_prompt}\"")
+
+    def pick_respondents(self, bots: list):
+        """
+        Called by proctor to select which bots may respond to the next prompt
+        """
+        bot_str = ",".join(bots)
+        self.send_shout(f"{bot_str}{ConversationControls.WAIT}")
 
     def announce_selection(self, user: str, selection: str):
         """
