@@ -203,13 +203,19 @@ class ChatBot(KlatApi):
                     self.active_prompt = remainder.rsplit("(", 1)[0].strip().strip('"')
                     self.log.info(f"Got prompt: {self.active_prompt}")
                     self.chat_history.append((request_user, self.active_prompt))
+                    self.log.debug(self.chat_history)
                     # if request_user in self.chat_history.keys():
                     #     self.chat_history[request_user].append(self.active_prompt)
                     # else:
                     #     self.chat_history[request_user] = [self.active_prompt]
                     self.proposed_responses[self.active_prompt] = {}
+                    self.log.debug(self.proposed_responses)
                     start_time = time.time()
-                    response = self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                    try:
+                        response = self.ask_chatbot(request_user, self.active_prompt, timestamp)
+                    except Exception as x:
+                        self.log.error(x)
+                        response = None
                     self._hesitate_before_response(start_time)
                     self.propose_response(response)
                 except Exception as e:
@@ -513,7 +519,7 @@ class ChatBot(KlatApi):
     @staticmethod
     def _hesitate_before_response(start_time):
         if time.time() - start_time < 5:
-            self.log.debug("Applying some artificial wait!")
+            LOG.debug("Applying some artificial wait!")
             # Apply some random wait time if we got a response very quickly
             time.sleep(random.randrange(0, 50) / 10)
 
