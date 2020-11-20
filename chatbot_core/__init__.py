@@ -181,7 +181,10 @@ class ChatBot(KlatApi):
                 # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
                 if self.bot_type == "proctor":
                     LOG.debug(f"Incoming prompt: {shout}")
-                    self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                    try:
+                        self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                    except Exception as x:
+                        LOG.error(f"{self.nick} | {x}")
                 else:
                     LOG.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
                 # self.ask_chatbot(user, self.active_prompt, timestamp)
@@ -212,7 +215,10 @@ class ChatBot(KlatApi):
                 self.add_proposed_response(user, self.active_prompt, shout)
             elif self.state == ConversationState.DISC and not self._user_is_proctor(user):
                 if user != self.nick:
-                    self.on_discussion(user, shout)
+                    try:
+                        self.on_discussion(user, shout)
+                    except Exception as x:
+                        LOG.error(f"{self.nick} | {x}")
             elif self.state == ConversationState.VOTE and not self._user_is_proctor(user):
                 candidate_bot = None
                 for candidate in self.conversation_users:
@@ -231,8 +237,11 @@ class ChatBot(KlatApi):
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
                 user, response = shout.split(":", 1)
                 user = user.split()[-1]
-                response = response.strip().strip('"')
-                self.on_selection(self.active_prompt, user, response)
+                try:
+                    response = response.strip().strip('"')
+                    self.on_selection(self.active_prompt, user, response)
+                except Exception as x:
+                    LOG.error(f"{self.nick} | {x}")
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
@@ -246,8 +255,11 @@ class ChatBot(KlatApi):
                     LOG.info(f"{self.nick} handling {shout}")
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
-                        response = self.ask_chatbot(user, shout, timestamp)
-                        self.propose_response(response)
+                        try:
+                            response = self.ask_chatbot(user, shout, timestamp)
+                            self.propose_response(response)
+                        except Exception as x:
+                            LOG.error(f"{self.nick} | {x}")
                 elif self.bot_type in ("proctor", "observer"):
                     pass
                 else:
