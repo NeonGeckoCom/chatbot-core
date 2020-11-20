@@ -59,6 +59,7 @@ class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
+        global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
         self.start_domain = domain
@@ -71,6 +72,7 @@ class ChatBot(KlatApi):
         self.password = password
 
         self.log = make_logger(self.__class__.__name__)
+        LOG = self.log
         klat_timeout = time.time() + 30
         while not self.ready and time.time() < klat_timeout:
             time.sleep(1)
