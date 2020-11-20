@@ -158,7 +158,7 @@ class ChatBot(KlatApi):
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
             elif shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                if self.nick not in shout:
+                if self.bot_type == "submind" and self.nick not in shout:
                     LOG.warning(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
