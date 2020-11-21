@@ -3,7 +3,7 @@ import unittest
 import sys
 import os
 import pytest
-from time import sleep
+import time
 
 from klat_connector import start_socket
 
@@ -20,7 +20,7 @@ class ChatbotCoreTests(unittest.TestCase):
     def test_01_initial_connection_settings(self):
         self.bot.bot_type = "submind"
         while not self.bot.ready:
-            sleep(1)
+            time.sleep(1)
         self.assertEqual(self.bot.nick, "testrunner")
         self.assertEqual(self.bot.logged_in, 2)
 
@@ -92,10 +92,35 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(self.bot.selected_history, ["testrunner"])
         self.assertEqual(self.bot.active_prompt, None)
 
+    @pytest.mark.timeout(30)
+    def test_10_login_register_new_user(self):
+        self.bot.logout_klat()
+        self.assertEqual(self.bot.logged_in, 1)
+        username = f"testrunner{time.time()}".split(".")[0]
+        self.bot.username = username
+        self.bot.password = "testpassword"
+        self.bot.login_klat(username, "testpassword")
+        while not self.bot.enable_responses:
+            time.sleep(1)
+        self.assertEqual(self.bot.logged_in, 2)
+        self.assertEqual(self.bot.username, username)
+
     @pytest.mark.timeout(10)
-    def test_10_shutdown_testing(self):
+    def test_11_clean_options(self):
+        self.bot.active_prompt = "Test Prompt"
+        self.bot.proposed_responses[self.bot.active_prompt] = {self.bot.nick: "This is removed",
+                                                               "Other User": "Valid Response",
+                                                               "Removed User": "Test Prompt"}
+        opts = self.bot._clean_options()
+        self.assertIsInstance(opts, dict)
+        self.assertNotIn(self.bot.nick, opts.keys())
+        self.assertNotIn(self.bot.active_prompt, opts.values())
+
+    @pytest.mark.timeout(10)
+    def test_12_shutdown_testing(self):
         self.bot.socket.disconnect()
         self.assertFalse(self.bot.socket.connected)
+
 
 # TODO: Test CLI bot detection, credentials load, etc. DM
 
