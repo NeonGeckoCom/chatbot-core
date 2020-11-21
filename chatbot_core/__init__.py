@@ -59,6 +59,7 @@ class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
+        global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
         self.start_domain = domain
@@ -71,6 +72,7 @@ class ChatBot(KlatApi):
         self.password = password
 
         self.log = make_logger(self.__class__.__name__)
+        LOG = self.log
         klat_timeout = time.time() + 30
         while not self.ready and time.time() < klat_timeout:
             time.sleep(1)
@@ -93,6 +95,7 @@ class ChatBot(KlatApi):
 
         if status == 888:
             self.register_klat(self.username, self.password)
+        # TODO: Catch and log other non-success returns!!
         self.enable_responses = True
         if not self.nick:
             self.log.error(f"No nick!! expected: {self.username}")
@@ -248,13 +251,14 @@ class ChatBot(KlatApi):
                     else:
                         self.log.warning(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
-                user, response = shout.split(":", 1)
-                user = user.split()[-1]
                 try:
+                    user, response = shout.split(":", 1)
+                    user = user.split()[-1]
                     response = response.strip().strip('"')
                     self.on_selection(self.active_prompt, user, response)
                 except Exception as x:
-                    self.log.error(f"{self.nick} | {x}")
+                    self.log.error(x)
+                    self.log.error(shout)
                 self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
