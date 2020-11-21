@@ -198,7 +198,8 @@ class ChatBot(KlatApi):
                 # else:
                 #     self.log.debug(f"{self.nick} Ignoring incoming Proctor Prompt")
                 # self.ask_chatbot(user, self.active_prompt, timestamp)
-            elif self.state == ConversationState.IDLE and self._user_is_proctor(user):
+            elif self.state == ConversationState.IDLE and self._user_is_proctor(user) \
+                    and ConversationControls.RESP in shout:
                 try:
                     self.state = ConversationState.RESP
                     request_user, remainder = shout.split(ConversationControls.RESP, 1)
