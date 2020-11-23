@@ -94,7 +94,14 @@ class ChatBot(KlatApi):
         # self.log.debug(f"login returned: {status}")
 
         if status == 888:
+            LOG.info(f"New user, registering {self.username}")
             self.register_klat(self.username, self.password)
+        elif status == 999:
+            LOG.error(f"Incorrect Password!")
+        # elif status == 666:
+        #     LOG.error(f"Nickname in use")
+        elif status != 0:
+            LOG.error(f"Error {status} occurred while logging in!")
         # TODO: Catch and log other non-success returns!!
         self.enable_responses = True
         if not self.nick:
@@ -150,7 +157,18 @@ class ChatBot(KlatApi):
         # Handle Parsed Shout
         try:
             # Proctor Control Messages
-            if shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
+            if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
+                if self.bot_type == "submind" and self.nick not in shout:
+                    self.log.warning(f"{self.nick} will sit this round out.")
+                    self.state = ConversationState.WAIT
+                else:
+                    self.state = ConversationState.IDLE
+
+                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
+                    self.send_shout(ConversationControls.NEXT)
+            elif self.state == ConversationState.WAIT and self.bot_type == "submind":
+                self.log.warning(f"{self.nick} is sitting this round out!")
+            elif shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
                 self.state = ConversationState.DISC
                 start_time = time.time()
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
@@ -170,17 +188,7 @@ class ChatBot(KlatApi):
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
                 self.state = ConversationState.PICK
-            elif shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                if self.bot_type == "submind" and self.nick not in shout:
-                    self.log.warning(f"{self.nick} will sit this round out.")
-                    self.state = ConversationState.WAIT
-                else:
-                    self.state = ConversationState.IDLE
 
-                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
-                    self.send_shout(ConversationControls.NEXT)
-            elif self.state == ConversationState.WAIT and self.bot_type == "submind":
-                self.log.warning(f"{self.nick} is sitting this round out!")
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
                 self.ask_history(user, shout, dom, cid)
