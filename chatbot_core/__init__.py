@@ -85,6 +85,7 @@ class ChatBot(KlatApi):
         else:
             self.enable_responses = True
             self.log.debug(f"Responses enabled for {self.nick}")
+            self.on_login()
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.chat_history = list()
@@ -393,7 +394,7 @@ class ChatBot(KlatApi):
 
     def on_login(self):
         """
-        Override to execute any initialization after logging in
+        Override to execute any initialization after logging in or after connection if no username/password
         """
         pass
 
@@ -559,7 +560,10 @@ class NeonBot(ChatBot):
         timeout = time.time() + 60
         while not self.script_started and time.time() < timeout:
             time.sleep(1)
-        self.log.debug("Neon Bot Started!")
+        if self.script_started:
+            self.log.debug("Neon Bot Started!")
+        else:
+            self.log.error("Neon Bot Error!")
 
     def ask_chatbot(self, nick: str, shout: str, timestamp: str):
         """
@@ -582,6 +586,7 @@ class NeonBot(ChatBot):
         return self.response
 
     def on_login(self):
+        self.log.debug("NeonBot on_login")
         while not self.bus:
             self.log.error("Bus not configured yet!")
             time.sleep(1)
