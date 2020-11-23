@@ -71,7 +71,8 @@ def get_bots_in_dir(bot_path: str) -> dict:
             module = __import__(mod)
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 # TODO: Why are facilitators not subclassed ChatBots? DM
-                if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                if name not in ("ChatBot", "NeonBot") and \
+                        (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
                     bots[mod] = obj
         LOG.debug(bots)
     return bots
