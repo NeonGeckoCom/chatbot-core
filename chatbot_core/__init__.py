@@ -545,7 +545,7 @@ class NeonBot(ChatBot):
         self.response = None
         self.response_timeout = 15
         self.bus: Optional[MessageBusClient] = None
-        self.bus_config = bus_config or {"host": "64.34.186.92",
+        self.bus_config = bus_config or {"host": "167.172.112.7",
                                          "port": 8181,
                                          "ssl": False,
                                          "route": "/core"}
@@ -577,11 +577,16 @@ class NeonBot(ChatBot):
         timeout = time.time() + self.response_timeout
         while not self.response and time.time() < timeout:
             time.sleep(0.5)
+        if not self.response:
+            self.log.error(f"No response to script input!")
         return self.response
 
     def on_login(self):
         while not self.bus:
             self.log.error("Bus not configured yet!")
+            time.sleep(1)
+        while not self.bus.started_running:
+            self.log.error("Bus not running yet!")
             time.sleep(1)
         self._send_to_neon("exit", str(round(time.time())), self.nick)
         self.enable_responses = False
@@ -606,7 +611,7 @@ class NeonBot(ChatBot):
         Forwards a Neon response into a shout by the logged in user in their current conversation
         :param message: messagebus message associated with "speak"
         """
-        # self.log.debug(message.context)
+        self.log.debug(message.context)
         if message.context.get("client") == self.instance:
             input_to_neon = message.context.get("cc_data", {}).get("raw_utterance")
             if input_to_neon == "exit":
@@ -622,13 +627,14 @@ class NeonBot(ChatBot):
                 # else:
                 self.response = message.data.get("utterance")
 
-    def _send_to_neon(self, shout: str, timestamp: str, nick: str = "nobody"):
+    def _send_to_neon(self, shout: str, timestamp: str, nick: str = None):
         """
         Send input to Neon for skills processing
         :param shout: shout to evaluate
         :param timestamp: timestamp of shout
         :param nick: user associated with shout
         """
+        nick = nick or "nobody"
         data = {
             "raw_utterances": [shout],
             "utterances": [shout],
@@ -652,4 +658,5 @@ class NeonBot(ChatBot):
                    "timing": {"received": time.time()}
                    }
         # Emit to Neon for a response
+        self.log.debug(data)
         self.bus.emit(Message("recognizer_loop:utterance", data, context))
