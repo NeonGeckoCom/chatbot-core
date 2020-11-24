@@ -121,6 +121,9 @@ class ChatbotCoreTests(unittest.TestCase):
         self.bot.socket.disconnect()
         self.assertFalse(self.bot.socket.connected)
 
+    # def test_bots_in_dir(self):
+    #     from chatbot_core.utils import get_bots_in_dir
+    #     get_bots_in_dir("/home/d_mcknight/PycharmProjects/chatbots/bots/ELIZA")
 
 # TODO: Test CLI bot detection, credentials load, etc. DM
 
