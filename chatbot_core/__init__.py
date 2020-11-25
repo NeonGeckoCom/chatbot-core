@@ -450,7 +450,8 @@ class ChatBot(KlatApi):
 
     def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         """
-        Override in subminds to handle an incoming shout that requires some response
+        Override in subminds to handle an incoming shout that requires some response. If no response can be determined,
+        return the prompt.
         :param user: user associated with shout
         :param shout: text shouted by user
         :param timestamp: formatted timestamp of shout
