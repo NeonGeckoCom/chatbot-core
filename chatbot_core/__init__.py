@@ -533,9 +533,10 @@ class ChatBot(KlatApi):
 
     def _hesitate_before_response(self, start_time):
         if time.time() - start_time < 5:
-            self.log.debug("Applying some artificial wait!")
             # Apply some random wait time if we got a response very quickly
             time.sleep(random.randrange(0, 50) / 10)
+        else:
+            self.log.debug("Skipping artificial wait!")
 
 
 class NeonBot(ChatBot):
