@@ -159,7 +159,7 @@ class ChatBot(KlatApi):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                if self.bot_type == "submind" and self.nick not in shout:
+                if self.bot_type == "submind" and self.nick.lower() not in shout:
                     self.log.warning(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
@@ -450,7 +450,8 @@ class ChatBot(KlatApi):
 
     def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         """
-        Override in subminds to handle an incoming shout that requires some response
+        Override in subminds to handle an incoming shout that requires some response. If no response can be determined,
+        return the prompt.
         :param user: user associated with shout
         :param shout: text shouted by user
         :param timestamp: formatted timestamp of shout
@@ -532,9 +533,10 @@ class ChatBot(KlatApi):
 
     def _hesitate_before_response(self, start_time):
         if time.time() - start_time < 5:
-            self.log.debug("Applying some artificial wait!")
             # Apply some random wait time if we got a response very quickly
             time.sleep(random.randrange(0, 50) / 10)
+        else:
+            self.log.debug("Skipping artificial wait!")
 
 
 class NeonBot(ChatBot):
