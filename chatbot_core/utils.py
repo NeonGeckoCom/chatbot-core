@@ -90,7 +90,7 @@ def load_credentials_yml(cred_file: str) -> dict:
 
 
 def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
-               cred_file: str = None, bot_name: str = None):
+               cred_file: str = None, bot_name: str = None, excluded_bots: list = None):
     """
     Start all of the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
@@ -100,6 +100,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param server: Klat server url to connect to
     :param cred_file: Path to a credentials yml file
     :param bot_name: Optional name of the bot to start (None for all bots)
+    :param excluded_bots: Optional list of bots to exclude from launching
     """
 
     domain = domain or "chatbotsforum.org"
@@ -151,6 +152,10 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             LOG.error(f"{bot_name} is not a valid bot!")
             return
     else:
+        if excluded_bots:
+            for name in excluded_bots:
+                if name in bots_to_start.keys():
+                    bots_to_start.pop(name)
         # TODO: Start Proctor first?
         # Start a socket for each unique bot, bots handle login names
         for name, bot in bots_to_start.items():
@@ -199,15 +204,20 @@ def cli_start_bots():
                         help=f"Klat server (default: {SERVER})", type=str)
     parser.add_argument("--debug", dest="debug", action='store_true',
                         help="Enable more verbose log output")
-
+    parser.add_argument("--exclude", dest="exclude",
+                        help="comma separated list of bots to exclude from running", type=str)
     args = parser.parse_args()
 
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
     else:
         logging.getLogger("chatbots").setLevel(logging.WARNING)
+
+    if args.exclude:
+        excluded_bots = [name.strip() for name in args.exclude.split(",")]
     LOG.debug(args)
-    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
+    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
+               excluded_bots)
 
 
 def cli_stop_bots():
