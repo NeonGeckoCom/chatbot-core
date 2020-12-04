@@ -91,6 +91,15 @@ class ChatBot(KlatApi):
         self.chat_history = list()
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
 
+        self.fallback_responses = ("Huh?",
+                                   "What?",
+                                   "I don't know.",
+                                   "I'm not sure what to say to that.",
+                                   "I can't respond to that.",
+                                   "...",
+                                   "Sorry?",
+                                   "Come again?")
+
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
 
@@ -130,23 +139,31 @@ class ChatBot(KlatApi):
         if not self.conversation_is_proctored:
             self.log.warning("Unproctored conversation!!")
         # if not self.is_current_cid(cid):
-        if self.bot_type == "proctor" and shout.lower().startswith(f"@{self.nick.lower()}"):
-            self.log.info("@Proctor shout incoming")
-            try:
-                shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
-            except Exception as e:
-                self.log.error(e)
-                self.log.error(f'Ignoring incoming: {shout}')
-        elif self.bot_type == "observer" and shout.lower().startswith(f"@{self.nick.lower()}"):
-            self.log.info("@observer shout incoming")
-            try:
-                shout = f'{shout.split(" ", 1)[1]}'
-            except Exception as e:
-                self.log.error(e)
-                self.log.error(f'Ignoring incoming: {shout}')
+
+        # Handle @user incoming shout
+        if shout.lower().startswith(f"@{self.nick.lower()}"):
+            if self.bot_type == "proctor":
+                self.log.info("@Proctor shout incoming")
+                try:
+                    shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
+                except Exception as e:
+                    self.log.error(e)
+                    self.log.error(f'Ignoring incoming: {shout}')
+            elif self.bot_type == "observer":
+                self.log.info("@observer shout incoming")
+                try:
+                    shout = f'{shout.split(" ", 1)[1]}'
+                except Exception as e:
+                    self.log.error(e)
+                    self.log.error(f'Ignoring incoming: {shout}')
+            elif self.bot_type == "submind":
+                self.log.info(f"@bot shout incoming")
+                self.at_chatbot(user, shout, timestamp)
+        # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
             self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
+        # Ignore anything that is @ a different user
         elif shout.startswith("@"):
             self.log.debug(f"Outgoing shout ignored ({shout})")
             return
@@ -192,7 +209,11 @@ class ChatBot(KlatApi):
 
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
-                self.ask_history(user, shout, dom, cid)
+                response = self.ask_history(user, shout, dom, cid)
+                if response:
+                    if not self.is_current_cid(cid):
+                        response = f"@{user} {response}"
+                    self.send_shout(response, cid, dom)
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
@@ -266,6 +287,9 @@ class ChatBot(KlatApi):
                     user = user.split()[-1]
                     response = response.strip().strip('"')
                     self.on_selection(self.active_prompt, user, response)
+                    if self.nick.lower() == "scorekeeper":  # Get the history (for scorekeeper)
+                        history = self.ask_history(user, shout, dom, cid)
+                        self.send_shout(history, cid, dom)
                 except Exception as x:
                     self.log.error(x)
                     self.log.error(shout)
@@ -311,7 +335,7 @@ class ChatBot(KlatApi):
             #     self.proposed_responses[prompt] = {user: response}
         self.on_proposed_response()
 
-# Proctor Functions
+    # Proctor Functions
     def call_discussion(self, timeout: int):
         """
         Called by proctor to ask all subminds to discuss a response
@@ -352,6 +376,11 @@ class ChatBot(KlatApi):
         Called when a bot as a proposed response to the input prompt
         :param shout: Proposed response to the prompt
         """
+        # Generate a random response if none is provided
+        if shout == self.active_prompt:
+            self.log.info(f"Pick random response for {self.nick}")
+            shout = self._generate_random_response()
+
         if not shout:
             if self.bot_type == "submind":
                 self.log.warning(f"Empty response provided! ({self.nick})")
@@ -391,6 +420,12 @@ class ChatBot(KlatApi):
             self.send_shout("I abstain from voting.")
         else:
             self.send_shout(f"I vote for {response_user}")
+
+    def _generate_random_response(self):
+        """
+        Generates some random bot response from the given options or the default list
+        """
+        return random.choice(self.fallback_responses)
 
     def on_login(self):
         """
@@ -438,6 +473,16 @@ class ChatBot(KlatApi):
         """
         pass
 
+    def at_chatbot(self, user: str, shout: str, timestamp: str) -> str:
+        """
+        Override in subminds to handle an incoming shout that is directed at this bot. Defaults to ask_chatbot.
+        :param user: user associated with shout
+        :param shout: text shouted by user
+        :param timestamp: formatted timestamp of shout
+        :return: response from chatbot
+        """
+        return self.ask_chatbot(user, shout, timestamp)
+
     def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
         """
         Override in proctor to handle a new prompt to queue
@@ -459,13 +504,14 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def ask_history(self, user: str, shout: str, dom: str, cid: str):
+    def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
         """
         Override in scorekeepers to handle an incoming request for the selection history
         :param user: user associated with request
         :param shout: shout requesting history
         :param dom: domain user shout originated from
         :param cid: conversation user shout originated from
+        :return: Formatted string response
         """
         pass
 
@@ -543,6 +589,7 @@ class NeonBot(ChatBot):
     """
     Extensible class to handle a chatbot implemented in custom-conversations skill
     """
+
     def __init__(self, socket, domain, username, password, on_server, script, bus_config=None):
         self.bot_type = "submind"
         self.response = None

@@ -68,12 +68,15 @@ def get_bots_in_dir(bot_path: str) -> dict:
         sys.path.append(bot_path)
 
         for mod in bot_names:
-            module = __import__(mod)
-            for name, obj in inspect.getmembers(module, inspect.isclass):
-                # TODO: Why are facilitators not subclassed ChatBots? DM
-                if name not in ("ChatBot", "NeonBot") and \
-                        (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                    bots[mod] = obj
+            try:
+                module = __import__(mod)
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    # TODO: Why are facilitators not subclassed ChatBots? DM
+                    if name not in ("ChatBot", "NeonBot") and \
+                            (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                        bots[mod] = obj
+            except Exception as e:
+                LOG.error(e)
         LOG.debug(bots)
     return bots
 
