@@ -287,8 +287,8 @@ class ChatBot(KlatApi):
                     user = user.split()[-1]
                     response = response.strip().strip('"')
                     self.on_selection(self.active_prompt, user, response)
-                    history = self.ask_history(user, shout, dom, cid)  # Get the history (for facilitators)
-                    if history:
+                    if self.nick.lower() == "scorekeeper":  # Get the history (for scorekeeper)
+                        history = self.ask_history(user, shout, dom, cid)
                         self.send_shout(history, cid, dom)
                 except Exception as x:
                     self.log.error(x)
