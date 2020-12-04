@@ -209,7 +209,11 @@ class ChatBot(KlatApi):
 
             # Commands
             elif ConversationControls.HIST in shout.lower():  # User asked for history
-                self.ask_history(user, shout, dom, cid)
+                response = self.ask_history(user, shout, dom, cid)
+                if response:
+                    if not self.is_current_cid(cid):
+                        response = f"@{user} {response}"
+                    self.send_shout(response, cid, dom)
 
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
@@ -283,7 +287,9 @@ class ChatBot(KlatApi):
                     user = user.split()[-1]
                     response = response.strip().strip('"')
                     self.on_selection(self.active_prompt, user, response)
-                    self.ask_history(user, shout, dom, cid)  # Get the history (for facilitators)
+                    history = self.ask_history(user, shout, dom, cid)  # Get the history (for facilitators)
+                    if history:
+                        self.send_shout(history, cid, dom)
                 except Exception as x:
                     self.log.error(x)
                     self.log.error(shout)
@@ -498,13 +504,14 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def ask_history(self, user: str, shout: str, dom: str, cid: str):
+    def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
         """
         Override in scorekeepers to handle an incoming request for the selection history
         :param user: user associated with request
         :param shout: shout requesting history
         :param dom: domain user shout originated from
         :param cid: conversation user shout originated from
+        :return: Formatted string response
         """
         pass
 
