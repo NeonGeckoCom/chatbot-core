@@ -117,10 +117,13 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     if len(bots_to_start.keys()) == 0:
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
-            if str(d) not in ("__pycache__", "tests", "venv") and not d.startswith(".") \
-                    and os.path.isdir(os.path.join(bot_dir, d)):
-                LOG.info(f"Found bots dir {d}")
-                bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
+            try:
+                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji") and not d.startswith(".") \
+                        and os.path.isdir(os.path.join(bot_dir, d)):
+                    LOG.info(f"Found bots dir {d}")
+                    bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
+            except Exception as e:
+                LOG.error(e)
 
     LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
@@ -218,6 +221,8 @@ def cli_start_bots():
 
     if args.exclude:
         excluded_bots = [name.strip() for name in args.exclude.split(",")]
+    else:
+        excluded_bots = None
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
                excluded_bots)
