@@ -185,7 +185,7 @@ class ChatBot(KlatApi):
                 if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
                     self.send_shout(ConversationControls.NEXT)
             elif self.state == ConversationState.WAIT and self.bot_type == "submind":
-                self.log.warning(f"{self.nick} is sitting this round out!")
+                self.log.debug(f"{self.nick} is sitting this round out!")
             elif shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
                 self.state = ConversationState.DISC
                 start_time = time.time()
