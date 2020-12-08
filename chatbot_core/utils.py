@@ -68,12 +68,15 @@ def get_bots_in_dir(bot_path: str) -> dict:
         sys.path.append(bot_path)
 
         for mod in bot_names:
-            module = __import__(mod)
-            for name, obj in inspect.getmembers(module, inspect.isclass):
-                # TODO: Why are facilitators not subclassed ChatBots? DM
-                if name not in ("ChatBot", "NeonBot") and \
-                        (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                    bots[mod] = obj
+            try:
+                module = __import__(mod)
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    # TODO: Why are facilitators not subclassed ChatBots? DM
+                    if name not in ("ChatBot", "NeonBot") and \
+                            (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                        bots[mod] = obj
+            except Exception as e:
+                LOG.error(e)
         LOG.debug(bots)
     return bots
 
@@ -114,10 +117,13 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     if len(bots_to_start.keys()) == 0:
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
-            if str(d) not in ("__pycache__", "tests", "venv") and not d.startswith(".") \
-                    and os.path.isdir(os.path.join(bot_dir, d)):
-                LOG.info(f"Found bots dir {d}")
-                bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
+            try:
+                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji") and not d.startswith(".") \
+                        and os.path.isdir(os.path.join(bot_dir, d)):
+                    LOG.info(f"Found bots dir {d}")
+                    bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
+            except Exception as e:
+                LOG.error(e)
 
     LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
@@ -145,9 +151,12 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
-            user = username or credentials.get(bot_name, {}).get("username")
-            password = password or credentials.get(bot_name, {}).get("password")
-            bot(start_socket(server, 8888), domain, user, password, True)
+            try:
+                user = username or credentials.get(bot_name, {}).get("username")
+                password = password or credentials.get(bot_name, {}).get("password")
+                bot(start_socket(server, 8888), domain, user, password, True)
+            except Exception as e:
+                LOG.error(e)
         else:
             LOG.error(f"{bot_name} is not a valid bot!")
             return
@@ -215,6 +224,8 @@ def cli_start_bots():
 
     if args.exclude:
         excluded_bots = [name.strip() for name in args.exclude.split(",")]
+    else:
+        excluded_bots = None
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
                excluded_bots)
