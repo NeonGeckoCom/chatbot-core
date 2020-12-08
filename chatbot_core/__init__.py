@@ -137,7 +137,7 @@ class ChatBot(KlatApi):
             self.log.error(f"No nick! user is {self.username}")
             return
         if not self.conversation_is_proctored:
-            self.log.warning("Unproctored conversation!!")
+            self.log.warning("Un-proctored conversation!!")
         # if not self.is_current_cid(cid):
 
         # Handle @user incoming shout
@@ -167,7 +167,9 @@ class ChatBot(KlatApi):
         elif shout.startswith("@"):
             self.log.debug(f"Outgoing shout ignored ({shout})")
             return
-
+        # Subminds ignore facilitators
+        elif user.lower() != "proctor" and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
+            self.log.info(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
             user = user.split("#")[0]
