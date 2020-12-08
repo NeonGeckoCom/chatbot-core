@@ -151,9 +151,12 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
-            user = username or credentials.get(bot_name, {}).get("username")
-            password = password or credentials.get(bot_name, {}).get("password")
-            bot(start_socket(server, 8888), domain, user, password, True)
+            try:
+                user = username or credentials.get(bot_name, {}).get("username")
+                password = password or credentials.get(bot_name, {}).get("password")
+                bot(start_socket(server, 8888), domain, user, password, True)
+            except Exception as e:
+                LOG.error(e)
         else:
             LOG.error(f"{bot_name} is not a valid bot!")
             return
