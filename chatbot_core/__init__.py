@@ -176,10 +176,11 @@ class ChatBot(KlatApi):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                if self.bot_type == "submind" and self.nick.lower() not in shout:
+                if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
                     self.log.warning(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
+                    self.log.info(f"{self.nick} will participate in the next round.")
                     self.state = ConversationState.IDLE
 
                 if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt

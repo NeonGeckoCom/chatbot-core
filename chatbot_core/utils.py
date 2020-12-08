@@ -110,7 +110,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
-    LOG.debug(f"Starting bots on server: {SERVER}")
+    LOG.debug(f"Starting bots on server: {server}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
     # Catch no bots found
