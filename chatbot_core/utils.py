@@ -110,7 +110,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
-    LOG.debug(f"Starting bots on server: {SERVER}")
+    LOG.debug(f"Starting bots on server: {server}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
     # Catch no bots found
@@ -165,7 +165,20 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             for name in excluded_bots:
                 if name in bots_to_start.keys():
                     bots_to_start.pop(name)
-        # TODO: Start Proctor first?
+
+        # Start Proctor first if in the list of bots to start
+        if "Proctor" in bots_to_start.keys():
+            bot = bots_to_start.pop("Proctor")
+            try:
+                user = username or credentials.get("Proctor", {}).get("username")
+                password = password or credentials.get("Proctor", {}).get("password")
+                b = bot(start_socket(server, 8888), domain, user, password, True)
+                if b.bot_type == "proctor":
+                    proctor = b
+            except Exception as e:
+                LOG.error(e)
+                LOG.error(bot)
+
         # Start a socket for each unique bot, bots handle login names
         for name, bot in bots_to_start.items():
             LOG.debug(f"Starting: {name}")
