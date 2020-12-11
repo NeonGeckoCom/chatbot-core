@@ -635,7 +635,7 @@ class NeonBot(ChatBot):
             time.sleep(0.5)
         if not self.response:
             self.log.error(f"No response to script input!")
-        return self.response
+        return self.response or shout
 
     def on_login(self):
         self.log.debug("NeonBot on_login")
