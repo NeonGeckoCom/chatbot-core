@@ -232,8 +232,10 @@ def cli_start_bots():
 
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
+        logging.getLogger("chatbot").setLevel(logging.DEBUG)
     else:
         logging.getLogger("chatbots").setLevel(logging.WARNING)
+        logging.getLogger("chatbot").setLevel(logging.WARNING)
 
     if args.exclude:
         excluded_bots = [name.strip() for name in args.exclude.split(",")]
