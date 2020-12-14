@@ -51,10 +51,11 @@ else:
     SERVER = "0000.us"
 
 
-def get_bots_in_dir(bot_path: str) -> dict:
+def get_bots_in_dir(bot_path: str, names_to_consider: list = None) -> dict:
     """
     Gets all ChatBots in the given directory, imports them, and returns a dict of their names to modules.
     :param bot_path: absoulute file path containing bots
+    :param names_to_consider: limit imported instances to certain list
     :return: dict of bot name:ChatBot object
     """
 
@@ -64,19 +65,18 @@ def get_bots_in_dir(bot_path: str) -> dict:
     bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
     # Get all bots in the requested directory
     bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
+    # only specified bot names
+    if names_to_consider:
+        bot_names = list(set(bot_names) & set(names_to_consider))
     if bot_names:
         sys.path.append(bot_path)
 
         for mod in bot_names:
-            try:
-                module = __import__(mod)
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # TODO: Why are facilitators not subclassed ChatBots? DM
-                    if name not in ("ChatBot", "NeonBot") and \
-                            (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                        bots[mod] = obj
-            except Exception as e:
-                LOG.error(e)
+            module = __import__(mod)
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                # TODO: Why are facilitators not subclassed ChatBots? DM
+                if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                    bots[mod] = obj
         LOG.debug(bots)
     return bots
 
