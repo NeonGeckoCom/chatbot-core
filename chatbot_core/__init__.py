@@ -174,6 +174,8 @@ class ChatBot(KlatApi):
         if "#" in user:
             user = user.split("#")[0]
 
+        # TODO: Parse prompt prefix case insensitive and remove space following colon DM
+
         # Handle Parsed Shout
         try:
             # Proctor Control Messages
@@ -204,7 +206,7 @@ class ChatBot(KlatApi):
                     options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
                     self._hesitate_before_response(start_time)
-                    if not selected:
+                    if not selected or selected == self.nick:
                         selected = "abstain"
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
@@ -269,7 +271,7 @@ class ChatBot(KlatApi):
                         self.on_discussion(user, shout)
                     except Exception as x:
                         self.log.error(f"{self.nick} | {x}")
-            elif self.state == ConversationState.VOTE and not self._user_is_proctor(user):
+            elif self.state == ConversationState.VOTE and user.lower() not in self.facilitator_nicks:
                 candidate_bot = None
                 for candidate in self.conversation_users:
                     if candidate in shout.split():
@@ -289,6 +291,7 @@ class ChatBot(KlatApi):
                     user, response = shout.split(":", 1)
                     user = user.split()[-1]
                     response = response.strip().strip('"')
+                    self.selected_history.append(user)
                     self.on_selection(self.active_prompt, user, response)
                     if self.nick.lower() == "scorekeeper":  # Get the history (for scorekeeper)
                         history = self.ask_history(user, shout, dom, cid)
@@ -296,7 +299,6 @@ class ChatBot(KlatApi):
                 except Exception as x:
                     self.log.error(x)
                     self.log.error(shout)
-                self.selected_history.append(user)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
                 # if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
