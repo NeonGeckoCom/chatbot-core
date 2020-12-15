@@ -206,7 +206,7 @@ class ChatBot(KlatApi):
                     options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
                     self._hesitate_before_response(start_time)
-                    if not selected:
+                    if not selected or selected == self.nick:
                         selected = "abstain"
                     self.vote_response(selected)
             elif shout.startswith(ConversationControls.PICK) and self._user_is_proctor(user):  # Voting is closed
