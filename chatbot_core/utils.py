@@ -121,7 +121,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 if str(d) not in ("__pycache__", "tests", "venv", "torchmoji") and not d.startswith(".") \
                         and os.path.isdir(os.path.join(bot_dir, d)):
                     LOG.info(f"Found bots dir {d}")
-                    bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
+                    bots_to_start = {**get_bots_in_dir(os.path.join(bot_dir, d)), **bots_to_start}
             except Exception as e:
                 LOG.error(e)
 
