@@ -72,6 +72,7 @@ class ChatBot(KlatApi):
         self.password = password
 
         self.log = make_logger(self.__class__.__name__)
+        self.log.setLevel(LOG.level)
         LOG = self.log
         klat_timeout = time.time() + 30
         while not self.ready and time.time() < klat_timeout:
