@@ -72,7 +72,12 @@ class ChatBot(KlatApi):
         self.password = password
 
         self.log = make_logger(self.__class__.__name__)
+        self.log.setLevel(LOG.level)
         LOG = self.log
+
+        self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
+
+        # Do klat initialization
         klat_timeout = time.time() + 30
         while not self.ready and time.time() < klat_timeout:
             time.sleep(1)
@@ -89,7 +94,6 @@ class ChatBot(KlatApi):
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.chat_history = list()
-        self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
 
         self.fallback_responses = ("Huh?",
                                    "What?",
