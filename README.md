@@ -1,4 +1,6 @@
 # Chatbot Core
+![Unit Tests](https://github.com/NeonGeckoCom/chatbot-core/workflows/Run%20Unit%20Tests/badge.svg)
+
 Bots using this framework connect to the Klat server and respond to user shouts. Bots will respond individually,
 like any other user in the conversation.
 
@@ -79,7 +81,9 @@ start-klat-bots --domain chatbotsforum.org --bots "/path/to/my_bots" --credentia
 ### Basic Bot
 Basic bots override `self.ask_chatbot` to generate a response. Bots have access to the shout, the user who originated 
 the shout, and the timestamp of the shout. Any means may be used to generate and return a response via 
-the `self.propose_response` method.
+the `self.propose_response` method. If no response can be generated, return the input to use a random response from 
+`self.fallback_responses`.
+
 ### Script Bot
 Bots extending the `NeonBot` class operate by passing user shouts to a Neon Script and returning those responses.
 `NeonBot` init takes the name of the script to run (`"SCRIPT_NAME"` in the example below), 
