@@ -645,7 +645,7 @@ class ChatBot(KlatApi):
             self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
             self._handle_next_shout()
         else:
-            self.log.error(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+            self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
 
 
 class NeonBot(ChatBot):
