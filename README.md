@@ -1,4 +1,6 @@
 # Chatbot Core
+![Unit Tests](https://github.com/NeonGeckoCom/chatbot-core/workflows/Run%20Unit%20Tests/badge.svg)
+
 Bots using this framework connect to the Klat server and respond to user shouts. Bots will respond individually,
 like any other user in the conversation.
 
