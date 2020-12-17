@@ -140,7 +140,6 @@ class ChatbotCoreTests(unittest.TestCase):
     #     self.assertTrue(self.bot.shout_queue.empty())
     #     self.assertFalse(self.bot.shout_thread.isAlive())
 
-
     @pytest.mark.timeout(10)
     def test_14_voting(self):
         self.bot.state = ConversationState.VOTE
