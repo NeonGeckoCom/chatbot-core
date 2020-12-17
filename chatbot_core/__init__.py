@@ -76,6 +76,7 @@ class ChatBot(KlatApi):
         LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
+        self.response_probability = 85  # % probability for a bot to respond to an input in non-proctored conversation
 
         # Do klat initialization
         klat_timeout = time.time() + 30
@@ -316,8 +317,12 @@ class ChatBot(KlatApi):
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
                         try:
-                            response = self.ask_chatbot(user, shout, timestamp)
-                            self.propose_response(response)
+                            if random.randint(1, 100) < self.response_probability:
+                                self.enable_responses = False  # Disable
+                                response = self.ask_chatbot(user, shout, timestamp)
+                                self.propose_response(response)
+                            else:
+                                self.log.info(f"{self.nick} ignoring input: {shout}")
                         except Exception as x:
                             self.log.error(f"{self.nick} | {x}")
                 elif self.bot_type in ("proctor", "observer"):
@@ -402,6 +407,10 @@ class ChatBot(KlatApi):
             self.log.warning(f"Late Response! {shout}")
         else:
             self.log.error(f"Unknown response error! Ignored: {shout}")
+
+        if not self.enable_responses:
+            self.log.warning(f"re-enabling responses!")
+            self.enable_responses = True
 
     def discuss_response(self, shout: str):
         """
