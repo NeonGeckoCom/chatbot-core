@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import random
+from queue import Queue
 from typing import Optional
 
 import time
@@ -67,6 +68,7 @@ class ChatBot(KlatApi):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
+        self.shout_queue = Queue(maxsize=256)
 
         self.username = username
         self.password = password
@@ -76,6 +78,7 @@ class ChatBot(KlatApi):
         LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
+        self.response_probability = 75  # % probability for a bot to respond to an input in non-proctored conversation
 
         # Do klat initialization
         klat_timeout = time.time() + 30
@@ -103,6 +106,8 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
+        self.thread = Thread(target=self._handle_next_shout)
+        self.thread.start()
 
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
@@ -126,6 +131,17 @@ class ChatBot(KlatApi):
         self.on_login()
 
     def handle_incoming_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
+        """
+        Handles an incoming shout into the current conversation
+        :param user: user associated with shout
+        :param shout: text shouted by user
+        :param cid: cid shout belongs to
+        :param dom: domain conversation belongs to
+        :param timestamp: formatted timestamp of shout
+        """
+        self.shout_queue.put((user, shout, cid, dom, timestamp))
+
+    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
         """
         Handles an incoming shout into the current conversation
         :param user: user associated with shout
@@ -178,7 +194,11 @@ class ChatBot(KlatApi):
         if "#" in user:
             user = user.split("#")[0]
 
-        # TODO: Parse prompt prefix case insensitive and remove space following colon DM
+        # Handle prompts with incorrect prefix case
+        if not shout.startswith("!PROMPT:") and shout.lower().startswith("!prompt:"):
+            content = shout.split(':', 1)[1].strip()
+            LOG.info(f"Cleaned Prompt={content}")
+            shout = f"!PROMPT:{content}"
 
         # Handle Parsed Shout
         try:
@@ -315,9 +335,15 @@ class ChatBot(KlatApi):
                     self.log.info(f"{self.nick} handling {shout}")
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
+                        if shout.startswith("!PROMPT:"):
+                            self.log.error(f"Prompt into unproctored conversation! {shout}")
+                            return
                         try:
-                            response = self.ask_chatbot(user, shout, timestamp)
-                            self.propose_response(response)
+                            if random.randint(1, 100) < self.response_probability:
+                                response = self.ask_chatbot(user, shout, timestamp)
+                                self.propose_response(response)
+                            else:
+                                self.log.info(f"{self.nick} ignoring input: {shout}")
                         except Exception as x:
                             self.log.error(f"{self.nick} | {x}")
                 elif self.bot_type in ("proctor", "observer"):
@@ -395,13 +421,17 @@ class ChatBot(KlatApi):
                 self.log.warning(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored:
             self.send_shout(shout)
-            self._pause_responses()
+            self._pause_responses(len(self.conversation_users) * 5)
         elif self.state == ConversationState.RESP:
             self.send_shout(shout)
         elif self.state == ConversationState.VOTE:
             self.log.warning(f"Late Response! {shout}")
         else:
             self.log.error(f"Unknown response error! Ignored: {shout}")
+
+        if not self.enable_responses:
+            self.log.warning(f"re-enabling responses!")
+            self.enable_responses = True
 
     def discuss_response(self, shout: str):
         """
@@ -592,6 +622,18 @@ class ChatBot(KlatApi):
             time.sleep(random.randrange(0, 50) / 10)
         else:
             self.log.debug("Skipping artificial wait!")
+
+    def _handle_next_shout(self):
+        """
+        Called recursively to handle incoming shouts synchronously
+        """
+        next_shout = self.shout_queue.get()
+        if next_shout:
+            # (user, shout, cid, dom, timestamp)
+            self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
+            self._handle_next_shout()
+        else:
+            self.log.error(f"No next shout to handle! No more shouts will be processed by {self.nick}")
 
 
 class NeonBot(ChatBot):
