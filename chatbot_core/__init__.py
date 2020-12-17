@@ -339,7 +339,6 @@ class ChatBot(KlatApi):
                             return
                         try:
                             if random.randint(1, 100) < self.response_probability:
-                                self.enable_responses = False  # Disable
                                 response = self.ask_chatbot(user, shout, timestamp)
                                 self.propose_response(response)
                             else:
