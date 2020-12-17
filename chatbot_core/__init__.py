@@ -76,7 +76,7 @@ class ChatBot(KlatApi):
         LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
-        self.response_probability = 85  # % probability for a bot to respond to an input in non-proctored conversation
+        self.response_probability = 75  # % probability for a bot to respond to an input in non-proctored conversation
 
         # Do klat initialization
         klat_timeout = time.time() + 30
@@ -400,7 +400,7 @@ class ChatBot(KlatApi):
                 self.log.warning(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored:
             self.send_shout(shout)
-            self._pause_responses()
+            self._pause_responses(len(self.conversation_users) * 5)
         elif self.state == ConversationState.RESP:
             self.send_shout(shout)
         elif self.state == ConversationState.VOTE:
