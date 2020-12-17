@@ -68,11 +68,15 @@ def get_bots_in_dir(bot_path: str) -> dict:
         sys.path.append(bot_path)
 
         for mod in bot_names:
-            module = __import__(mod)
-            for name, obj in inspect.getmembers(module, inspect.isclass):
-                # TODO: Why are facilitators not subclassed ChatBots? DM
-                if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                    bots[mod] = obj
+            try:
+                module = __import__(mod)
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    # TODO: Why are facilitators not subclassed ChatBots? DM
+                    if name not in ("ChatBot", "NeonBot") and \
+                            (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                        bots[mod] = obj
+            except Exception as e:
+                LOG.error(e)
         LOG.debug(bots)
     return bots
 
@@ -89,7 +93,7 @@ def load_credentials_yml(cred_file: str) -> dict:
 
 
 def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
-               cred_file: str = None, bot_name: str = None):
+               cred_file: str = None, bot_name: str = None, excluded_bots: list = None):
     """
     Start all of the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
@@ -99,23 +103,27 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param server: Klat server url to connect to
     :param cred_file: Path to a credentials yml file
     :param bot_name: Optional name of the bot to start (None for all bots)
+    :param excluded_bots: Optional list of bots to exclude from launching
     """
 
     domain = domain or "chatbotsforum.org"
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
-    LOG.debug(f"Starting bots on server: {SERVER}")
+    LOG.debug(f"Starting bots on server: {server}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
     # Catch no bots found
     if len(bots_to_start.keys()) == 0:
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
-            if str(d) not in ("__pycache__", "tests", "venv") and not d.startswith(".") \
-                    and os.path.isdir(os.path.join(bot_dir, d)):
-                LOG.info(f"Found bots dir {d}")
-                bots_to_start = {**bots_to_start, **get_bots_in_dir(os.path.join(bot_dir, d))}
+            try:
+                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji") and not d.startswith(".") \
+                        and os.path.isdir(os.path.join(bot_dir, d)):
+                    LOG.info(f"Found bots dir {d}")
+                    bots_to_start = {**get_bots_in_dir(os.path.join(bot_dir, d)), **bots_to_start}
+            except Exception as e:
+                LOG.error(e)
 
     LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
@@ -143,13 +151,34 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
-            user = username or credentials.get(bot_name, {}).get("username")
-            password = password or credentials.get(bot_name, {}).get("password")
-            bot(start_socket(server, 8888), domain, user, password, True)
+            try:
+                user = username or credentials.get(bot_name, {}).get("username")
+                password = password or credentials.get(bot_name, {}).get("password")
+                bot(start_socket(server, 8888), domain, user, password, True)
+            except Exception as e:
+                LOG.error(e)
         else:
             LOG.error(f"{bot_name} is not a valid bot!")
             return
     else:
+        if excluded_bots:
+            for name in excluded_bots:
+                if name in bots_to_start.keys():
+                    bots_to_start.pop(name)
+
+        # Start Proctor first if in the list of bots to start
+        if "Proctor" in bots_to_start.keys():
+            bot = bots_to_start.pop("Proctor")
+            try:
+                user = username or credentials.get("Proctor", {}).get("username")
+                password = password or credentials.get("Proctor", {}).get("password")
+                b = bot(start_socket(server, 8888), domain, user, password, True)
+                if b.bot_type == "proctor":
+                    proctor = b
+            except Exception as e:
+                LOG.error(e)
+                LOG.error(bot)
+
         # Start a socket for each unique bot, bots handle login names
         for name, bot in bots_to_start.items():
             LOG.debug(f"Starting: {name}")
@@ -169,6 +198,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             pass
     except KeyboardInterrupt:
         LOG.info("exiting")
+        for bot in bots_to_start.values():
+            clean_up_bot(bot)
         if proctor:
             proctor.pending_prompts.put(None)
             proctor.thread.join(30)
@@ -197,15 +228,24 @@ def cli_start_bots():
                         help=f"Klat server (default: {SERVER})", type=str)
     parser.add_argument("--debug", dest="debug", action='store_true',
                         help="Enable more verbose log output")
-
+    parser.add_argument("--exclude", dest="exclude",
+                        help="comma separated list of bots to exclude from running", type=str)
     args = parser.parse_args()
 
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
+        logging.getLogger("chatbot").setLevel(logging.DEBUG)
     else:
-        logging.getLogger("chatbots").setLevel(logging.ERROR)
+        logging.getLogger("chatbots").setLevel(logging.WARNING)
+        logging.getLogger("chatbot").setLevel(logging.WARNING)
+
+    if args.exclude:
+        excluded_bots = [name.strip() for name in args.exclude.split(",")]
+    else:
+        excluded_bots = None
     LOG.debug(args)
-    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name)
+    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
+               excluded_bots)
 
 
 def cli_stop_bots():
@@ -213,7 +253,7 @@ def cli_stop_bots():
     Stops all start-klat-bot instances
     """
     import psutil
-
+    # TODO: clean_up_bot for each running bot? DM
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
         if "start-klat-bots" in name:
@@ -268,3 +308,15 @@ def debug_bots(bot_dir: str = os.getcwd()):
             running = False
         LOG.warning("Still Running")
     LOG.warning("Done Running")
+
+
+def clean_up_bot(bot: ChatBot):
+    """
+    Performs any standard cleanup for a bot on destroy
+    :param bot: ChatBot instance to clean up
+    """
+    if not isinstance(bot, ChatBot):
+        raise TypeError
+    bot.socket.disconnect()
+    bot.shout_queue.put(None)
+    bot.shout_thread.join(0)
