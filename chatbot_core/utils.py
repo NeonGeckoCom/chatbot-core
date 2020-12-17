@@ -198,6 +198,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             pass
     except KeyboardInterrupt:
         LOG.info("exiting")
+        for bot in bots_to_start.values():
+            clean_up_bot(bot)
         if proctor:
             proctor.pending_prompts.put(None)
             proctor.thread.join(30)
@@ -251,7 +253,7 @@ def cli_stop_bots():
     Stops all start-klat-bot instances
     """
     import psutil
-
+    # TODO: clean_up_bot for each running bot? DM
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
         if "start-klat-bots" in name:
@@ -306,3 +308,15 @@ def debug_bots(bot_dir: str = os.getcwd()):
             running = False
         LOG.warning("Still Running")
     LOG.warning("Done Running")
+
+
+def clean_up_bot(bot: ChatBot):
+    """
+    Performs any standard cleanup for a bot on destroy
+    :param bot: ChatBot instance to clean up
+    """
+    if not isinstance(bot, ChatBot):
+        raise TypeError
+    bot.socket.disconnect()
+    bot.shout_queue.put(None)
+    bot.shout_thread.join(0)

@@ -23,9 +23,9 @@ class ChatbotCoreTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.bot.socket.disconnect()
 
-        if cls.bot.thread.isAlive():
+        if cls.bot.shout_thread.isAlive():
             cls.bot.shout_queue.put(None)
-            cls.bot.thread.join(0)
+            cls.bot.shout_thread.join(0)
 
     @pytest.mark.timeout(10)
     def test_01_initial_connection_settings(self):
@@ -43,8 +43,8 @@ class ChatbotCoreTests(unittest.TestCase):
                                        datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(self.bot.active_prompt, self.test_input)
         self.assertEqual(self.bot.state, ConversationState.RESP)
-        self.assertEqual(self.bot.chat_history[0][0], "testrunner", f"history={self.bot.chat_history}")
-        self.assertEqual(self.bot.chat_history[0][1], self.test_input)
+        self.assertEqual(self.bot.request_history[0][0], "testrunner", f"history={self.bot.request_history}")
+        self.assertEqual(self.bot.request_history[0][1], self.test_input)
         self.assertEqual(len(self.bot.proposed_responses[self.test_input]), 0)
 
     @pytest.mark.timeout(10)
@@ -139,7 +139,26 @@ class ChatbotCoreTests(unittest.TestCase):
         self.bot.shout_queue.put(None)
         time.sleep(3)
         self.assertTrue(self.bot.shout_queue.empty())
-        self.assertFalse(self.bot.thread.isAlive())
+        self.assertFalse(self.bot.shout_thread.isAlive())
+
+    @pytest.mark.timeout(10)
+    def test_14_voting(self):
+        self.bot.state = ConversationState.VOTE
+        resp = self.bot.vote_response(self.bot.nick)
+        self.assertEqual(resp, "abstain")
+
+        resp = self.bot.vote_response("abstain")
+        self.assertEqual(resp, "abstain")
+
+        resp = self.bot.vote_response("")
+        self.assertIsNone(resp)
+
+        resp = self.bot.vote_response("testrunner")
+        self.assertEqual(resp, "testrunner")
+
+    @pytest.mark.timeout(10)
+    def test_15_histories_length(self):
+        self.assertTrue(len(self.bot.request_history) == len(self.bot.participant_history))
 
     # @pytest.mark.timeout(10)
     # def test_12_shutdown_testing(self):

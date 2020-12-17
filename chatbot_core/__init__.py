@@ -96,7 +96,8 @@ class ChatBot(KlatApi):
             self.on_login()
         self.active_prompt = None
         self.state = ConversationState.IDLE
-        self.chat_history = list()
+        self.request_history = list()
+        self.participant_history = [tuple()]
 
         self.fallback_responses = ("Huh?",
                                    "What?",
@@ -106,8 +107,8 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-        self.thread = Thread(target=self._handle_next_shout)
-        self.thread.start()
+        self.shout_thread = Thread(target=self._handle_next_shout)
+        self.shout_thread.start()
 
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
@@ -204,6 +205,10 @@ class ChatBot(KlatApi):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
+                participants = shout.rstrip(ConversationControls.WAIT)
+                participants = (participant.lower().strip() for participant in participants.split(","))
+                self.participant_history.append(participants)
+
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
                     self.log.warning(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
@@ -265,8 +270,11 @@ class ChatBot(KlatApi):
                     request_user = request_user.strip()
                     self.active_prompt = remainder.rsplit("(", 1)[0].strip().strip('"')
                     self.log.info(f"Got prompt: {self.active_prompt}")
-                    self.chat_history.append((request_user, self.active_prompt))
-                    self.log.debug(self.chat_history)
+                    self.request_history.append((request_user, self.active_prompt))
+                    self.log.debug(self.request_history)
+                    if len(self.request_history) != len(self.participant_history):
+                        LOG.error(self.request_history)
+                        LOG.error(self.participant_history)
                     # if request_user in self.chat_history.keys():
                     #     self.chat_history[request_user].append(self.active_prompt)
                     # else:
@@ -452,13 +460,17 @@ class ChatBot(KlatApi):
         """
         if self.state != ConversationState.VOTE:
             self.log.warning(f"Late Vote! {response_user}")
+            return None
         elif not response_user:
             self.log.error("Null response user returned!")
-        elif response_user == "abstain":
+            return None
+        elif response_user == "abstain" or response_user == self.nick:
             # self.log.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
+            return "abstain"
         else:
             self.send_shout(f"I vote for {response_user}")
+            return response_user
 
     def _generate_random_response(self):
         """
@@ -633,7 +645,7 @@ class ChatBot(KlatApi):
             self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
             self._handle_next_shout()
         else:
-            self.log.error(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+            self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
 
 
 class NeonBot(ChatBot):
