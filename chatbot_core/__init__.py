@@ -210,7 +210,7 @@ class ChatBot(KlatApi):
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
-                    self.log.warning(f"{self.nick} will sit this round out.")
+                    self.log.info(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
                     self.log.info(f"{self.nick} will participate in the next round.")
@@ -269,7 +269,7 @@ class ChatBot(KlatApi):
                     request_user, remainder = shout.split(ConversationControls.RESP, 1)
                     request_user = request_user.strip()
                     self.active_prompt = remainder.rsplit("(", 1)[0].strip().strip('"')
-                    self.log.info(f"Got prompt: {self.active_prompt}")
+                    self.log.debug(f"Got prompt: {self.active_prompt}")
                     self.request_history.append((request_user, self.active_prompt))
                     self.log.debug(self.request_history)
                     if len(self.request_history) != len(self.participant_history):
@@ -340,7 +340,7 @@ class ChatBot(KlatApi):
             # This came from a different non-neon user and is not related to a proctored conversation
             elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
                 if self.bot_type == "submind":
-                    self.log.info(f"{self.nick} handling {shout}")
+                    self.log.debug(f"{self.nick} handling {shout}")
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
                         if shout.startswith("!PROMPT:"):
