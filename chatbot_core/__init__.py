@@ -46,6 +46,7 @@ def childmost(decorator_func):
     Source:
     https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
     """
+
     def inheritable_decorator_that_runs_once(func):
         decorated_func = decorator_func(func)
         name = func.__name__
@@ -96,6 +97,7 @@ class InheritDecoratorsMixin:
     Source:
     https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
     """
+
     def __init_subclass__(cls, *args, **kwargs):
         super().__init_subclass__(*args, **kwargs)
         decorator_registry = getattr(cls, "_decorator_registry", {}).copy()
@@ -155,7 +157,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
-        self.response_probability = 75
+        self.response_probability = 75  # % probability for a bot to respond to an input in non-proctored conversation
 
         # Do klat initialization
         klat_timeout = time.time() + 30
@@ -537,6 +539,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         """
         if self.state != ConversationState.VOTE:
             self.log.warning(f"Late Vote! {response_user}")
+            return None
         elif not response_user:
             self.log.error("Null response user returned!")
             return None
@@ -730,7 +733,6 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             self._handle_next_shout()
         else:
             self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
-
 
 
 class NeonBot(ChatBot):
