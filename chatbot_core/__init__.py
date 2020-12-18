@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import random
+from queue import Queue
 from typing import Optional
 
 import time
@@ -144,6 +145,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
+        self.shout_queue = Queue(maxsize=256)
 
         self.username = username
         self.password = password
@@ -153,6 +155,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
+        self.response_probability = 75
 
         # Do klat initialization
         klat_timeout = time.time() + 30
@@ -181,6 +184,8 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
+        self.shout_thread = Thread(target=self._handle_next_shout)
+        self.shout_thread.start()
 
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
@@ -204,6 +209,17 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         self.on_login()
 
     def handle_incoming_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
+        """
+        Handles an incoming shout into the current conversation
+        :param user: user associated with shout
+        :param shout: text shouted by user
+        :param cid: cid shout belongs to
+        :param dom: domain conversation belongs to
+        :param timestamp: formatted timestamp of shout
+        """
+        self.shout_queue.put((user, shout, cid, dom, timestamp))
+
+    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
         """
         Handles an incoming shout into the current conversation
         :param user: user associated with shout
@@ -266,6 +282,10 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
+                participants = shout.rstrip(ConversationControls.WAIT)
+                participants = (participant.lower().strip() for participant in participants.split(","))
+                self.participant_history.append(participants)
+
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
                     self.log.info(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
@@ -400,6 +420,9 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
                     self.log.debug(f"{self.nick} handling {shout}")
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
+                        if shout.startswith("!PROMPT:"):
+                            self.log.error(f"Prompt into unproctored conversation! {shout}")
+                            return
                         try:
                             if random.randint(1, 100) < self.response_probability:
                                 response = self.ask_chatbot(user, shout, timestamp)
@@ -491,6 +514,10 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         else:
             self.log.error(f"Unknown response error! Ignored: {shout}")
 
+        if not self.enable_responses:
+            self.log.warning(f"re-enabling responses!")
+            self.enable_responses = True
+
     def discuss_response(self, shout: str):
         """
         Called when a bot has some discussion to share
@@ -516,8 +543,10 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         elif response_user == "abstain" or response_user == self.nick:
             # self.log.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
+            return "abstain"
         else:
             self.send_shout(f"I vote for {response_user}")
+            return response_user
 
     @grammar_check
     def _generate_random_response(self):
@@ -689,6 +718,19 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             time.sleep(random.randrange(0, 50) / 10)
         else:
             self.log.debug("Skipping artificial wait!")
+
+    def _handle_next_shout(self):
+        """
+        Called recursively to handle incoming shouts synchronously
+        """
+        next_shout = self.shout_queue.get()
+        if next_shout:
+            # (user, shout, cid, dom, timestamp)
+            self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
+            self._handle_next_shout()
+        else:
+            self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+
 
 
 class NeonBot(ChatBot):
