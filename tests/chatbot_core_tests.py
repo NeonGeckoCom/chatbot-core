@@ -134,12 +134,12 @@ class ChatbotCoreTests(unittest.TestCase):
         queued = self.bot.shout_queue.get(timeout=2)
         self.assertEqual(queued, test_input)
 
-    # @pytest.mark.timeout(10)
-    # def test_13_add_none_to_queue(self):
-    #     self.bot.shout_queue.put(None)
-    #     time.sleep(3)
-    #     self.assertTrue(self.bot.shout_queue.empty())
-    #     self.assertFalse(self.bot.shout_thread.isAlive())
+    @pytest.mark.timeout(10)
+    def test_13_add_none_to_queue(self):
+        self.bot.shout_queue.put(None)
+        time.sleep(3)
+        self.assertTrue(self.bot.shout_queue.empty())
+        self.assertFalse(self.bot.shout_thread.isAlive())
 
     @pytest.mark.timeout(10)
     def test_14_voting(self):
@@ -168,28 +168,6 @@ class ChatbotCoreTests(unittest.TestCase):
     # def test_bots_in_dir(self):
     #     from chatbot_core.utils import get_bots_in_dir
     #     get_bots_in_dir("/home/d_mcknight/PycharmProjects/chatbots/bots/ELIZA")
-
-    @pytest.mark.timeout(30)
-    def test_start_bot(self):
-        from chatbot_core.utils import _start_bot
-        from multiprocessing import Process, synchronize
-
-        t, e = _start_bot(ChatBot, "2222.us", 8888, "Private", "testrunner", "testpassword")
-        self.assertIsInstance(t, Process)
-        self.assertIsInstance(e, synchronize.Event)
-        # self.assertFalse(e.is_set())
-        e.set()
-        while e.is_set():
-            print("...")
-            time.sleep(2)
-        # self.assertFalse(e.is_set())
-        # self.assertTrue(t.is_alive())
-        print(f"Terminating... {t.is_alive()}")
-        t.terminate()
-        self.assertFalse(t.is_alive())
-        print("Joining...")
-        t.join()
-        print("Done")
 
 # TODO: Test CLI bot detection, credentials load, etc. DM
 
