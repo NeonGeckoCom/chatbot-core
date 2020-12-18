@@ -18,7 +18,6 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import random
-from queue import Queue
 from typing import Optional
 
 import time
@@ -27,14 +26,91 @@ from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
+import threading
 from threading import Thread
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket  # Leave for extending classes to use without explicit klat_connector import
 from chatbot_core.logger import make_logger
 from mycroft_bus_client import Message, MessageBusClient
+from autocorrect import Speller
 
 LOG = make_logger("chatbot")
+
+
+def childmost(decorator_func):
+    """
+    Method used to constraint decorator evaluation to childmost derived instance
+    :param decorator_func: decorator to consider
+    Source:
+    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
+    """
+    def inheritable_decorator_that_runs_once(func):
+        decorated_func = decorator_func(func)
+        name = func.__name__
+
+        def wrapper(self, *args, **kw):
+            if not hasattr(self, f"_running_{name}"):
+                setattr(self, f"_running_{name}", threading.local())
+            running_registry = getattr(self, f"_running_{name}")
+            try:
+                if not getattr(running_registry, "running", False):
+                    running_registry.running = True
+                    rt = decorated_func(self, *args, **kw)
+                else:
+                    rt = func(self, *args, **kw)
+            finally:
+                running_registry.running = False
+            return rt
+
+        wrapper.inherit_decorator = inheritable_decorator_that_runs_once
+        return wrapper
+
+    return inheritable_decorator_that_runs_once
+
+
+@childmost
+def grammar_check(func):
+    """
+    Checks grammar for output of passed function
+    :param func: function to consider
+    """
+    spell = Speller()
+
+    def wrapper(*args, **kwargs):
+        LOG.debug("Entered decorator")
+        output = func(*args, **kwargs)
+        if output:
+            LOG.debug(f"Received output: {output}")
+            output = spell(output)
+            LOG.debug(f"Processed output: {output}")
+        return output
+
+    return wrapper
+
+
+class InheritDecoratorsMixin:
+    """
+    Mixin for allowing usage of superclass method decorators.
+    Source:
+    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
+    """
+    def __init_subclass__(cls, *args, **kwargs):
+        super().__init_subclass__(*args, **kwargs)
+        decorator_registry = getattr(cls, "_decorator_registry", {}).copy()
+        cls._decorator_registry = decorator_registry
+        # Check for decorated objects in the mixin itself- optional:
+        for name, obj in __class__.__dict__.items():
+            if getattr(obj, "inherit_decorator", False) and not name in decorator_registry:
+                decorator_registry[name] = obj.inherit_decorator
+        # annotate newly decorated methods in the current subclass:
+        for name, obj in cls.__dict__.items():
+            if getattr(obj, "inherit_decorator", False) and not name in decorator_registry:
+                decorator_registry[name] = obj.inherit_decorator
+        # finally, decorate all methods anottated in the registry:
+        for name, decorator in decorator_registry.items():
+            if name in cls.__dict__ and getattr(getattr(cls, name), "inherit_decorator", None) != decorator:
+                setattr(cls, name, decorator(cls.__dict__[name]))
 
 
 class ConversationControls:
@@ -56,7 +132,7 @@ class ConversationState(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-class ChatBot(KlatApi):
+class ChatBot(KlatApi, InheritDecoratorsMixin):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
@@ -68,7 +144,6 @@ class ChatBot(KlatApi):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
-        self.shout_queue = Queue(maxsize=256)
 
         self.username = username
         self.password = password
@@ -78,7 +153,6 @@ class ChatBot(KlatApi):
         LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
-        self.response_probability = 75  # % probability for a bot to respond to an input in non-proctored conversation
 
         # Do klat initialization
         klat_timeout = time.time() + 30
@@ -107,8 +181,6 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-        self.shout_thread = Thread(target=self._handle_next_shout)
-        self.shout_thread.start()
 
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
@@ -132,17 +204,6 @@ class ChatBot(KlatApi):
         self.on_login()
 
     def handle_incoming_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
-        """
-        Handles an incoming shout into the current conversation
-        :param user: user associated with shout
-        :param shout: text shouted by user
-        :param cid: cid shout belongs to
-        :param dom: domain conversation belongs to
-        :param timestamp: formatted timestamp of shout
-        """
-        self.shout_queue.put((user, shout, cid, dom, timestamp))
-
-    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
         """
         Handles an incoming shout into the current conversation
         :param user: user associated with shout
@@ -205,10 +266,6 @@ class ChatBot(KlatApi):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                participants = shout.rstrip(ConversationControls.WAIT)
-                participants = (participant.lower().strip() for participant in participants.split(","))
-                self.participant_history.append(participants)
-
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
                     self.log.info(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
@@ -343,9 +400,6 @@ class ChatBot(KlatApi):
                     self.log.debug(f"{self.nick} handling {shout}")
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
-                        if shout.startswith("!PROMPT:"):
-                            self.log.error(f"Prompt into unproctored conversation! {shout}")
-                            return
                         try:
                             if random.randint(1, 100) < self.response_probability:
                                 response = self.ask_chatbot(user, shout, timestamp)
@@ -437,10 +491,6 @@ class ChatBot(KlatApi):
         else:
             self.log.error(f"Unknown response error! Ignored: {shout}")
 
-        if not self.enable_responses:
-            self.log.warning(f"re-enabling responses!")
-            self.enable_responses = True
-
     def discuss_response(self, shout: str):
         """
         Called when a bot has some discussion to share
@@ -460,18 +510,16 @@ class ChatBot(KlatApi):
         """
         if self.state != ConversationState.VOTE:
             self.log.warning(f"Late Vote! {response_user}")
-            return None
         elif not response_user:
             self.log.error("Null response user returned!")
             return None
         elif response_user == "abstain" or response_user == self.nick:
             # self.log.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
-            return "abstain"
         else:
             self.send_shout(f"I vote for {response_user}")
-            return response_user
 
+    @grammar_check
     def _generate_random_response(self):
         """
         Generates some random bot response from the given options or the default list
@@ -484,6 +532,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def on_vote(self, prompt: str, selected: str, voter: str):
         """
         Override in any bot to handle counting votes. Proctors use this to select a response.
@@ -493,6 +542,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def on_discussion(self, user: str, shout: str):
         """
         Override in any bot to handle discussion from other subminds. This may inform voting for the current prompt
@@ -524,6 +574,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def at_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         """
         Override in subminds to handle an incoming shout that is directed at this bot. Defaults to ask_chatbot.
@@ -544,6 +595,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         """
         Override in subminds to handle an incoming shout that requires some response. If no response can be determined,
@@ -555,6 +607,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
         """
         Override in scorekeepers to handle an incoming request for the selection history
@@ -566,6 +619,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def ask_appraiser(self, options: dict) -> str:
         """
         Override in bot to handle selecting a response to the given prompt. Vote is for the name of the best responder.
@@ -574,6 +628,7 @@ class ChatBot(KlatApi):
         """
         pass
 
+    @grammar_check
     def ask_discusser(self, options: dict) -> str:
         """
         Override in bot to handle discussing options for the given prompt. Discussion can be anything.
@@ -634,18 +689,6 @@ class ChatBot(KlatApi):
             time.sleep(random.randrange(0, 50) / 10)
         else:
             self.log.debug("Skipping artificial wait!")
-
-    def _handle_next_shout(self):
-        """
-        Called recursively to handle incoming shouts synchronously
-        """
-        next_shout = self.shout_queue.get()
-        if next_shout:
-            # (user, shout, cid, dom, timestamp)
-            self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
-            self._handle_next_shout()
-        else:
-            self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
 
 
 class NeonBot(ChatBot):
