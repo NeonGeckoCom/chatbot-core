@@ -51,32 +51,31 @@ else:
     SERVER = "0000.us"
 
 
-def get_bots_in_dir(bot_path: str) -> dict:
+def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-names", False)) -> dict:
     """
     Gets all ChatBots in the given directory, imports them, and returns a dict of their names to modules.
-    :param bot_path: absoulute file path containing bots
+    :param bot_path: absolute file path containing bots
+    :param names_to_consider: limit imported instances to certain list
     :return: dict of bot name:ChatBot object
     """
-
     bots = {}
 
     # Make sure we have a path and not a filename
     bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
     # Get all bots in the requested directory
     bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
+    # only specified bot names
+    if names_to_consider:
+        bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
     if bot_names:
         sys.path.append(bot_path)
 
         for mod in bot_names:
-            try:
-                module = __import__(mod)
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # TODO: Why are facilitators not subclassed ChatBots? DM
-                    if name not in ("ChatBot", "NeonBot") and \
-                            (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                        bots[mod] = obj
-            except Exception as e:
-                LOG.error(e)
+            module = __import__(mod)
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                # TODO: Why are facilitators not subclassed ChatBots? DM
+                if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                    bots[mod] = obj
         LOG.debug(bots)
     return bots
 
@@ -226,6 +225,8 @@ def cli_start_bots():
                         help=f"Klat server (default: {SERVER})", type=str)
     parser.add_argument("--debug", dest="debug", action='store_true',
                         help="Enable more verbose log output")
+    parser.add_argument("--bot-names", dest="bot-names",
+                        help="comma separated list of bots to include in running", type=str)
     parser.add_argument("--exclude", dest="exclude",
                         help="comma separated list of bots to exclude from running", type=str)
     args = parser.parse_args()
