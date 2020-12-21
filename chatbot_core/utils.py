@@ -88,7 +88,6 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str)
     while event.is_set():
         # print("waiting")
         time.sleep(2)
-    print("returning!")
     return thread, event
 
 

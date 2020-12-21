@@ -109,7 +109,6 @@ class ChatBot(KlatApi):
                                    "Come again?")
         self.shout_thread = Thread(target=self._handle_next_shout)
         self.shout_thread.start()
-        print("init done!")
 
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
