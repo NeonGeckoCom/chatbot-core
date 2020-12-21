@@ -656,7 +656,7 @@ class ChatBot(KlatApi):
             self.shout_queue.get(timeout=1)
         self.shout_queue.put(None)
         self.log.warning(f"EXITING")
-        sys.exit()
+        # sys.exit()
 
 
 class NeonBot(ChatBot):

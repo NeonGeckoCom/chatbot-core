@@ -58,36 +58,36 @@ else:
     SERVER = "0000.us"
 
 
-def _threaded_start_bot(bot, server_socket: Client, domain: str, user: str, password: str, event: synchronize.Event):
+def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, event: synchronize.Event):
     """
     Helper function for _start_bot
     """
-    print("_Starting")
-    # event.set()
-    instance: ChatBot = bot(server_socket, domain, user, password, True)
-    print("_Init done!")
-    # event.clear()
-    print("_Waiting")
+    instance = bot(start_socket(addr, port), domain, user, password, True)
+    event.clear()
     event.wait()
-    print("_Gonna exit")
     instance.exit()
     event.clear()
 
 
-def _start_bot(bot, server_socket: Client, domain: str, user: str, password: str)\
+def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str)\
         -> (Process, synchronize.Event):
     """
     Creates a thread and starts the passed bot with passed parameters
     :param bot: ChatBot to instantiate
-    :param server_socket: Server socketIO client to connect with
+    :param addr: Server address to connect to
+    :param port: Server socketIO port
     :param domain: Starting domain
     :param user: Username to login as
     :param password: Password to login with
     :returns: Process bot instance is attached to
     """
     event = Event()
-    thread = Process(target=_threaded_start_bot, args=(bot, server_socket, domain, user, password, event))
+    event.set()
+    thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event))
     thread.start()
+    while event.is_set():
+        # print("waiting")
+        time.sleep(2)
     print("returning!")
     return thread, event
 
@@ -197,7 +197,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get(bot_name, {}).get("username")
                 password = password or credentials.get(bot_name, {}).get("password")
-                p = _start_bot(bot, start_socket(server, 8888), domain, user, password)
+                p = _start_bot(bot, server, 8888, domain, user, password)
                 processes.append(p)
                 # bot(start_socket(server, 8888), domain, user, password, True)
             except Exception as e:
@@ -217,7 +217,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get("Proctor", {}).get("username")
                 password = password or credentials.get("Proctor", {}).get("password")
-                process = _start_bot(bot, start_socket(server, 8888), domain, user, password)
+                process, event = _start_bot(bot, server, 8888, domain, user, password)
                 processes.append(process)
             except Exception as e:
                 LOG.error(e)
@@ -229,7 +229,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get(name, {}).get("username")
                 password = password or credentials.get(name, {}).get("password")
-                process = _start_bot(bot, start_socket(server, 8888), domain, user, password)
+                process, event = _start_bot(bot, server, 8888, domain, user, password)
                 processes.append(process)
             except Exception as e:
                 LOG.error(name)
