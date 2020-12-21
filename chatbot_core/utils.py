@@ -22,6 +22,11 @@ import logging
 import os
 import pkgutil
 import socket
+import time
+
+from socketio import Client
+from multiprocessing import Process, Event, synchronize
+
 import sys
 
 # import chatbots.bots
@@ -36,7 +41,9 @@ from chatbot_core import LOG, ChatBot
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    return s.getsockname()[0]
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
 
 
 ip = get_ip_address()
@@ -49,6 +56,40 @@ elif ip == "167.172.112.7":  # Prod
 else:
     # Default external connections to production server
     SERVER = "0000.us"
+
+
+def _threaded_start_bot(bot, server_socket: Client, domain: str, user: str, password: str, event: synchronize.Event):
+    """
+    Helper function for _start_bot
+    """
+    print("_Starting")
+    # event.set()
+    instance: ChatBot = bot(server_socket, domain, user, password, True)
+    print("_Init done!")
+    # event.clear()
+    print("_Waiting")
+    event.wait()
+    print("_Gonna exit")
+    instance.exit()
+    event.clear()
+
+
+def _start_bot(bot, server_socket: Client, domain: str, user: str, password: str)\
+        -> (Process, synchronize.Event):
+    """
+    Creates a thread and starts the passed bot with passed parameters
+    :param bot: ChatBot to instantiate
+    :param server_socket: Server socketIO client to connect with
+    :param domain: Starting domain
+    :param user: Username to login as
+    :param password: Password to login with
+    :returns: Process bot instance is attached to
+    """
+    event = Event()
+    thread = Process(target=_threaded_start_bot, args=(bot, server_socket, domain, user, password, event))
+    thread.start()
+    print("returning!")
+    return thread, event
 
 
 def get_bots_in_dir(bot_path: str) -> dict:
@@ -128,7 +169,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
     logging.getLogger("tensorflow").setLevel(logging.ERROR)
-    proctor = None
+    # proctor = None
 
     # Load credentials
     if cred_file:
@@ -146,6 +187,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     else:
         credentials = {}
 
+    processes = []
+
     # Check for specified bot to start
     if bot_name:
         LOG.debug(f"Got requested bot:{bot_name}")
@@ -154,7 +197,9 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get(bot_name, {}).get("username")
                 password = password or credentials.get(bot_name, {}).get("password")
-                bot(start_socket(server, 8888), domain, user, password, True)
+                p = _start_bot(bot, start_socket(server, 8888), domain, user, password)
+                processes.append(p)
+                # bot(start_socket(server, 8888), domain, user, password, True)
             except Exception as e:
                 LOG.error(e)
         else:
@@ -172,9 +217,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get("Proctor", {}).get("username")
                 password = password or credentials.get("Proctor", {}).get("password")
-                b = bot(start_socket(server, 8888), domain, user, password, True)
-                if b.bot_type == "proctor":
-                    proctor = b
+                process = _start_bot(bot, start_socket(server, 8888), domain, user, password)
+                processes.append(process)
             except Exception as e:
                 LOG.error(e)
                 LOG.error(bot)
@@ -185,9 +229,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get(name, {}).get("username")
                 password = password or credentials.get(name, {}).get("password")
-                b = bot(start_socket(server, 8888), domain, user, password, True)
-                if b.bot_type == "proctor":
-                    proctor = b
+                process = _start_bot(bot, start_socket(server, 8888), domain, user, password)
+                processes.append(process)
             except Exception as e:
                 LOG.error(name)
                 LOG.error(e)
@@ -198,9 +241,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             pass
     except KeyboardInterrupt:
         LOG.info("exiting")
-        if proctor:
-            proctor.pending_prompts.put(None)
-            proctor.thread.join(30)
+        for p in processes:
+            p.join()
 
 
 def cli_start_bots():
