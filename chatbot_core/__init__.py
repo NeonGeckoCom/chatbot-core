@@ -107,7 +107,7 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-        self.shout_thread = Thread(target=self._handle_next_shout)
+        self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
     def handle_login_return(self, status):
@@ -646,6 +646,16 @@ class ChatBot(KlatApi):
             self._handle_next_shout()
         else:
             self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+            self.exit()
+
+    def exit(self):
+        import sys
+        self.socket.disconnect()
+        while not self.shout_queue.empty():
+            self.shout_queue.get(timeout=1)
+        self.shout_queue.put(None)
+        self.log.warning(f"EXITING")
+        # sys.exit()
 
 
 class NeonBot(ChatBot):
