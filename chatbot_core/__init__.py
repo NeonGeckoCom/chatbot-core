@@ -107,7 +107,7 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-        self.shout_thread = Thread(target=self._handle_next_shout)
+        self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
     def handle_login_return(self, status):
