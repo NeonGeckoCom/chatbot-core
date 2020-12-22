@@ -206,7 +206,7 @@ class ChatBot(KlatApi):
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
                 participants = shout.rstrip(ConversationControls.WAIT)
-                participants = (participant.lower().strip() for participant in participants.split(","))
+                participants = tuple(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
