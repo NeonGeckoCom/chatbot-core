@@ -114,6 +114,25 @@ class InheritDecoratorsMixin:
                 setattr(cls, name, decorator(cls.__dict__[name]))
 
 
+def grammar_check(func):
+    """
+    Checks grammar for output of passed function
+    :param func: function to consider
+    """
+    spell = Speller()
+
+    def wrapper(*args, **kwargs):
+        LOG.debug("Entered decorator")
+        output = func(*args, **kwargs)
+        if output:
+            LOG.debug(f"Received output: {output}")
+            output = spell(output)
+            LOG.debug(f"Processed output: {output}")
+        return output
+
+    return wrapper
+
+
 class ConversationControls:
     RESP = " asks us to consider:"
     DISC = "Please Discuss"
