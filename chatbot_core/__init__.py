@@ -27,14 +27,91 @@ from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
+import threading
 from threading import Thread
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket  # Leave for extending classes to use without explicit klat_connector import
 from chatbot_core.logger import make_logger
 from mycroft_bus_client import Message, MessageBusClient
+from autocorrect import Speller
 
 LOG = make_logger("chatbot")
+
+
+def childmost(decorator_func):
+    """
+    Method used to constraint decorator evaluation to childmost derived instance
+    :param decorator_func: decorator to consider
+    Source:
+    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
+    """
+    def inheritable_decorator_that_runs_once(func):
+        decorated_func = decorator_func(func)
+        name = func.__name__
+
+        def wrapper(self, *args, **kw):
+            if not hasattr(self, f"_running_{name}"):
+                setattr(self, f"_running_{name}", threading.local())
+            running_registry = getattr(self, f"_running_{name}")
+            try:
+                if not getattr(running_registry, "running", False):
+                    running_registry.running = True
+                    rt = decorated_func(self, *args, **kw)
+                else:
+                    rt = func(self, *args, **kw)
+            finally:
+                running_registry.running = False
+            return rt
+
+        wrapper.inherit_decorator = inheritable_decorator_that_runs_once
+        return wrapper
+
+    return inheritable_decorator_that_runs_once
+
+
+@childmost
+def grammar_check(func):
+    """
+    Checks grammar for output of passed function
+    :param func: function to consider
+    """
+    spell = Speller()
+
+    def wrapper(*args, **kwargs):
+        LOG.debug("Entered decorator")
+        output = func(*args, **kwargs)
+        if output:
+            LOG.debug(f"Received output: {output}")
+            output = spell(output)
+            LOG.debug(f"Processed output: {output}")
+        return output
+
+    return wrapper
+
+
+class InheritDecoratorsMixin:
+    """
+    Mixin for allowing usage of superclass method decorators.
+    Source:
+    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
+    """
+    def __init_subclass__(cls, *args, **kwargs):
+        super().__init_subclass__(*args, **kwargs)
+        decorator_registry = getattr(cls, "_decorator_registry", {}).copy()
+        cls._decorator_registry = decorator_registry
+        # Check for decorated objects in the mixin itself- optional:
+        for name, obj in __class__.__dict__.items():
+            if getattr(obj, "inherit_decorator", False) and name not in decorator_registry:
+                decorator_registry[name] = obj.inherit_decorator
+        # annotate newly decorated methods in the current subclass:
+        for name, obj in cls.__dict__.items():
+            if getattr(obj, "inherit_decorator", False) and name not in decorator_registry:
+                decorator_registry[name] = obj.inherit_decorator
+        # finally, decorate all methods anottated in the registry:
+        for name, decorator in decorator_registry.items():
+            if name in cls.__dict__ and getattr(getattr(cls, name), "inherit_decorator", None) != decorator:
+                setattr(cls, name, decorator(cls.__dict__[name]))
 
 
 class ConversationControls:
@@ -56,7 +133,7 @@ class ConversationState(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-class ChatBot(KlatApi):
+class ChatBot(KlatApi, InheritDecoratorsMixin):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
@@ -97,7 +174,7 @@ class ChatBot(KlatApi):
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.request_history = list()
-        self.participant_history = [tuple()]
+        self.participant_history = [set()]
 
         self.fallback_responses = ("Huh?",
                                    "What?",
@@ -107,7 +184,8 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-        self.shout_thread = Thread(target=self._handle_next_shout)
+
+        self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
     def handle_login_return(self, status):
@@ -190,7 +268,7 @@ class ChatBot(KlatApi):
             return
         # Subminds ignore facilitators
         elif user.lower() != "proctor" and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
-            self.log.info(f"{self.nick} ignoring facilitator shout: {shout}")
+            self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
             user = user.split("#")[0]
@@ -206,7 +284,7 @@ class ChatBot(KlatApi):
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
                 participants = shout.rstrip(ConversationControls.WAIT)
-                participants = (participant.lower().strip() for participant in participants.split(","))
+                participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
@@ -646,6 +724,16 @@ class ChatBot(KlatApi):
             self._handle_next_shout()
         else:
             self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+            self.exit()
+
+    def exit(self):
+        import sys
+        self.socket.disconnect()
+        while not self.shout_queue.empty():
+            self.shout_queue.get(timeout=1)
+        self.shout_queue.put(None)
+        self.log.warning(f"EXITING")
+        # sys.exit()
 
 
 class NeonBot(ChatBot):
