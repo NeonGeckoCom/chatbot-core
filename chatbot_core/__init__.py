@@ -186,7 +186,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-        self.shout_thread = Thread(target=self._handle_next_shout)
+        self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
     def handle_login_return(self, status):
@@ -269,7 +269,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             return
         # Subminds ignore facilitators
         elif user.lower() != "proctor" and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
-            self.log.info(f"{self.nick} ignoring facilitator shout: {shout}")
+            self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
             user = user.split("#")[0]
@@ -285,7 +285,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
                 participants = shout.rstrip(ConversationControls.WAIT)
-                participants = (participant.lower().strip() for participant in participants.split(","))
+                participants = tuple(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
@@ -733,6 +733,16 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             self._handle_next_shout()
         else:
             self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+            self.exit()
+
+    def exit(self):
+        import sys
+        self.socket.disconnect()
+        while not self.shout_queue.empty():
+            self.shout_queue.get(timeout=1)
+        self.shout_queue.put(None)
+        self.log.warning(f"EXITING")
+        # sys.exit()
 
 
 class NeonBot(ChatBot):
