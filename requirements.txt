@@ -3,3 +3,5 @@ psutil~=5.7.3
 pytest~=6.1.2
 setuptools~=50.3.2
 PyYAML~=5.3.1
+jellyfish~=0.8.2
+nltk~=3.5
