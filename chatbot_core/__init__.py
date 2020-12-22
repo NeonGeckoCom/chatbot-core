@@ -27,14 +27,35 @@ from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
+import threading
 from threading import Thread
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket  # Leave for extending classes to use without explicit klat_connector import
 from chatbot_core.logger import make_logger
 from mycroft_bus_client import Message, MessageBusClient
+from autocorrect import Speller
 
 LOG = make_logger("chatbot")
+
+
+def grammar_check(func):
+    """
+    Checks grammar for output of passed function
+    :param func: function to consider
+    """
+    spell = Speller()
+
+    def wrapper(*args, **kwargs):
+        LOG.debug("Entered decorator")
+        output = func(*args, **kwargs)
+        if output:
+            LOG.debug(f"Received output: {output}")
+            output = spell(output)
+            LOG.debug(f"Processed output: {output}")
+        return output
+
+    return wrapper
 
 
 class ConversationControls:
@@ -56,7 +77,7 @@ class ConversationState(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-class ChatBot(KlatApi):
+class ChatBot(KlatApi, InheritDecoratorsMixin):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
