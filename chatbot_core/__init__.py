@@ -97,7 +97,7 @@ class ChatBot(KlatApi):
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.request_history = list()
-        self.participant_history = [tuple()]
+        self.participant_history = [set()]
 
         self.fallback_responses = ("Huh?",
                                    "What?",
@@ -206,7 +206,7 @@ class ChatBot(KlatApi):
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
                 participants = shout.rstrip(ConversationControls.WAIT)
-                participants = tuple(participant.lower().strip() for participant in participants.split(","))
+                participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
