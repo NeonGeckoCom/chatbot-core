@@ -184,6 +184,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
+
         self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
