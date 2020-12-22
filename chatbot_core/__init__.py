@@ -283,7 +283,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                participants = shout.rstrip(ConversationControls.WAIT)
+                participants = shout[:-len(ConversationControls.WAIT)]
                 participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
