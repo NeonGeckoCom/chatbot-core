@@ -190,7 +190,7 @@ class ChatBot(KlatApi):
             return
         # Subminds ignore facilitators
         elif user.lower() != "proctor" and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
-            self.log.info(f"{self.nick} ignoring facilitator shout: {shout}")
+            self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
             user = user.split("#")[0]
@@ -206,7 +206,7 @@ class ChatBot(KlatApi):
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
                 participants = shout.rstrip(ConversationControls.WAIT)
-                participants = (participant.lower().strip() for participant in participants.split(","))
+                participants = tuple(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
