@@ -24,7 +24,7 @@ import pkgutil
 import socket
 import time
 
-from socketio import Client
+# from socketio import Client
 from multiprocessing import Process, Event, synchronize
 
 import sys
@@ -348,3 +348,17 @@ def debug_bots(bot_dir: str = os.getcwd()):
             running = False
         LOG.warning("Still Running")
     LOG.warning("Done Running")
+
+
+def clean_up_bot(bot: ChatBot):
+    """
+    Performs any standard cleanup for a bot on destroy
+    :param bot: ChatBot instance to clean up
+    """
+    if not isinstance(bot, ChatBot):
+        raise TypeError
+    bot.socket.disconnect()
+    if hasattr(bot, "shout_queue"):
+        bot.shout_queue.put(None)
+    if hasattr(bot, "shout_thread"):
+        bot.shout_thread.join(0)

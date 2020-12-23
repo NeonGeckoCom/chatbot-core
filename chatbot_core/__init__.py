@@ -802,12 +802,14 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             self.exit()
 
     def exit(self):
-        import sys
-        self.socket.disconnect()
+        from chatbot_core.utils import clean_up_bot
+        # import sys
+        # self.socket.disconnect()
         while not self.shout_queue.empty():
             self.shout_queue.get(timeout=1)
-        self.shout_queue.put(None)
-        self.log.warning(f"EXITING")
+        clean_up_bot(self)
+        # self.shout_queue.put(None)
+        # self.log.warning(f"EXITING")
         # sys.exit()
 
 
