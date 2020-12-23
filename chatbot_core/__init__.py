@@ -77,7 +77,7 @@ class ConversationState(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-class ChatBot(KlatApi, InheritDecoratorsMixin):
+class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
