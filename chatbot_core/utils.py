@@ -84,10 +84,10 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str)
     event = Event()
     event.set()
     thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event))
+    thread.daemon = True
     thread.start()
     while event.is_set():
-        # print("waiting")
-        time.sleep(2)
+        time.sleep(1)
     return thread, event
 
 
@@ -198,7 +198,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             try:
                 user = username or credentials.get(bot_name, {}).get("username")
                 password = password or credentials.get(bot_name, {}).get("password")
-                p = _start_bot(bot, server, 8888, domain, user, password)
+                p, _ = _start_bot(bot, server, 8888, domain, user, password)
                 processes.append(p)
                 # bot(start_socket(server, 8888), domain, user, password, True)
             except Exception as e:
@@ -238,8 +238,10 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 LOG.error(bot)
     LOG.info(">>>STARTED<<<")
     try:
-        while True:
-            pass
+        # Wait for an event that will never come
+        runner = Event()
+        runner.clear()
+        runner.wait()
     except KeyboardInterrupt:
         LOG.info("exiting")
         for p in processes:
