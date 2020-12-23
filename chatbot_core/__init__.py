@@ -27,7 +27,6 @@ from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
-import threading
 from threading import Thread
 
 from klat_connector.klat_api import KlatApi
@@ -123,7 +122,7 @@ class ConversationControls:
 class ConversationState(IntEnum):
     IDLE = 0  # No active prompt
     RESP = 1  # Gathering responses to prompt
-    DISC = 2  # Discussing resnses
+    DISC = 2  # Discussing responses
     VOTE = 3  # Voting on responses
     PICK = 4  # Proctor will select response
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
@@ -170,7 +169,7 @@ class ChatBot(KlatApi):
         self.active_prompt = None
         self.state = ConversationState.IDLE
         self.request_history = list()
-        self.participant_history = [set()]
+        self.participant_history = [tuple()]
 
         self.fallback_responses = ("Huh?",
                                    "What?",
@@ -180,7 +179,6 @@ class ChatBot(KlatApi):
                                    "...",
                                    "Sorry?",
                                    "Come again?")
-
         self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
@@ -279,8 +277,8 @@ class ChatBot(KlatApi):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                participants = shout[:-len(ConversationControls.WAIT)]
-                participants = set(participant.lower().strip() for participant in participants.split(","))
+                participants = shout.rstrip(ConversationControls.WAIT)
+                participants = tuple(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
                 if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
@@ -346,9 +344,9 @@ class ChatBot(KlatApi):
                     self.log.debug(f"Got prompt: {self.active_prompt}")
                     self.request_history.append((request_user, self.active_prompt))
                     self.log.debug(self.request_history)
-                    # if len(self.request_history) != len(self.participant_history):
-                    #     LOG.error(self.request_history)
-                    #     LOG.error(self.participant_history)
+                    if len(self.request_history) != len(self.participant_history):
+                        LOG.error(self.request_history)
+                        LOG.error(self.participant_history)
                     # if request_user in self.chat_history.keys():
                     #     self.chat_history[request_user].append(self.active_prompt)
                     # else:
@@ -723,15 +721,12 @@ class ChatBot(KlatApi):
             self.exit()
 
     def exit(self):
-        from chatbot_core.utils import clean_up_bot
-        # import sys
-        # self.socket.disconnect()
+        import sys
+        self.socket.disconnect()
         while not self.shout_queue.empty():
             self.shout_queue.get(timeout=1)
-        clean_up_bot(self)
-        # self.shout_queue.put(None)
-        # self.log.warning(f"EXITING")
-        # sys.exit()
+        self.shout_queue.put(None)
+        self.log.warning(f"EXITING")
 
 
 class NeonBot(ChatBot):

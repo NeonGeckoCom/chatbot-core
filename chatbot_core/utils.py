@@ -24,7 +24,7 @@ import pkgutil
 import socket
 import time
 
-# from socketio import Client
+from socketio import Client
 from multiprocessing import Process, Event, synchronize
 
 import sys
