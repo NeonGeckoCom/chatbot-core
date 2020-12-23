@@ -283,7 +283,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         try:
             # Proctor Control Messages
             if shout.endswith(ConversationControls.WAIT) and self._user_is_proctor(user):  # Notify next prompt bots
-                participants = shout.rstrip(ConversationControls.WAIT)
+                participants = shout[:-len(ConversationControls.WAIT)]
                 participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
@@ -350,9 +350,9 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
                     self.log.debug(f"Got prompt: {self.active_prompt}")
                     self.request_history.append((request_user, self.active_prompt))
                     self.log.debug(self.request_history)
-                    if len(self.request_history) != len(self.participant_history):
-                        LOG.error(self.request_history)
-                        LOG.error(self.participant_history)
+                    # if len(self.request_history) != len(self.participant_history):
+                    #     LOG.error(self.request_history)
+                    #     LOG.error(self.participant_history)
                     # if request_user in self.chat_history.keys():
                     #     self.chat_history[request_user].append(self.active_prompt)
                     # else:
