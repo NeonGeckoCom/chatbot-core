@@ -100,23 +100,26 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
     """
     bots = {}
 
-    # Make sure we have a path and not a filename
-    bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
-    # Get all bots in the requested directory
-    bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
-    # only specified bot names
-    if names_to_consider:
-        bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
-    if bot_names:
-        sys.path.append(bot_path)
+    try:
+        # Make sure we have a path and not a filename
+        bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
+        # Get all bots in the requested directory
+        bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
+        # only specified bot names
+        if names_to_consider:
+            bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
+        if bot_names:
+            sys.path.append(bot_path)
 
-        for mod in bot_names:
-            module = __import__(mod)
-            for name, obj in inspect.getmembers(module, inspect.isclass):
-                # TODO: Why are facilitators not subclassed ChatBots? DM
-                if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
-                    bots[mod] = obj
-        LOG.debug(bots)
+            for mod in bot_names:
+                module = __import__(mod)
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    # TODO: Why are facilitators not subclassed ChatBots? DM
+                    if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                        bots[mod] = obj
+            LOG.debug(bots)
+    except Exception as e:
+        LOG.error(e)
     return bots
 
 
@@ -157,7 +160,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
             try:
-                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji") and not d.startswith(".") \
+                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji", "ParlAI") and not d.startswith(".") \
                         and os.path.isdir(os.path.join(bot_dir, d)):
                     LOG.info(f"Found bots dir {d}")
                     bots_to_start = {**get_bots_in_dir(os.path.join(bot_dir, d)), **bots_to_start}
