@@ -271,3 +271,11 @@ def ask_appraiser(self, options: dict) -> str:
             return f'I really like {bot} opinion!'
     return 'I did not found any interesting answer here...'
 ```
+#### Algorithm Table
+
+
+|    Algorithm Name    |                                                                                          Description                                                                                         |                                   When to use?                                   |
+|:--------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------:|
+|        random        |                                                                                   Picks response by random                                                                                   |                          When matters speed over result                          |
+|      bleu score      |                                                          Calculates precision using [n-gramms](https://en.wikipedia.org/wiki/N-gram)                                                         |                         When sentences have similar shape                        |
+| levenshtein distance | Calculates precision by measuring distance between words.  | When each word separately matters more than semantical meaning of the sentence.  |
