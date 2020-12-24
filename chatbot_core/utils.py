@@ -177,7 +177,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         cred_file = os.path.expanduser(cred_file)
         if not os.path.isfile(cred_file) and os.path.isfile(os.path.join(os.getcwd(), cred_file)):
             cred_file = os.path.join(os.getcwd(), cred_file)
-        else:
+        elif not os.path.isfile(cred_file):
             cred_file = None
     elif os.path.isfile(os.path.join(os.getcwd(), "credentials.yml")):
         cred_file = os.path.join(os.getcwd(), "credentials.yml")
