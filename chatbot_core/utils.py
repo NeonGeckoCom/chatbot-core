@@ -312,6 +312,7 @@ def cli_stop_bots():
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
         if "start-klat-bots" in name and (not server_to_stop or server_to_stop in name):
+            print(f"Killing {name} with specified {server_to_stop}")
             psutil.Process(pid).terminate()
             time.sleep(2)
             if psutil.Process(pid).is_running():
