@@ -39,38 +39,6 @@ from autocorrect import Speller
 LOG = make_logger("chatbot")
 
 
-def childmost(decorator_func):
-    """
-    Method used to constraint decorator evaluation to childmost derived instance
-    :param decorator_func: decorator to consider
-    Source:
-    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
-    """
-    def inheritable_decorator_that_runs_once(func):
-        decorated_func = decorator_func(func)
-        name = func.__name__
-
-        def wrapper(self, *args, **kw):
-            if not hasattr(self, f"_running_{name}"):
-                setattr(self, f"_running_{name}", threading.local())
-            running_registry = getattr(self, f"_running_{name}")
-            try:
-                if not getattr(running_registry, "running", False):
-                    running_registry.running = True
-                    rt = decorated_func(self, *args, **kw)
-                else:
-                    rt = func(self, *args, **kw)
-            finally:
-                running_registry.running = False
-            return rt
-
-        wrapper.inherit_decorator = inheritable_decorator_that_runs_once
-        return wrapper
-
-    return inheritable_decorator_that_runs_once
-
-
-@childmost
 def grammar_check(func):
     """
     Checks grammar for output of passed function
@@ -88,30 +56,6 @@ def grammar_check(func):
         return output
 
     return wrapper
-
-
-class InheritDecoratorsMixin:
-    """
-    Mixin for allowing usage of superclass method decorators.
-    Source:
-    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
-    """
-    def __init_subclass__(cls, *args, **kwargs):
-        super().__init_subclass__(*args, **kwargs)
-        decorator_registry = getattr(cls, "_decorator_registry", {}).copy()
-        cls._decorator_registry = decorator_registry
-        # Check for decorated objects in the mixin itself- optional:
-        for name, obj in __class__.__dict__.items():
-            if getattr(obj, "inherit_decorator", False) and name not in decorator_registry:
-                decorator_registry[name] = obj.inherit_decorator
-        # annotate newly decorated methods in the current subclass:
-        for name, obj in cls.__dict__.items():
-            if getattr(obj, "inherit_decorator", False) and name not in decorator_registry:
-                decorator_registry[name] = obj.inherit_decorator
-        # finally, decorate all methods anottated in the registry:
-        for name, decorator in decorator_registry.items():
-            if name in cls.__dict__ and getattr(getattr(cls, name), "inherit_decorator", None) != decorator:
-                setattr(cls, name, decorator(cls.__dict__[name]))
 
 
 class ConversationControls:
@@ -133,7 +77,7 @@ class ConversationState(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-class ChatBot(KlatApi, InheritDecoratorsMixin):
+class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
