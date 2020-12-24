@@ -311,21 +311,15 @@ def cli_stop_bots():
 
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
-        if "start-klat-bots" in name and (not server_to_stop or server_to_stop in name):
-            LOG.info(f"Killing {name} with specified {server_to_stop}")
+        if name.get("name") == "start-klat-bots" and \
+                (not server_to_stop or f"--server={server_to_stop}" in psutil.Process(pid).cmdline()):
+            LOG.info(f"Terminating {pid} on {server_to_stop}")
             psutil.Process(pid).terminate()
             time.sleep(2)
-            if psutil.Process(pid).is_running():
+
+            if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
                 LOG.error(f"Process {pid} not terminated!!")
                 psutil.Process(pid).kill()
-                time.sleep(2)
-            if psutil.Process(pid).is_running():
-                LOG.error(f"Process {pid} not killed!!")
-                os.system(f"kill -9 {pid}")
-                time.sleep(2)
-            if psutil.Process(pid).is_running():
-                LOG.error(f"{pid} still alive! Killing everything.")
-                os.system("killall start-klat-bots")
 
 
 def debug_bots(bot_dir: str = os.getcwd()):
