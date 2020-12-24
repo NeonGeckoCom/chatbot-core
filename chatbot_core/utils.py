@@ -41,9 +41,9 @@ from chatbot_core import LOG, ChatBot
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    ip = s.getsockname()[0]
+    ip_addr = s.getsockname()[0]
     s.close()
-    return ip
+    return ip_addr
 
 
 ip = get_ip_address()
@@ -297,14 +297,28 @@ def cli_stop_bots():
     """
     Stops all start-klat-bot instances
     """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Stop some chatbots")
+    parser.add_argument("--server", dest="server", default=SERVER,
+                        help=f"Klat server (default: {SERVER})", type=str)
+    args = parser.parse_args()
+    if args.server:
+        server_to_stop = args.server
+    else:
+        server_to_stop = None
     import psutil
 
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
-        if "start-klat-bots" in name:
-            psutil.Process(pid).kill()
-    # TODO: Troubleshoot psutil kill DM
-    os.system("killall start-klat-bots")
+        if name.get("name") == "start-klat-bots" and \
+                (not server_to_stop or f"--server={server_to_stop}" in psutil.Process(pid).cmdline()):
+            LOG.info(f"Terminating {pid}")
+            psutil.Process(pid).terminate()
+
+            if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
+                LOG.error(f"Process {pid} not terminated!!")
+                psutil.Process(pid).kill()
 
 
 def debug_bots(bot_dir: str = os.getcwd()):
