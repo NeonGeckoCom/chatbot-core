@@ -35,42 +35,61 @@ from klat_connector import start_socket  # Leave for extending classes to use wi
 from chatbot_core.logger import make_logger
 from mycroft_bus_client import Message, MessageBusClient
 from autocorrect import Speller
+from nltk.translate.bleu_score import sentence_bleu
+from nltk import word_tokenize
+import jellyfish
 
 LOG = make_logger("chatbot")
 
 
-def childmost(decorator_func):
+def find_closest_answer(algorithm: str = 'random', sentence: str = None, options: dict = None):
     """
-    Method used to constraint decorator evaluation to childmost derived instance
-    :param decorator_func: decorator to consider
-    Source:
-    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
+        Handles an incoming shout into the current conversation
+        :param algorithm: algorithm considered
+        :param sentence: base sentence
+        :param options: options to pick best one from
     """
-    def inheritable_decorator_that_runs_once(func):
-        decorated_func = decorator_func(func)
-        name = func.__name__
-
-        def wrapper(self, *args, **kw):
-            if not hasattr(self, f"_running_{name}"):
-                setattr(self, f"_running_{name}", threading.local())
-            running_registry = getattr(self, f"_running_{name}")
-            try:
-                if not getattr(running_registry, "running", False):
-                    running_registry.running = True
-                    rt = decorated_func(self, *args, **kw)
+    if not sentence:
+        LOG.warning('Empty sentence supplied')
+        return sentence
+    if not options or len(options.keys()) == 0:
+        LOG.warning('No options provided')
+        return sentence
+    if algorithm == 'random':
+        closest_answer = random.choice(options)
+    elif algorithm == 'bleu_score':
+        bleu_scores = []
+        response_tokenized = word_tokenize(sentence.lower())
+        for option in options.keys():
+            opinion_tokenized = word_tokenize(options[option].lower())
+            if len(opinion_tokenized) > 0:
+                if min(len(response_tokenized), len(opinion_tokenized)) < 4:
+                    weighting = 1.0 / min(len(response_tokenized), len(opinion_tokenized))
+                    weights = tuple([weighting] * min(len(response_tokenized), len(opinion_tokenized)))
                 else:
-                    rt = func(self, *args, **kw)
-            finally:
-                running_registry.running = False
-            return rt
+                    weights = (0.25, 0.25, 0.25, 0.25)
+                bleu_scores.append(
+                    (option, sentence_bleu([response_tokenized], opinion_tokenized, weights=weights)))
+        max_score = max([x[1] for x in bleu_scores]) if len(bleu_scores) > 0 else 0
+        closest_answer = random.choice(list(filter(lambda x: x[1] == max_score, bleu_scores)))[0]
+        LOG.info(f'Closest answer is {closest_answer}')
+    elif algorithm == 'damerau_levenshtein_distance':
+        closest_distance = None
+        closest_answer = None
+        try:
+            for option in options.items():
+                distance = jellyfish.damerau_levenshtein_distance(option[1], sentence)
+                if not closest_distance or closest_distance > distance:
+                    closest_distance = distance
+                    closest_answer = option[0]
+            LOG.info(f'Closest answer is {closest_answer}')
+        except Exception as e:
+            LOG.error(e)
+    else:
+        LOG.error(f'Unknown algorithm supplied:{algorithm}')
+        return sentence
+    return closest_answer
 
-        wrapper.inherit_decorator = inheritable_decorator_that_runs_once
-        return wrapper
-
-    return inheritable_decorator_that_runs_once
-
-
-@childmost
 def grammar_check(func):
     """
     Checks grammar for output of passed function
@@ -88,30 +107,6 @@ def grammar_check(func):
         return output
 
     return wrapper
-
-
-class InheritDecoratorsMixin:
-    """
-    Mixin for allowing usage of superclass method decorators.
-    Source:
-    https://stackoverflow.com/questions/57104276/python-subclass-method-to-inherit-decorator-from-superclass-method
-    """
-    def __init_subclass__(cls, *args, **kwargs):
-        super().__init_subclass__(*args, **kwargs)
-        decorator_registry = getattr(cls, "_decorator_registry", {}).copy()
-        cls._decorator_registry = decorator_registry
-        # Check for decorated objects in the mixin itself- optional:
-        for name, obj in __class__.__dict__.items():
-            if getattr(obj, "inherit_decorator", False) and name not in decorator_registry:
-                decorator_registry[name] = obj.inherit_decorator
-        # annotate newly decorated methods in the current subclass:
-        for name, obj in cls.__dict__.items():
-            if getattr(obj, "inherit_decorator", False) and name not in decorator_registry:
-                decorator_registry[name] = obj.inherit_decorator
-        # finally, decorate all methods anottated in the registry:
-        for name, decorator in decorator_registry.items():
-            if name in cls.__dict__ and getattr(getattr(cls, name), "inherit_decorator", None) != decorator:
-                setattr(cls, name, decorator(cls.__dict__[name]))
 
 
 class ConversationControls:
@@ -133,7 +128,7 @@ class ConversationState(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-class ChatBot(KlatApi, InheritDecoratorsMixin):
+class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
         super(ChatBot, self).__init__(socket, domain)
