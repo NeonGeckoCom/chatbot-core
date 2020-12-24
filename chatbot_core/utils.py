@@ -313,9 +313,8 @@ def cli_stop_bots():
     for pid, name in procs.items():
         if name.get("name") == "start-klat-bots" and \
                 (not server_to_stop or f"--server={server_to_stop}" in psutil.Process(pid).cmdline()):
-            LOG.info(f"Terminating {pid} on {server_to_stop}")
+            LOG.info(f"Terminating {pid}")
             psutil.Process(pid).terminate()
-            time.sleep(2)
 
             if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
                 LOG.error(f"Process {pid} not terminated!!")
