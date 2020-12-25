@@ -244,3 +244,38 @@ if __name__ == "__main__":
     while True:
         pass
 ```
+
+## Helper functions
+### Grammar check
+In order to apply quick validation on output of function consider using `grammar_check`,
+Sample Usage:
+```python
+from chatbot_core import grammar_check
+@grammar_check
+def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
+    return shout
+```
+Kernel of this function made with the help of [autocorrect](https://github.com/fsondej/autocorrect)
+
+### Find closest opinion
+Apply `find_closest_answer` to provide some known algorithms for closest opinions finding, 
+Sample Usage:
+```python
+from chatbot_core import find_closest_answer
+
+def ask_appraiser(self, options: dict) -> str:
+    # Let's consider storing response for current prompt in self.response variable
+    closest_opinion = find_closest_answer(algorithm='random',sentence=self.response,options=options)
+    for bot in options.keys():
+        if options[bot] == closest_opinion:
+            return f'I really like {bot} opinion!'
+    return 'I did not found any interesting answer here...'
+```
+#### Algorithm Table
+
+
+|    Algorithm Name    |                                                                                          Description                                                                                         |                                   When to use?                                   |
+|:--------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------:|
+|        random        |                                                                                   Picks response by random                                                                                   |                          When matters speed over result                          |
+|      bleu score      |                                                          Calculates precision using [n-gramms](https://en.wikipedia.org/wiki/N-gram)                                                         |                         When sentences have similar shape                        |
+| levenshtein distance | Calculates precision by measuring distance between words.  | When each word separately matters more than semantical meaning of the sentence.  |
