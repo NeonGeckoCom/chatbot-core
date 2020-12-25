@@ -384,7 +384,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
             elif self.state == ConversationState.VOTE and user.lower() not in self.facilitator_nicks:
                 candidate_bot = None
                 for candidate in self.conversation_users:
-                    if candidate in shout.split():
+                    if candidate.lower() in shout.lower().split():
                         candidate_bot = candidate
                         if self.bot_type == "proctor":
                             self.log.debug(f"{user} votes for {candidate_bot}")
