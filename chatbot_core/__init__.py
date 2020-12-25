@@ -401,7 +401,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
                     user, response = shout.split(":", 1)
                     user = user.split()[-1]
                     response = response.strip().strip('"')
-                    self.selected_history.append(user)
+                    self.selected_history.append(user.lower())
                     self.on_selection(self.active_prompt, user, response)
                     if self.nick.lower() == "scorekeeper":  # Get the history (for scorekeeper)
                         history = self.ask_history(user, shout, dom, cid)
@@ -451,7 +451,7 @@ class ChatBot(KlatApi, InheritDecoratorsMixin):
         """
         if response and response != self.active_prompt:
             # if prompt in self.proposed_responses.keys():
-            self.proposed_responses[prompt][user] = response
+            self.proposed_responses[prompt][user.lower()] = response
             # else:
             #     self.proposed_responses[prompt] = {user: response}
         self.on_proposed_response()
