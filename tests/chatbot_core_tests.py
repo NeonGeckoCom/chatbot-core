@@ -55,7 +55,7 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(len(self.bot.proposed_responses[self.test_input]), 1)
         self.bot.handle_shout("Another", "Another Bot Response.", self.bot._cid, self.bot._dom,
                               datetime.now().strftime("%I:%M:%S %p"))
-        self.assertIn("Other", self.bot.proposed_responses[self.test_input].keys())
+        self.assertIn("other", self.bot.proposed_responses[self.test_input].keys())
         self.assertIn("Other Bot Response.", self.bot.proposed_responses[self.test_input].values())
 
     @pytest.mark.timeout(10)
