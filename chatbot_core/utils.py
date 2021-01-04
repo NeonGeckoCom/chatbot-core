@@ -105,6 +105,7 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
         bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
         # Get all bots in the requested directory
         bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
+        # TODO: Above fails to import more bots if one fails (bad dependencies, etc) DM
         # only specified bot names
         if names_to_consider:
             bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
@@ -300,8 +301,8 @@ def cli_stop_bots():
     import argparse
 
     parser = argparse.ArgumentParser(description="Stop some chatbots")
-    parser.add_argument("--server", dest="server", default=SERVER,
-                        help=f"Klat server (default: {SERVER})", type=str)
+    parser.add_argument("--server", dest="server", default="",
+                        help=f"Klat server (default: None)", type=str)
     args = parser.parse_args()
     if args.server:
         server_to_stop = args.server
