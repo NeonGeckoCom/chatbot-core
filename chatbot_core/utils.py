@@ -175,6 +175,9 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
                 LOG.error(name)
                 LOG.error(e)
                 LOG.error(bot)
+    if len(bots_to_start.keys()) != len(processes):
+        LOG.error(f"Wrong number of processes for bots! {len(bots_to_start.keys())} != {len(processes)}")
+        LOG.error(processes)
     return processes
 
 
@@ -266,10 +269,10 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     if handle_restart:
         LOG.info(f"Setting restart listener for {server}")
         _listen_for_restart_chatbots(server)
-    LOG.info(">>>STARTED<<<")
     try:
         # runner = Event()
         while True:
+            LOG.info(">>>STARTED<<<")
             # Wait for an event that will never come
             runner.clear()
             runner.wait()
@@ -284,6 +287,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                     p.kill()
             LOG.debug(f"Processes should be ended")
 
+            # TODO: This kills everything, regardless of requesting restart server DM
             procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
             for pid, name in procs.items():
                 if name.get("name") == "start-klat-bots" and pid != os.getpid():
