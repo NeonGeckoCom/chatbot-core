@@ -175,10 +175,6 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
                 LOG.error(name)
                 LOG.error(e)
                 LOG.error(bot)
-    if len(bots_to_start.keys()) != len(processes):
-        LOG.error(f"Wrong number of processes for bots! {len(bots_to_start.keys())} != {len(processes)}")
-        LOG.error(processes)
-    LOG.debug(f"procs={len(processes)} | {processes}")
     return processes
 
 
@@ -278,7 +274,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             runner.clear()
             runner.wait()
             LOG.info(">>>RESTART REQUESTED<<<")
-            LOG.debug(f"procs={len(processes)} | {processes}")
+            # LOG.debug(f"procs={len(processes)} | {processes}")
             for p in processes:
                 try:
                     LOG.debug(f"Terminating {p.pid}")
@@ -291,19 +287,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 except Exception as e:
                     LOG.error(e)
                     p.kill()
-            LOG.debug(f"Processes should be ended")
-
-            # TODO: This kills everything, regardless of requesting restart server DM
-            procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
-            for pid, name in procs.items():
-                if name.get("name") == "start-klat-bots" and pid != os.getpid():
-                    LOG.error(f"Terminating {pid}")
-                    psutil.Process(pid).terminate()
-                    time.sleep(1)
-                    if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
-                        LOG.error(f"Process {pid} not terminated!!")
-                        psutil.Process(pid).kill()
-
+            LOG.debug(f"Processes ended")
             processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
