@@ -22,6 +22,8 @@ import logging
 import os
 import pkgutil
 import socket
+
+import psutil
 import time
 
 # from socketio import Client
@@ -61,7 +63,7 @@ else:
     # Default external connections to production server
     SERVER = "0000.us"
 
-active_server = None
+# active_server = None
 runner = Event()
 
 
@@ -190,13 +192,13 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param excluded_bots: Optional list of bots to exclude from launching
     :param handle_restart: If true, listens for a restart message from the server to restart chatbots
     """
-    global active_server
+    # global active_server
     global runner
     domain = domain or "chatbotsforum.org"
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
-    active_server = server
+    # active_server = server
     LOG.debug(f"Starting bots on server: {server}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
@@ -269,8 +271,15 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             # Wait for an event that will never come
             runner.clear()
             runner.wait()
-            cli_stop_bots()
-            _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
+            LOG.info(">>>RESTART REQUESTED<<<")
+            for pid in processes:
+                processes.remove(pid)
+                psutil.Process(pid).terminate()
+                time.sleep(1)
+                if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
+                    LOG.error(f"Process {pid} not terminated!!")
+                    psutil.Process(pid).kill()
+            processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
         for p in processes:
