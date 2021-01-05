@@ -26,6 +26,8 @@ import time
 
 # from socketio import Client
 from multiprocessing import Process, Event, synchronize
+from threading import Thread
+from mycroft_bus_client import Message, MessageBusClient
 
 import sys
 
@@ -35,7 +37,9 @@ from datetime import datetime
 
 import yaml
 from klat_connector import start_socket
-from chatbot_core import LOG, ChatBot
+
+from chatbot_core.logger import LOG
+# from chatbot_core import ChatBot
 
 
 def get_ip_address():
@@ -56,6 +60,8 @@ elif ip == "167.172.112.7":  # Prod
 else:
     # Default external connections to production server
     SERVER = "0000.us"
+
+active_server = None
 
 
 def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, event: synchronize.Event):
@@ -98,6 +104,8 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
     :param names_to_consider: limit imported instances to certain list
     :return: dict of bot name:ChatBot object
     """
+    from chatbot_core import ChatBot
+
     bots = {}
 
     try:
@@ -136,7 +144,7 @@ def load_credentials_yml(cred_file: str) -> dict:
 
 
 def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
-               cred_file: str = None, bot_name: str = None, excluded_bots: list = None):
+               cred_file: str = None, bot_name: str = None, excluded_bots: list = None, handle_restart: bool = False):
     """
     Start all of the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
@@ -147,12 +155,14 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param cred_file: Path to a credentials yml file
     :param bot_name: Optional name of the bot to start (None for all bots)
     :param excluded_bots: Optional list of bots to exclude from launching
+    :param handle_restart: If true, listens for a restart message from the server to restart chatbots
     """
-
+    global active_server
     domain = domain or "chatbotsforum.org"
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
+    active_server = server
     LOG.debug(f"Starting bots on server: {server}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
@@ -237,6 +247,10 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 LOG.error(name)
                 LOG.error(e)
                 LOG.error(bot)
+
+    if handle_restart:
+        LOG.info(f"Setting restart listener for {server}")
+        _listen_for_restart_chatbots(server)
     LOG.info(">>>STARTED<<<")
     try:
         # Wait for an event that will never come
@@ -276,6 +290,8 @@ def cli_start_bots():
                         help="comma separated list of bots to include in running", type=str)
     parser.add_argument("--exclude", dest="exclude",
                         help="comma separated list of bots to exclude from running", type=str)
+    parser.add_argument("--handle-restart", dest="handle_restart", default=False,
+                        help="True to handle server emit to restart bots", type=bool)
     args = parser.parse_args()
 
     if args.debug:
@@ -291,7 +307,7 @@ def cli_start_bots():
         excluded_bots = None
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
-               excluded_bots)
+               excluded_bots)  # , args.handle_restart)
 
 
 def cli_stop_bots():
@@ -370,11 +386,13 @@ def debug_bots(bot_dir: str = os.getcwd()):
     LOG.warning("Done Running")
 
 
-def clean_up_bot(bot: ChatBot):
+def clean_up_bot(bot):
     """
     Performs any standard cleanup for a bot on destroy
     :param bot: ChatBot instance to clean up
     """
+    from chatbot_core import ChatBot
+
     if not isinstance(bot, ChatBot):
         raise TypeError
     bot.socket.disconnect()
@@ -382,3 +400,46 @@ def clean_up_bot(bot: ChatBot):
         bot.shout_queue.put(None)
     if hasattr(bot, "shout_thread"):
         bot.shout_thread.join(0)
+
+
+def _restart_chatbots(message: Message):
+    """
+    Messagebus handler to restart chatbots on a server
+    :param message: Message associated with request
+    """
+    # global active_server
+    path = "/home/neon/chatbots"
+    server = message.data.get("server", active_server)
+    LOG.warning(f"Got message to restart bots on {active_server}")
+    os.system(f'{os.path.join(path, "server_start_bots.sh")} {server}')
+    exit(0)
+
+
+def _listen_for_restart_chatbots(server: str):
+    """
+    Registers a messagebus listener to restart chatbots for the given server
+    :param server: base url of the klat server messagebus to listen to
+    """
+    host = "64.34.186.120" if server == "2222.us" else "64.225.115.136" if server == "5555.us" else "167.172.112.7"
+    bus_config = {"host": host,
+                  "port": 8181,
+                  "ssl": False,
+                  "route": "/core"}
+    thread, bus = init_message_bus(bus_config)
+    bus.on("restart chatbots", _restart_chatbots)
+
+
+def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
+    """
+    Connects to a Neon Core messagebus and returns the thread and bus.
+    :param bus_config: messagebus configuration to use
+    :return: Thread, messagebus object
+    """
+    bus_config = bus_config or {"host": "167.172.112.7",
+                                "port": 8181,
+                                "ssl": False,
+                                "route": "/core"}
+    bus = MessageBusClient(bus_config["host"], bus_config["port"], bus_config["route"], bus_config["ssl"])
+    t = bus.run_in_thread()
+    bus.connected_event.wait(10)
+    return t, bus
