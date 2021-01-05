@@ -62,6 +62,7 @@ else:
     SERVER = "0000.us"
 
 active_server = None
+runner = Event()
 
 
 def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, event: synchronize.Event):
@@ -143,6 +144,38 @@ def load_credentials_yml(cred_file: str) -> dict:
     return credentials_dict
 
 
+def _start_bot_processes(bots_to_start: dict, username: str, password: str,
+                         credentials: dict, server: str, domain: str) -> list:
+    processes = []
+
+    # Start Proctor first if in the list of bots to start
+    if "Proctor" in bots_to_start.keys():
+        bot = bots_to_start.get("Proctor")
+        try:
+            user = username or credentials.get("Proctor", {}).get("username")
+            password = password or credentials.get("Proctor", {}).get("password")
+            process, event = _start_bot(bot, server, 8888, domain, user, password)
+            processes.append(process)
+        except Exception as e:
+            LOG.error(e)
+            LOG.error(bot)
+
+    # Start a socket for each unique bot, bots handle login names
+    for name, bot in bots_to_start.items():
+        if name != "Proctor":
+            LOG.debug(f"Starting: {name}")
+            try:
+                user = username or credentials.get(name, {}).get("username")
+                password = password or credentials.get(name, {}).get("password")
+                process, event = _start_bot(bot, server, 8888, domain, user, password)
+                processes.append(process)
+            except Exception as e:
+                LOG.error(name)
+                LOG.error(e)
+                LOG.error(bot)
+    return processes
+
+
 def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
                cred_file: str = None, bot_name: str = None, excluded_bots: list = None, handle_restart: bool = False):
     """
@@ -158,6 +191,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param handle_restart: If true, listens for a restart message from the server to restart chatbots
     """
     global active_server
+    global runner
     domain = domain or "chatbotsforum.org"
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
@@ -223,40 +257,22 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 if name in bots_to_start.keys():
                     bots_to_start.pop(name)
 
-        # Start Proctor first if in the list of bots to start
-        if "Proctor" in bots_to_start.keys():
-            bot = bots_to_start.pop("Proctor")
-            try:
-                user = username or credentials.get("Proctor", {}).get("username")
-                password = password or credentials.get("Proctor", {}).get("password")
-                process, event = _start_bot(bot, server, 8888, domain, user, password)
-                processes.append(process)
-            except Exception as e:
-                LOG.error(e)
-                LOG.error(bot)
-
-        # Start a socket for each unique bot, bots handle login names
-        for name, bot in bots_to_start.items():
-            LOG.debug(f"Starting: {name}")
-            try:
-                user = username or credentials.get(name, {}).get("username")
-                password = password or credentials.get(name, {}).get("password")
-                process, event = _start_bot(bot, server, 8888, domain, user, password)
-                processes.append(process)
-            except Exception as e:
-                LOG.error(name)
-                LOG.error(e)
-                LOG.error(bot)
+        processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
 
     if handle_restart:
         LOG.info(f"Setting restart listener for {server}")
         _listen_for_restart_chatbots(server)
     LOG.info(">>>STARTED<<<")
     try:
-        # Wait for an event that will never come
-        runner = Event()
-        runner.clear()
-        runner.wait()
+        # runner = Event()
+        while True:
+            # Wait for an event that will never come
+            runner.clear()
+            runner.wait()
+            for p in processes:
+                LOG.debug(f"Ending PID: {p}")
+                p.join()
+            _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
         for p in processes:
@@ -307,7 +323,7 @@ def cli_start_bots():
         excluded_bots = None
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
-               excluded_bots)  # , args.handle_restart)
+               excluded_bots, args.handle_restart)
 
 
 def cli_stop_bots():
@@ -407,12 +423,17 @@ def _restart_chatbots(message: Message):
     Messagebus handler to restart chatbots on a server
     :param message: Message associated with request
     """
+    global runner
+    runner.set()
     # global active_server
-    path = "/home/neon/chatbots"
-    server = message.data.get("server", active_server)
-    LOG.warning(f"Got message to restart bots on {active_server}")
-    os.system(f'{os.path.join(path, "server_start_bots.sh")} {server}')
-    exit(0)
+    # if os.path.isfile(os.path.join(os.getcwd(), "server_start_bots.sh")):
+    #     path = os.getcwd()
+    # else:
+    #     path = "/home/neon/chatbots"
+    # server = message.data.get("server", active_server)
+    # LOG.warning(f"Got message to restart bots on {active_server}")
+    # os.system(f'{os.path.join(path, "server_start_bots.sh")} {server}')
+    # exit(0)
 
 
 def _listen_for_restart_chatbots(server: str):
@@ -420,7 +441,13 @@ def _listen_for_restart_chatbots(server: str):
     Registers a messagebus listener to restart chatbots for the given server
     :param server: base url of the klat server messagebus to listen to
     """
-    host = "64.34.186.120" if server == "2222.us" else "64.225.115.136" if server == "5555.us" else "167.172.112.7"
+    if server == "2222.us":
+        host = "64.34.186.120"
+    elif server == "5555.us":
+        host = "64.225.115.136"
+    else:
+        host = "167.172.112.7"
+    LOG.debug(f"Listening for restart message on {host}")
     bus_config = {"host": host,
                   "port": 8181,
                   "ssl": False,
@@ -442,4 +469,5 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
     bus = MessageBusClient(bus_config["host"], bus_config["port"], bus_config["route"], bus_config["ssl"])
     t = bus.run_in_thread()
     bus.connected_event.wait(10)
+    LOG.info(f"Connected to Messagebus at: ")
     return t, bus
