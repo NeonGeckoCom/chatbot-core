@@ -253,8 +253,10 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         else:
             LOG.error(f"{bot_name} is not a valid bot!")
             return
+    # Else start all bots
     else:
         if excluded_bots:
+            # Remove any excluded bots
             for name in excluded_bots:
                 if name in bots_to_start.keys():
                     bots_to_start.pop(name)
@@ -277,11 +279,21 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 processes.remove(p)
                 p.terminate()
                 time.sleep(1)
-                if psutil.pid_exists(p.pid) and p.is_alive():
+                if p.is_alive():
                     LOG.error(f"Process {p.pid} not terminated!!")
                     p.kill()
-            LOG.debug(f"Processes all ended, restarting")
-            time.sleep(15)  # TODO: Remove this
+            LOG.debug(f"Processes should be ended")
+
+            procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
+            for pid, name in procs.items():
+                if name.get("name") == "start-klat-bots" and pid != os.getpid():
+                    LOG.error(f"Terminating {pid}")
+                    psutil.Process(pid).terminate()
+                    time.sleep(1)
+                    if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
+                        LOG.error(f"Process {pid} not terminated!!")
+                        psutil.Process(pid).kill()
+
             processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
