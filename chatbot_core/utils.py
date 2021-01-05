@@ -272,13 +272,16 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             runner.clear()
             runner.wait()
             LOG.info(">>>RESTART REQUESTED<<<")
-            for pid in processes:
-                processes.remove(pid)
-                psutil.Process(pid).terminate()
+            for p in processes:
+                LOG.debug(f"Terminating {p.pid}")
+                processes.remove(p)
+                p.terminate()
                 time.sleep(1)
-                if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
-                    LOG.error(f"Process {pid} not terminated!!")
-                    psutil.Process(pid).kill()
+                if psutil.pid_exists(p.pid) and p.is_alive():
+                    LOG.error(f"Process {p.pid} not terminated!!")
+                    p.kill()
+            LOG.debug(f"Processes all ended, restarting")
+            time.sleep(15)  # TODO: Remove this
             processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
