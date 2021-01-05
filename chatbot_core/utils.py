@@ -178,6 +178,7 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
     if len(bots_to_start.keys()) != len(processes):
         LOG.error(f"Wrong number of processes for bots! {len(bots_to_start.keys())} != {len(processes)}")
         LOG.error(processes)
+    LOG.debug(f"procs={len(processes)} | {processes}")
     return processes
 
 
@@ -277,13 +278,18 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             runner.clear()
             runner.wait()
             LOG.info(">>>RESTART REQUESTED<<<")
+            LOG.debug(f"procs={len(processes)} | {processes}")
             for p in processes:
-                LOG.debug(f"Terminating {p.pid}")
-                processes.remove(p)
-                p.terminate()
-                time.sleep(1)
-                if p.is_alive():
-                    LOG.error(f"Process {p.pid} not terminated!!")
+                try:
+                    LOG.debug(f"Terminating {p.pid}")
+                    processes.remove(p)
+                    p.terminate()
+                    time.sleep(1)
+                    if p.is_alive():
+                        LOG.error(f"Process {p.pid} not terminated!!")
+                        p.kill()
+                except Exception as e:
+                    LOG.error(e)
                     p.kill()
             LOG.debug(f"Processes should be ended")
 
