@@ -282,7 +282,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             for p in processes:
                 try:
                     LOG.debug(f"Terminating {p.pid}")
-                    processes.remove(p)
+                    # processes.remove(p)
                     p.terminate()
                     time.sleep(1)
                     if p.is_alive():
