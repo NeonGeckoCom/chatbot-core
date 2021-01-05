@@ -269,9 +269,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             # Wait for an event that will never come
             runner.clear()
             runner.wait()
-            for p in processes:
-                LOG.debug(f"Ending PID: {p}")
-                p.join()
+            cli_stop_bots()
             _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
@@ -469,5 +467,5 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
     bus = MessageBusClient(bus_config["host"], bus_config["port"], bus_config["route"], bus_config["ssl"])
     t = bus.run_in_thread()
     bus.connected_event.wait(10)
-    LOG.info(f"Connected to Messagebus at: ")
+    LOG.info(f"Connected to Messagebus at: {bus_config['host']}")
     return t, bus
