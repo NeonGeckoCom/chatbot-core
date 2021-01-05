@@ -808,7 +808,7 @@ class NeonBot(ChatBot):
         # t = Thread(target=self.bus.run_forever)
         # t.daemon = True
         # t.start()
-        self.bus, t = init_message_bus(self.bus_config)
+        t, self.bus = init_message_bus(self.bus_config)
         return t
 
     def _set_bus_listeners(self):

@@ -432,6 +432,8 @@ def clean_up_bot(bot):
         bot.shout_queue.put(None)
     if hasattr(bot, "shout_thread"):
         bot.shout_thread.join(0)
+    if hasattr(bot, "bus"):
+        bot.bus.close()
 
 
 def _restart_chatbots(message: Message):
