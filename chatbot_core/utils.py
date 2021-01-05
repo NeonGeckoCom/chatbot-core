@@ -28,7 +28,7 @@ import time
 
 # from socketio import Client
 from multiprocessing import Process, Event, synchronize
-from threading import Thread
+from threading import Thread, current_thread
 from mycroft_bus_client import Message, MessageBusClient
 
 import sys
@@ -431,7 +431,8 @@ def clean_up_bot(bot):
     if hasattr(bot, "shout_queue"):
         bot.shout_queue.put(None)
     if hasattr(bot, "shout_thread"):
-        bot.shout_thread.join(0)
+        if current_thread() != bot.shout_thread:
+            bot.shout_thread.join(0)
     if hasattr(bot, "bus"):
         bot.bus.close()
 
