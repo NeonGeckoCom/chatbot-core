@@ -22,16 +22,18 @@ from queue import Queue
 from typing import Optional
 
 import time
+# import sys
 
 from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
-import threading
+# import threading
 from threading import Thread
 
 from klat_connector.klat_api import KlatApi
-from klat_connector import start_socket  # Leave for extending classes to use without explicit klat_connector import
+from klat_connector import start_socket
+from chatbot_core.utils import init_message_bus
 from chatbot_core.logger import make_logger
 from mycroft_bus_client import Message, MessageBusClient
 from autocorrect import Speller
@@ -90,6 +92,7 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None, options
         return sentence
     return closest_answer
 
+
 def grammar_check(func):
     """
     Checks grammar for output of passed function
@@ -131,6 +134,8 @@ class ConversationState(IntEnum):
 class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True):
+
+        socket = socket or start_socket()
         super(ChatBot, self).__init__(socket, domain)
         global LOG
         # self.log.debug("Connector started")
@@ -798,11 +803,12 @@ class NeonBot(ChatBot):
         self._send_to_neon(f"run my {self.script} script", str(round(time.time())), self.nick)
 
     def _init_bus(self):
-        self.bus = MessageBusClient(self.bus_config["host"], self.bus_config["port"],
-                                    self.bus_config["route"], self.bus_config["ssl"])
-        t = Thread(target=self.bus.run_forever)
-        t.daemon = True
-        t.start()
+        # self.bus = MessageBusClient(self.bus_config["host"], self.bus_config["port"],
+        #                             self.bus_config["route"], self.bus_config["ssl"])
+        # t = Thread(target=self.bus.run_forever)
+        # t.daemon = True
+        # t.start()
+        self.bus, t = init_message_bus(self.bus_config)
         return t
 
     def _set_bus_listeners(self):

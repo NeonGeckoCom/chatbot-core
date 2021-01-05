@@ -10,8 +10,10 @@ from klat_connector import start_socket
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from chatbot_core import ChatBot, ConversationControls, ConversationState
+from chatbot_core.utils import clean_up_bot
 
 
+@pytest.mark.timeout(timeout=300, method='signal')
 class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
@@ -21,11 +23,13 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        cls.bot.socket.disconnect()
+        clean_up_bot(cls.bot)
 
-        if cls.bot.shout_thread.isAlive():
-            cls.bot.shout_queue.put(None)
-            cls.bot.shout_thread.join(0)
+        # cls.bot.socket.disconnect()
+
+        # if cls.bot.shout_thread.isAlive():
+        #     cls.bot.shout_queue.put(None)
+        #     cls.bot.shout_thread.join(0)
 
     @pytest.mark.timeout(10)
     def test_01_initial_connection_settings(self):
@@ -183,13 +187,24 @@ class ChatbotCoreTests(unittest.TestCase):
             print("...")
             time.sleep(2)
         self.assertFalse(e.is_set())
-        # self.assertTrue(t.is_alive())
-        print(f"Terminating... {t.is_alive()}")
         t.terminate()
         self.assertFalse(t.is_alive())
         print("Joining...")
         t.join()
-        print("Done")
+
+    @pytest.mark.timeout(30)
+    def test_messagebus_connection(self):
+        from chatbot_core.utils import init_message_bus
+        from threading import Thread
+        from mycroft_bus_client import MessageBusClient
+
+        t, bus = init_message_bus()
+        self.assertIsInstance(t, Thread)
+        self.assertIsInstance(bus, MessageBusClient)
+        self.assertTrue(bus.started_running)
+
+        bus.close()
+        t.join(5)
 
 # TODO: Test CLI bot detection, credentials load, etc. DM
 
