@@ -694,8 +694,8 @@ class ChatBot(KlatApi):
         """
         Gets a dict of options with the
         """
-        return {nick: resp for nick, resp in self.proposed_responses[self.active_prompt].items()
-                if nick != self.nick and resp != self.active_prompt}
+        return {nick.lower(): resp for nick, resp in self.proposed_responses[self.active_prompt].items()
+                if nick.lower() != self.nick.lower() and resp != self.active_prompt}
 
     def _pause_responses(self, duration: int = 5):
         """
