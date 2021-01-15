@@ -718,13 +718,12 @@ class ChatBot(KlatApi):
         Called recursively to handle incoming shouts synchronously
         """
         next_shout = self.shout_queue.get()
-        if next_shout:
+        while next_shout:
             # (user, shout, cid, dom, timestamp)
             self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
-            self._handle_next_shout()
-        else:
-            self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
-            self.exit()
+            next_shout = self.shout_queue.get()
+        self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
+        self.exit()
 
     def exit(self):
         from chatbot_core.utils import clean_up_bot
