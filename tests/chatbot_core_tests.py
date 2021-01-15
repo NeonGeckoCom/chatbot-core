@@ -37,7 +37,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.bot = ChatBot(start_socket("2222.us"), "Private", "testrunner", "testpassword", True)
+        cls.bot = ChatBot(start_socket("5555.us"), "Private", "testrunner", "testpassword", True)
         cls.test_input = "prompt goes here"
 
     @classmethod
@@ -196,7 +196,7 @@ class ChatbotCoreTests(unittest.TestCase):
         from chatbot_core.utils import _start_bot
         from multiprocessing import Process, synchronize
 
-        t, e = _start_bot(ChatBot, "2222.us", 8888, "Private", "testrunner", "testpassword")
+        t, e = _start_bot(ChatBot, "5555.us", 8888, "Private", "testrunner", "testpassword")
         self.assertIsInstance(t, Process)
         self.assertIsInstance(e, synchronize.Event)
         # self.assertFalse(e.is_set())
