@@ -133,13 +133,13 @@ class ConversationState(IntEnum):
 
 class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
-                 username: str = None, password: str = None, on_server: bool = True):
-
+                 username: str = None, password: str = None, on_server: bool = True, is_prompter: bool = False):
         socket = socket or start_socket()
         super(ChatBot, self).__init__(socket, domain)
         global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
+        self.is_prompter = is_prompter
         self.start_domain = domain
         self.enable_responses = False
         self.bot_type = None
@@ -235,7 +235,7 @@ class ChatBot(KlatApi):
         if not self.nick:
             self.log.error(f"No nick! user is {self.username}")
             return
-        if not self.conversation_is_proctored:
+        if not self.conversation_is_proctored and not self.is_prompter:
             self.log.warning("Un-proctored conversation!!")
         # if not self.is_current_cid(cid):
 
@@ -257,7 +257,10 @@ class ChatBot(KlatApi):
                     self.log.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "submind":
                 self.log.info(f"@bot shout incoming")
-                self.at_chatbot(user, shout, timestamp)
+                resp = self.at_chatbot(user, shout, timestamp)
+                if self.is_prompter:
+                    self.log.info(f"Prompter bot got reply: {shout}")
+                    self.send_shout(resp, cid, dom)
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
             self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
