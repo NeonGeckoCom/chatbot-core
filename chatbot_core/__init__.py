@@ -176,6 +176,7 @@ class ChatBot(KlatApi):
         self.request_history = list()
         self.participant_history = [set()]
 
+        self.initial_prompt = "Hello."
         self.fallback_responses = ("Huh?",
                                    "What?",
                                    "I don't know.",
