@@ -48,7 +48,7 @@ setuptools.setup(
     entry_points={'console_scripts': ["start-klat-bots=chatbot_core.utils:cli_start_bots",
                                       "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
                                       "debug-klat-bots=chatbot_core.utils:debug_bots",
-                                      "start-klat-prompter=chatbot_core.utils.cli_start_prompter"]},
+                                      "start-klat-prompter=chatbot_core.utils:cli_start_prompter"]},
     install_requires=[
         "mycroft-messagebus-client",
         "psutil~=5.7.3",
