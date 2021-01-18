@@ -74,7 +74,7 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, passw
     """
     instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
     if is_prompter:  # Send intial prompt if this bot is a prompter
-        instance.send_shout(f"@Proctor {bot.initial_prompt}", instance.get_private_conversation(["Proctor"]), "Private")
+        instance.send_shout(f"@Proctor {instance.initial_prompt}", instance.get_private_conversation(["Proctor"]), "Private")
     event.clear()
     event.wait()
 
