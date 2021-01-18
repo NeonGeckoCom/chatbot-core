@@ -406,7 +406,7 @@ def cli_start_prompter():
         logging.getLogger("chatbots").setLevel(logging.INFO)
         logging.getLogger("chatbot").setLevel(logging.INFO)
     LOG.debug(args)
-    start_bots("Private", args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
+    start_bots("Private", args.bot_dir, args.username, args.password, args.server, None, args.bot_name,
                None, args.handle_restart, True)
 
 
