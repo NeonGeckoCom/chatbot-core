@@ -188,6 +188,9 @@ class ChatBot(KlatApi):
         self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
 
+        if is_prompter:
+            self._send_first_prompt()
+
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
 
@@ -728,6 +731,12 @@ class ChatBot(KlatApi):
             next_shout = self.shout_queue.get()
         self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
         self.exit()
+
+    def _send_first_prompt(self):
+        """
+        Sends an initial prompt to the proctor for a prompter bot
+        """
+        self.send_shout("@Proctor hello!", self.get_private_conversation(["Proctor"]), "Private")
 
     def exit(self):
         from chatbot_core.utils import clean_up_bot
