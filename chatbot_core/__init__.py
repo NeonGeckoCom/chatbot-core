@@ -736,6 +736,7 @@ class ChatBot(KlatApi):
         """
         Sends an initial prompt to the proctor for a prompter bot
         """
+        self.log.debug(f"{self.nick} sending initial prompt!")
         self.send_shout("@Proctor hello!", self.get_private_conversation(["Proctor"]), "Private")
 
     def exit(self):
