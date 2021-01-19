@@ -250,6 +250,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
+            bots_to_start = {bot_name: bot}
             try:
                 user = username or credentials.get(bot_name, {}).get("username")
                 password = password or credentials.get(bot_name, {}).get("password")
