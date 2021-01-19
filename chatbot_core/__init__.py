@@ -242,20 +242,26 @@ class ChatBot(KlatApi):
 
         # Handle @user incoming shout
         if shout.lower().startswith(f"@{self.nick.lower()}"):
+            try:
+                shout = f'{shout.split(" ", 1)[1]}'
+            except Exception as e:
+                self.log.error(e)
+                self.log.error(f'@user error: {shout}')
+
             if self.bot_type == "proctor":
                 self.log.info("@Proctor shout incoming")
-                try:
-                    shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
-                except Exception as e:
-                    self.log.error(e)
-                    self.log.error(f'Ignoring incoming: {shout}')
+                # try:
+                #     shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
+                # except Exception as e:
+                #     self.log.error(e)
+                #     self.log.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "observer":
                 self.log.info("@observer shout incoming")
-                try:
-                    shout = f'{shout.split(" ", 1)[1]}'
-                except Exception as e:
-                    self.log.error(e)
-                    self.log.error(f'Ignoring incoming: {shout}')
+                # try:
+                #     shout = f'{shout.split(" ", 1)[1]}'
+                # except Exception as e:
+                #     self.log.error(e)
+                #     self.log.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "submind":
                 self.log.info(f"@bot shout incoming")
                 resp = self.at_chatbot(user, shout, timestamp)
