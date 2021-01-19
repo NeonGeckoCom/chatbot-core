@@ -263,6 +263,7 @@ class ChatBot(KlatApi):
                     self.log.info(f"Prompter bot got reply: {shout}")
                     private_cid = self.get_private_conversation([user])
                     self.send_shout(f"@{user} {resp}", private_cid, "Private")
+                    return
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
             self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
