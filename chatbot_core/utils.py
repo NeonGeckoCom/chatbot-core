@@ -72,7 +72,13 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, passw
     """
     Helper function for _start_bot
     """
-    instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
+    if len(inspect.signature(bot).parameters) == 6:
+        instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
+    elif len(inspect.signature(bot).parameters) == 5:
+        instance = bot(start_socket(addr, port), domain, user, password, True)
+    else:
+        LOG.error(f"Bot params unknown: {inspect.signature(bot).parameters}")
+        instance = bot(start_socket(addr, port))
     if is_prompter:  # Send intial prompt if this bot is a prompter
         instance.send_shout(f"@Proctor {instance.initial_prompt}", instance.get_private_conversation(["Proctor"]), "Private")
     event.clear()
@@ -83,7 +89,7 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, passw
     event.clear()
 
 
-def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, is_prompter: bool)\
+def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, is_prompter: bool = False)\
         -> (Process, synchronize.Event):
     """
     Creates a thread and starts the passed bot with passed parameters
