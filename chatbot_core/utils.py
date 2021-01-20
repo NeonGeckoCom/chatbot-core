@@ -75,6 +75,8 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, passw
     if len(inspect.signature(bot).parameters) == 6:
         instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
     elif len(inspect.signature(bot).parameters) == 5:
+        if is_prompter:
+            LOG.error(f"v2 Bot found, prompter functionality will not be enabled! {bot}")
         instance = bot(start_socket(addr, port), domain, user, password, True)
     else:
         LOG.error(f"Bot params unknown: {inspect.signature(bot).parameters}")
