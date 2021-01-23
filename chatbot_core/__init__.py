@@ -172,6 +172,8 @@ class ChatBot(KlatApi):
             self.log.debug(f"Responses enabled for {self.nick}")
             self.on_login()
         self.active_prompt = None
+        self.prompt_id = None
+        self.id_to_prompt = dict()
         self.state = ConversationState.IDLE
         self.request_history = list()
         self.participant_history = [set()]
@@ -347,6 +349,8 @@ class ChatBot(KlatApi):
                     request_user, remainder = shout.split(ConversationControls.RESP, 1)
                     request_user = request_user.strip()
                     self.active_prompt = remainder.rsplit("(", 1)[0].strip().strip('"')
+                    self.prompt_id = str(round(time.time()))
+                    self.id_to_prompt[self.prompt_id] = self.active_prompt
                     self.log.debug(f"Got prompt: {self.active_prompt}")
                     self.request_history.append((request_user, self.active_prompt))
                     self.log.debug(self.request_history)
@@ -388,12 +392,12 @@ class ChatBot(KlatApi):
                         candidate_bot = candidate
                         if self.bot_type == "proctor":
                             self.log.debug(f"{user} votes for {candidate_bot}")
-                        self.on_vote(self.active_prompt, candidate_bot, user)
+                        self.on_vote(self.prompt_id, candidate_bot, user)
                         break
                 if not candidate_bot:
                     # Keywords to indicate user will not vote
                     if "abstain" in shout.split() or "present" in shout.split():
-                        self.on_vote(self.active_prompt, "abstain", user)
+                        self.on_vote(self.prompt_id, "abstain", user)
                     else:
                         self.log.warning(f"No valid vote cast! {shout}")
             elif self.state == ConversationState.PICK and self._user_is_proctor(user):
@@ -411,6 +415,7 @@ class ChatBot(KlatApi):
                     self.log.error(shout)
                 self.state = ConversationState.IDLE
                 self.active_prompt = None
+                self.prompt_id = None
                 # if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
                 #     self.send_shout(ConversationControls.NEXT)
             elif shout == ConversationControls.NEXT:
@@ -562,10 +567,10 @@ class ChatBot(KlatApi):
         """
         pass
 
-    def on_vote(self, prompt: str, selected: str, voter: str):
+    def on_vote(self, prompt_id: str, selected: str, voter: str):
         """
         Override in any bot to handle counting votes. Proctors use this to select a response.
-        :param prompt: prompt being voted on
+        :param prompt_id: id of prompt being voted on
         :param selected: bot username voted for
         :param voter: user who voted
         """
