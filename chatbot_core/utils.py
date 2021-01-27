@@ -23,7 +23,7 @@ import os
 import pkgutil
 import socket
 
-import psutil
+# import psutil
 import time
 
 # from socketio import Client
@@ -67,18 +67,31 @@ else:
 runner = Event()
 
 
-def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, event: synchronize.Event):
+def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str,
+                        event: synchronize.Event, is_prompter: bool):
     """
     Helper function for _start_bot
     """
-    instance = bot(start_socket(addr, port), domain, user, password, True)
+    if len(inspect.signature(bot).parameters) == 6:
+        instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
+    elif len(inspect.signature(bot).parameters) == 5:
+        if is_prompter:
+            LOG.error(f"v2 Bot found, prompter functionality will not be enabled! {bot}")
+        instance = bot(start_socket(addr, port), domain, user, password, True)
+    else:
+        LOG.error(f"Bot params unknown: {inspect.signature(bot).parameters}")
+        instance = bot(start_socket(addr, port))
+    if is_prompter:  # Send intial prompt if this bot is a prompter
+        instance.send_shout(f"@Proctor {instance.initial_prompt}", instance.get_private_conversation(["Proctor"]), "Private")
     event.clear()
     event.wait()
+
+    # Exit when event is set and then clear event to notify calling function
     instance.exit()
     event.clear()
 
 
-def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str)\
+def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, is_prompter: bool = False)\
         -> (Process, synchronize.Event):
     """
     Creates a thread and starts the passed bot with passed parameters
@@ -88,15 +101,16 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str)
     :param domain: Starting domain
     :param user: Username to login as
     :param password: Password to login with
+    :param is_prompter: True if bot is to generate prompts for the Proctor
     :returns: Process bot instance is attached to
     """
     event = Event()
     event.set()
-    thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event))
+    thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event, is_prompter))
     thread.daemon = True
     thread.start()
     while event.is_set():
-        time.sleep(1)
+        time.sleep(0.2)
     return thread, event
 
 
@@ -156,7 +170,7 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
         try:
             user = username or credentials.get("Proctor", {}).get("username")
             password = password or credentials.get("Proctor", {}).get("password")
-            process, event = _start_bot(bot, server, 8888, domain, user, password)
+            process, event = _start_bot(bot, server, 8888, domain, user, password, False)
             processes.append(process)
         except Exception as e:
             LOG.error(e)
@@ -169,7 +183,7 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
             try:
                 user = username or credentials.get(name, {}).get("username")
                 password = password or credentials.get(name, {}).get("password")
-                process, event = _start_bot(bot, server, 8888, domain, user, password)
+                process, event = _start_bot(bot, server, 8888, domain, user, password, False)
                 processes.append(process)
             except Exception as e:
                 LOG.error(name)
@@ -179,7 +193,8 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
 
 
 def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
-               cred_file: str = None, bot_name: str = None, excluded_bots: list = None, handle_restart: bool = False):
+               cred_file: str = None, bot_name: str = None, excluded_bots: list = None, handle_restart: bool = False,
+               is_prompter: bool = False):
     """
     Start all of the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
@@ -191,6 +206,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param bot_name: Optional name of the bot to start (None for all bots)
     :param excluded_bots: Optional list of bots to exclude from launching
     :param handle_restart: If true, listens for a restart message from the server to restart chatbots
+    :param is_prompter: If true, bot sends prompts to the Proctor and handles responses
     """
     # global active_server
     global runner
@@ -242,10 +258,11 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
+            bots_to_start = {bot_name: bot}
             try:
                 user = username or credentials.get(bot_name, {}).get("username")
                 password = password or credentials.get(bot_name, {}).get("password")
-                p, _ = _start_bot(bot, server, 8888, domain, user, password)
+                p, _ = _start_bot(bot, server, 8888, domain, user, password, is_prompter)
                 processes.append(p)
                 # bot(start_socket(server, 8888), domain, user, password, True)
             except Exception as e:
@@ -368,6 +385,40 @@ def cli_stop_bots():
             if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
                 LOG.error(f"Process {pid} not terminated!!")
                 psutil.Process(pid).kill()
+
+
+def cli_start_prompter():
+    """
+    Entry Point to start a prompter bot
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Start some chatbots")
+    parser.add_argument("--bot", dest="bot_name",
+                        help="Optional bot name to run a single bot only", type=str)
+    parser.add_argument("--dir", dest="bot_dir",
+                        help="Path to chatbots (default: ./)", type=str)
+    parser.add_argument("--username", dest="username",
+                        help="Klat username for a single bot", type=str)
+    parser.add_argument("--password", dest="password",
+                        help="Klat password for a single bot", type=str)
+    parser.add_argument("--server", dest="server", default=SERVER,
+                        help=f"Klat server (default: {SERVER})", type=str)
+    parser.add_argument("--debug", dest="debug", action='store_true',
+                        help="Enable more verbose log output")
+    parser.add_argument("--handle-restart", dest="handle_restart", default=False,
+                        help="True to handle server emit to restart bots", type=bool)
+    args = parser.parse_args()
+
+    if args.debug:
+        logging.getLogger("chatbots").setLevel(logging.DEBUG)
+        logging.getLogger("chatbot").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("chatbots").setLevel(logging.INFO)
+        logging.getLogger("chatbot").setLevel(logging.INFO)
+    LOG.debug(args)
+    start_bots("Private", args.bot_dir, args.username, args.password, args.server, None, args.bot_name,
+               None, args.handle_restart, True)
 
 
 def debug_bots(bot_dir: str = os.getcwd()):
