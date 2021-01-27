@@ -199,11 +199,14 @@ class ChatBot(KlatApi):
             self.register_klat(self.username, self.password)
         elif status == 999:
             LOG.error(f"Incorrect Password!")
-        # elif status == 666:
-        #     LOG.error(f"Nickname in use")
+        elif status == 777:
+            LOG.error(f"User already logged in and was logged out!")
+        elif status == 666:
+            LOG.error(f"Nickname in use")
+        elif status == 555:
+            LOG.error("Old nick not found!")
         elif status != 0:
-            LOG.error(f"Error {status} occurred while logging in!")
-        # TODO: Catch and log other non-success returns!!
+            LOG.error(f"Unknown error {status} occurred while logging in!")
         self.enable_responses = True
         if not self.nick:
             self.log.error(f"No nick!! expected: {self.username}")
@@ -281,7 +284,7 @@ class ChatBot(KlatApi):
             self.log.debug(f"Outgoing shout ignored ({shout})")
             return
         # Subminds ignore facilitators
-        elif user.lower() != "proctor" and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
+        elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
             self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
@@ -696,7 +699,7 @@ class ChatBot(KlatApi):
         :param nick: nick to check
         :return: true if nick belongs to a proctor
         """
-        return nick == "Proctor"
+        return nick.lower() == "proctor"
 
     @staticmethod
     def _shout_is_prompt(shout):
