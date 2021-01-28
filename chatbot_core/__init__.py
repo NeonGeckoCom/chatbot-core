@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import random
+import re
 from queue import Queue
 from typing import Optional
 
@@ -301,7 +302,7 @@ class ChatBot(KlatApi):
                 participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
-                if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
+                if self.bot_type == "submind" and self.nick.lower() not in re.split("[, ]", shout.lower()):
                     self.log.info(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
