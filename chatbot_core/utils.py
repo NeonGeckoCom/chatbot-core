@@ -299,8 +299,11 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                     p.terminate()
                     time.sleep(1)
                     if p.is_alive():
-                        LOG.error(f"Process {p.pid} not terminated!!")
+                        LOG.warning(f"Process {p.pid} not terminated!! Killing..")
                         p.kill()
+                        time.sleep(1)
+                        if p.is_alive():
+                            LOG.error(f"Process {p.pid} still alive!!")
                 except Exception as e:
                     LOG.error(e)
                     p.kill()
@@ -494,16 +497,8 @@ def _restart_chatbots(message: Message):
     :param message: Message associated with request
     """
     global runner
+    LOG.debug(f"Restart received: {message.data} | {message.context}")
     runner.set()
-    # global active_server
-    # if os.path.isfile(os.path.join(os.getcwd(), "server_start_bots.sh")):
-    #     path = os.getcwd()
-    # else:
-    #     path = "/home/neon/chatbots"
-    # server = message.data.get("server", active_server)
-    # LOG.warning(f"Got message to restart bots on {active_server}")
-    # os.system(f'{os.path.join(path, "server_start_bots.sh")} {server}')
-    # exit(0)
 
 
 def _listen_for_restart_chatbots(server: str):
