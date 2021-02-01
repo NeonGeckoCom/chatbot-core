@@ -256,13 +256,14 @@ class ChatBot(KlatApi):
 
             if self.bot_type == "proctor":
                 self.log.info("@Proctor shout incoming")
-                # try:
-                #     shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
-                # except Exception as e:
-                #     self.log.error(e)
-                #     self.log.error(f'Ignoring incoming: {shout}')
+                try:
+                    self.ask_proctor(shout, user, cid, dom)
+                except Exception as e:
+                    self.log.error(e)
+                    self.log.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "observer":
                 self.log.info("@observer shout incoming")
+                # TODO: Consider something here DM
                 # try:
                 #     shout = f'{shout.split(" ", 1)[1]}'
                 # except Exception as e:

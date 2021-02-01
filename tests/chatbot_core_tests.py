@@ -28,7 +28,7 @@ from klat_connector import start_socket
 
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ChatBot, ConversationControls, ConversationState
+from chatbot_core import ConversationControls, ConversationState
 from chatbot_core.utils import clean_up_bot
 from tests.chatbot_objects import *
 
