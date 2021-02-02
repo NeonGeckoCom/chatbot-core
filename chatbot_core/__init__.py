@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import random
+import re
 from queue import Queue
 from typing import Optional
 
@@ -133,13 +134,13 @@ class ConversationState(IntEnum):
 
 class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
-                 username: str = None, password: str = None, on_server: bool = True):
-
+                 username: str = None, password: str = None, on_server: bool = True, is_prompter: bool = False):
         socket = socket or start_socket()
         super(ChatBot, self).__init__(socket, domain)
         global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
+        self.is_prompter = is_prompter
         self.start_domain = domain
         self.enable_responses = False
         self.bot_type = None
@@ -178,6 +179,7 @@ class ChatBot(KlatApi):
         self.request_history = list()
         self.participant_history = [set()]
 
+        self.initial_prompt = "Hello."
         self.fallback_responses = ("Huh?",
                                    "What?",
                                    "I don't know.",
@@ -198,11 +200,14 @@ class ChatBot(KlatApi):
             self.register_klat(self.username, self.password)
         elif status == 999:
             LOG.error(f"Incorrect Password!")
-        # elif status == 666:
-        #     LOG.error(f"Nickname in use")
+        elif status == 777:
+            LOG.error(f"User already logged in and was logged out!")
+        elif status == 666:
+            LOG.error(f"Nickname in use")
+        elif status == 555:
+            LOG.error("Old nick not found!")
         elif status != 0:
-            LOG.error(f"Error {status} occurred while logging in!")
-        # TODO: Catch and log other non-success returns!!
+            LOG.error(f"Unknown error {status} occurred while logging in!")
         self.enable_responses = True
         if not self.nick:
             self.log.error(f"No nick!! expected: {self.username}")
@@ -237,29 +242,41 @@ class ChatBot(KlatApi):
         if not self.nick:
             self.log.error(f"No nick! user is {self.username}")
             return
-        if not self.conversation_is_proctored:
+        if not self.conversation_is_proctored and not self.is_prompter:
             self.log.warning("Un-proctored conversation!!")
         # if not self.is_current_cid(cid):
 
         # Handle @user incoming shout
         if shout.lower().startswith(f"@{self.nick.lower()}"):
+            try:
+                shout = f'{shout.split(" ", 1)[1]}'
+            except Exception as e:
+                self.log.error(e)
+                self.log.error(f'@user error: {shout}')
+
             if self.bot_type == "proctor":
                 self.log.info("@Proctor shout incoming")
                 try:
-                    shout = f'!PROMPT:{shout.split(" ", 1)[1]}'
+                    self.ask_proctor(shout, user, cid, dom)
                 except Exception as e:
                     self.log.error(e)
                     self.log.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "observer":
                 self.log.info("@observer shout incoming")
-                try:
-                    shout = f'{shout.split(" ", 1)[1]}'
-                except Exception as e:
-                    self.log.error(e)
-                    self.log.error(f'Ignoring incoming: {shout}')
+                # TODO: Consider something here DM
+                # try:
+                #     shout = f'{shout.split(" ", 1)[1]}'
+                # except Exception as e:
+                #     self.log.error(e)
+                #     self.log.error(f'Ignoring incoming: {shout}')
             elif self.bot_type == "submind":
                 self.log.info(f"@bot shout incoming")
-                self.at_chatbot(user, shout, timestamp)
+                resp = self.at_chatbot(user, shout, timestamp)
+                if self.is_prompter:
+                    self.log.info(f"Prompter bot got reply: {shout}")
+                    private_cid = self.get_private_conversation([user])
+                    self.send_shout(f"@{user} {resp}", private_cid, "Private")
+                    return
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
             self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
@@ -269,7 +286,7 @@ class ChatBot(KlatApi):
             self.log.debug(f"Outgoing shout ignored ({shout})")
             return
         # Subminds ignore facilitators
-        elif user.lower() != "proctor" and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
+        elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
             self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
@@ -289,7 +306,7 @@ class ChatBot(KlatApi):
                 participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
-                if self.bot_type == "submind" and self.nick.lower() not in shout.lower():
+                if self.bot_type == "submind" and self.nick.lower() not in re.split("[, ]", shout.lower()):
                     self.log.info(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
@@ -684,7 +701,7 @@ class ChatBot(KlatApi):
         :param nick: nick to check
         :return: true if nick belongs to a proctor
         """
-        return nick == "Proctor"
+        return nick.lower() == "proctor"
 
     @staticmethod
     def _shout_is_prompt(shout):
@@ -729,6 +746,13 @@ class ChatBot(KlatApi):
             next_shout = self.shout_queue.get()
         self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
         self.exit()
+
+    def _send_first_prompt(self):
+        """
+        Sends an initial prompt to the proctor for a prompter bot
+        """
+        self.log.debug(f"{self.nick} sending initial prompt!")
+        self.send_shout("@Proctor hello!", self.get_private_conversation(["Proctor"]), "Private")
 
     def exit(self):
         from chatbot_core.utils import clean_up_bot

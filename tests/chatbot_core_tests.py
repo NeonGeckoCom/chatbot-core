@@ -28,8 +28,9 @@ from klat_connector import start_socket
 
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ChatBot, ConversationControls, ConversationState
+from chatbot_core import ConversationControls, ConversationState
 from chatbot_core.utils import clean_up_bot
+from tests.chatbot_objects import *
 
 
 @pytest.mark.timeout(timeout=300, method='signal')
@@ -192,11 +193,51 @@ class ChatbotCoreTests(unittest.TestCase):
     #     get_bots_in_dir("/home/d_mcknight/PycharmProjects/chatbots/bots/ELIZA")
 
     @pytest.mark.timeout(30)
-    def test_start_bot(self):
+    def test_start_base_bot(self):
         from chatbot_core.utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(ChatBot, "5555.us", 8888, "Private", "testrunner", "testpassword")
+        self.assertIsInstance(t, Process)
+        self.assertIsInstance(e, synchronize.Event)
+        # self.assertFalse(e.is_set())
+        e.set()
+        timeout = time.time() + 10
+        while e.is_set() and time.time() < timeout:
+            print("...")
+            time.sleep(2)
+        self.assertFalse(e.is_set())
+        t.terminate()
+        self.assertFalse(t.is_alive())
+        print("Joining...")
+        t.join()
+
+    @pytest.mark.timeout(30)
+    def test_start_v2_bot(self):
+        from chatbot_core.utils import _start_bot
+        from multiprocessing import Process, synchronize
+
+        t, e = _start_bot(V2Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")
+        self.assertIsInstance(t, Process)
+        self.assertIsInstance(e, synchronize.Event)
+        # self.assertFalse(e.is_set())
+        e.set()
+        timeout = time.time() + 10
+        while e.is_set() and time.time() < timeout:
+            print("...")
+            time.sleep(2)
+        self.assertFalse(e.is_set())
+        t.terminate()
+        self.assertFalse(t.is_alive())
+        print("Joining...")
+        t.join()
+
+    @pytest.mark.timeout(30)
+    def test_start_v3_bot(self):
+        from chatbot_core.utils import _start_bot
+        from multiprocessing import Process, synchronize
+
+        t, e = _start_bot(V3Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")
         self.assertIsInstance(t, Process)
         self.assertIsInstance(e, synchronize.Event)
         # self.assertFalse(e.is_set())
