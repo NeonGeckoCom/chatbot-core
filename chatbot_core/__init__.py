@@ -288,6 +288,14 @@ class ChatBot(KlatApi):
         elif shout.startswith("@"):
             self.log.debug(f"Outgoing shout ignored ({shout})")
             return
+        # Handle a proctor response to a prompter
+        elif self._user_is_proctor(user) and self.is_prompter:
+            resp = self.at_chatbot(user, shout, timestamp)
+            if self.is_prompter:
+                self.log.info(f"Prompter bot got reply: {shout}")
+                # private_cid = self.get_private_conversation([user])
+                self.send_shout(resp)
+                return
         # Subminds ignore facilitators
         elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
             self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
