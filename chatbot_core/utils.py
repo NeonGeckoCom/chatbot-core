@@ -82,7 +82,7 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, passw
         LOG.error(f"Bot params unknown: {inspect.signature(bot).parameters}")
         instance = bot(start_socket(addr, port))
     if is_prompter:  # Send intial prompt if this bot is a prompter
-        instance.send_shout(f"@Proctor {instance.initial_prompt}", instance.get_private_conversation(["Proctor"]), "Private")
+        instance.send_shout(instance.initial_prompt)
     event.clear()
     event.wait()
 
@@ -536,3 +536,8 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
     bus.connected_event.wait(10)
     LOG.info(f"Connected to Messagebus at: {bus_config['host']}")
     return t, bus
+
+
+if __name__ == "__main__":
+    start_bots("chatbotsforum.org", "~/PycharmProjects/chatbots", "Prompter", "n30nn30n", "2222.us", None, "BLENDER",
+               None, True, True)

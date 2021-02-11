@@ -275,11 +275,14 @@ class ChatBot(KlatApi):
                 if self.is_prompter:
                     self.log.info(f"Prompter bot got reply: {shout}")
                     private_cid = self.get_private_conversation([user])
-                    self.send_shout(f"@{user} {resp}", private_cid, "Private")
+                    self.send_shout(resp, private_cid, "Private")
                     return
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
-            self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
+            if self.bot_type == "proctor" and self._user_is_prompter(user):
+                self.ask_proctor(shout, user, cid, dom)
+            else:
+                self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
             return
         # Ignore anything that is @ a different user
         elif shout.startswith("@"):
@@ -704,6 +707,15 @@ class ChatBot(KlatApi):
         return nick.lower() == "proctor"
 
     @staticmethod
+    def _user_is_prompter(nick):
+        """
+        Determines if the passed nick is a proctor.
+        :param nick: nick to check
+        :return: true if nick belongs to a proctor
+        """
+        return nick.lower() == "prompter"
+
+    @staticmethod
     def _shout_is_prompt(shout):
         """
         Determines if the passed shout is a new prompt for the proctor.
@@ -883,7 +895,7 @@ class NeonBot(ChatBot):
                    "ident": f"chatbots_{timestamp}",
                    'destination': ["skills"],
                    "mobile": False,
-                   "client": self.instance,
+                   "client": "api",
                    "flac_filename": None,
                    "neon_should_respond": True,
                    "nick_profiles": {},
