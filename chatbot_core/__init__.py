@@ -274,8 +274,8 @@ class ChatBot(KlatApi):
                 resp = self.at_chatbot(user, shout, timestamp)
                 if self.is_prompter:
                     self.log.info(f"Prompter bot got reply: {shout}")
-                    private_cid = self.get_private_conversation([user])
-                    self.send_shout(resp, private_cid, "Private")
+                    # private_cid = self.get_private_conversation([user])
+                    self.send_shout(resp)
                     return
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
