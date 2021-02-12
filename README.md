@@ -5,6 +5,12 @@ Bots using this framework connect to the Klat server and respond to user shouts.
 like any other user in the conversation.
 
 ## Getting Started
+
+### Running in Colab
+Configured environment and implemented code can be run from Google Colab
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1gdFiHYMYjAzZGQPEepfpv4LNzEoEHGx2?usp=sharing)
+
+ 
 ### Installation
 To utilize this repository for creating your own chat bots, install this package via pip and then extend the `ChatBot` or
 `NeonBot` class to build your own chat bot (see the [Examples below](#python-examples)).
