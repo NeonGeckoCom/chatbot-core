@@ -283,7 +283,7 @@ class ChatBot(KlatApi):
             if self.bot_type == "proctor" and self._user_is_prompter(user):
                 self.ask_proctor(shout, user, cid, dom)
             else:
-                self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
+                self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid}|user={user})")
             return
         # Ignore anything that is @ a different user
         elif shout.startswith("@"):
