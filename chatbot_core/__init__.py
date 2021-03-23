@@ -136,7 +136,8 @@ class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True, is_prompter: bool = False):
         socket = socket or start_socket()
-        super(ChatBot, self).__init__(socket, domain)
+        init_nick = "Prompter" if is_prompter else ""
+        super(ChatBot, self).__init__(socket, domain, init_nick)
         global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
