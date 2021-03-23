@@ -396,7 +396,7 @@ def cli_start_prompter():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="Start some chatbots")
+    parser = argparse.ArgumentParser(description="Start a prompter chatbot")
     parser.add_argument("--bot", dest="bot_name",
                         help="Optional bot name to run a single bot only", type=str)
     parser.add_argument("--dir", dest="bot_dir",
@@ -420,7 +420,7 @@ def cli_start_prompter():
         logging.getLogger("chatbots").setLevel(logging.INFO)
         logging.getLogger("chatbot").setLevel(logging.INFO)
     LOG.debug(args)
-    start_bots("Private", args.bot_dir, args.username, args.password, args.server, None, args.bot_name,
+    start_bots("chatbotsforum.org", args.bot_dir, args.username, args.password, args.server, None, args.bot_name,
                None, args.handle_restart, True)
 
 
