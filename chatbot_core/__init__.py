@@ -136,7 +136,8 @@ class ChatBot(KlatApi):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True, is_prompter: bool = False):
         socket = socket or start_socket()
-        super(ChatBot, self).__init__(socket, domain)
+        init_nick = "Prompter" if is_prompter else ""
+        super(ChatBot, self).__init__(socket, domain, init_nick)
         global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
@@ -274,17 +275,28 @@ class ChatBot(KlatApi):
                 resp = self.at_chatbot(user, shout, timestamp)
                 if self.is_prompter:
                     self.log.info(f"Prompter bot got reply: {shout}")
-                    private_cid = self.get_private_conversation([user])
-                    self.send_shout(f"@{user} {resp}", private_cid, "Private")
+                    # private_cid = self.get_private_conversation([user])
+                    self.send_shout(resp)
                     return
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
-            self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid})")
+            if self.bot_type == "proctor" and self._user_is_prompter(user):
+                self.ask_proctor(shout, user, cid, dom)
+            else:
+                self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid}|user={user})")
             return
         # Ignore anything that is @ a different user
         elif shout.startswith("@"):
             self.log.debug(f"Outgoing shout ignored ({shout})")
             return
+        # Handle a proctor response to a prompter
+        elif self._user_is_proctor(user) and self.is_prompter:
+            resp = self.at_chatbot(user, shout, timestamp)
+            if self.is_prompter:
+                self.log.info(f"Prompter bot got reply: {shout}")
+                # private_cid = self.get_private_conversation([user])
+                self.send_shout(resp)
+                return
         # Subminds ignore facilitators
         elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
             self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
@@ -704,6 +716,15 @@ class ChatBot(KlatApi):
         return nick.lower() == "proctor"
 
     @staticmethod
+    def _user_is_prompter(nick):
+        """
+        Determines if the passed nick is a proctor.
+        :param nick: nick to check
+        :return: true if nick belongs to a proctor
+        """
+        return nick.lower() == "prompter"
+
+    @staticmethod
     def _shout_is_prompt(shout):
         """
         Determines if the passed shout is a new prompt for the proctor.
@@ -883,7 +904,7 @@ class NeonBot(ChatBot):
                    "ident": f"chatbots_{timestamp}",
                    'destination': ["skills"],
                    "mobile": False,
-                   "client": self.instance,
+                   "client": "api",
                    "flac_filename": None,
                    "neon_should_respond": True,
                    "nick_profiles": {},
