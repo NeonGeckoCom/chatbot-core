@@ -197,6 +197,7 @@ class ChatBot(KlatApi):
         # self.log.debug(f"login returned: {status}")
 
         if status == 888:
+            self.enable_responses = False
             LOG.info(f"New user, registering {self.username}")
             self.register_klat(self.username, self.password)
         elif status == 999:
