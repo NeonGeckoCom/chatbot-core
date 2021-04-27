@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 #
-# Copyright 2008-2020 Neongecko.com Inc. | All Rights Reserved
+# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
 #
 # Notice of License - Duplicating this Notice of License near the start of any file containing
 # a derivative of this software is a condition of license for this software.
@@ -14,7 +14,7 @@
 # Authors: Guy Daniels, Daniel McKnight, Regina Bloomstine, Elon Gasper, Richard Leeds
 #
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
-# US Patents 2008-2020: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
+# US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import inspect
@@ -22,6 +22,15 @@ import logging
 import os
 import pkgutil
 import socket
+
+# import psutil
+import time
+
+# from socketio import Client
+from multiprocessing import Process, Event, synchronize
+from threading import Thread, current_thread
+from mycroft_bus_client import Message, MessageBusClient
+
 import sys
 
 # import chatbots.bots
@@ -30,13 +39,17 @@ from datetime import datetime
 
 import yaml
 from klat_connector import start_socket
-from chatbot_core import LOG, ChatBot
+
+from chatbot_core.logger import LOG
+# from chatbot_core import ChatBot
 
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    return s.getsockname()[0]
+    ip_addr = s.getsockname()[0]
+    s.close()
+    return ip_addr
 
 
 ip = get_ip_address()
@@ -50,34 +63,89 @@ else:
     # Default external connections to production server
     SERVER = "0000.us"
 
+# active_server = None
+runner = Event()
 
-def get_bots_in_dir(bot_path: str) -> dict:
+
+def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str,
+                        event: synchronize.Event, is_prompter: bool):
+    """
+    Helper function for _start_bot
+    """
+    if len(inspect.signature(bot).parameters) == 6:
+        instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
+    elif len(inspect.signature(bot).parameters) == 5:
+        if is_prompter:
+            LOG.error(f"v2 Bot found, prompter functionality will not be enabled! {bot}")
+        instance = bot(start_socket(addr, port), domain, user, password, True)
+    else:
+        LOG.error(f"Bot params unknown: {inspect.signature(bot).parameters}")
+        instance = bot(start_socket(addr, port))
+    if is_prompter:  # Send intial prompt if this bot is a prompter
+        instance.send_shout(instance.initial_prompt)
+    event.clear()
+    event.wait()
+
+    # Exit when event is set and then clear event to notify calling function
+    instance.exit()
+    event.clear()
+
+
+def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, is_prompter: bool = False)\
+        -> (Process, synchronize.Event):
+    """
+    Creates a thread and starts the passed bot with passed parameters
+    :param bot: ChatBot to instantiate
+    :param addr: Server address to connect to
+    :param port: Server socketIO port
+    :param domain: Starting domain
+    :param user: Username to login as
+    :param password: Password to login with
+    :param is_prompter: True if bot is to generate prompts for the Proctor
+    :returns: Process bot instance is attached to
+    """
+    event = Event()
+    event.set()
+    thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event, is_prompter))
+    thread.daemon = True
+    thread.start()
+    while event.is_set():
+        time.sleep(0.2)
+    return thread, event
+
+
+def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-names", False)) -> dict:
     """
     Gets all ChatBots in the given directory, imports them, and returns a dict of their names to modules.
-    :param bot_path: absoulute file path containing bots
+    :param bot_path: absolute file path containing bots
+    :param names_to_consider: limit imported instances to certain list
     :return: dict of bot name:ChatBot object
     """
+    from chatbot_core import ChatBot
 
     bots = {}
 
-    # Make sure we have a path and not a filename
-    bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
-    # Get all bots in the requested directory
-    bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
-    if bot_names:
-        sys.path.append(bot_path)
+    try:
+        # Make sure we have a path and not a filename
+        bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
+        # Get all bots in the requested directory
+        bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
+        # TODO: Above fails to import more bots if one fails (bad dependencies, etc) DM
+        # only specified bot names
+        if names_to_consider:
+            bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
+        if bot_names:
+            sys.path.append(bot_path)
 
-        for mod in bot_names:
-            try:
+            for mod in bot_names:
                 module = __import__(mod)
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     # TODO: Why are facilitators not subclassed ChatBots? DM
-                    if name not in ("ChatBot", "NeonBot") and \
-                            (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                    if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
                         bots[mod] = obj
-            except Exception as e:
-                LOG.error(e)
-        LOG.debug(bots)
+            LOG.debug(bots)
+    except Exception as e:
+        LOG.error(e)
     return bots
 
 
@@ -92,8 +160,41 @@ def load_credentials_yml(cred_file: str) -> dict:
     return credentials_dict
 
 
+def _start_bot_processes(bots_to_start: dict, username: str, password: str,
+                         credentials: dict, server: str, domain: str) -> list:
+    processes = []
+
+    # Start Proctor first if in the list of bots to start
+    if "Proctor" in bots_to_start.keys():
+        bot = bots_to_start.get("Proctor")
+        try:
+            user = username or credentials.get("Proctor", {}).get("username")
+            password = password or credentials.get("Proctor", {}).get("password")
+            process, event = _start_bot(bot, server, 8888, domain, user, password, False)
+            processes.append(process)
+        except Exception as e:
+            LOG.error(e)
+            LOG.error(bot)
+
+    # Start a socket for each unique bot, bots handle login names
+    for name, bot in bots_to_start.items():
+        if name != "Proctor":
+            LOG.debug(f"Starting: {name}")
+            try:
+                user = username or credentials.get(name, {}).get("username")
+                password = password or credentials.get(name, {}).get("password")
+                process, event = _start_bot(bot, server, 8888, domain, user, password, False)
+                processes.append(process)
+            except Exception as e:
+                LOG.error(name)
+                LOG.error(e)
+                LOG.error(bot)
+    return processes
+
+
 def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
-               cred_file: str = None, bot_name: str = None, excluded_bots: list = None):
+               cred_file: str = None, bot_name: str = None, excluded_bots: list = None, handle_restart: bool = False,
+               is_prompter: bool = False):
     """
     Start all of the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
@@ -104,12 +205,16 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param cred_file: Path to a credentials yml file
     :param bot_name: Optional name of the bot to start (None for all bots)
     :param excluded_bots: Optional list of bots to exclude from launching
+    :param handle_restart: If true, listens for a restart message from the server to restart chatbots
+    :param is_prompter: If true, bot sends prompts to the Proctor and handles responses
     """
-
+    # global active_server
+    global runner
     domain = domain or "chatbotsforum.org"
     bot_dir = bot_dir or os.getcwd()
     bot_dir = os.path.expanduser(bot_dir)
     server = server or SERVER
+    # active_server = server
     LOG.debug(f"Starting bots on server: {server}")
     bots_to_start = get_bots_in_dir(bot_dir)
 
@@ -118,7 +223,7 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
             try:
-                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji") and not d.startswith(".") \
+                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji", "ParlAI") and not d.startswith(".") \
                         and os.path.isdir(os.path.join(bot_dir, d)):
                     LOG.info(f"Found bots dir {d}")
                     bots_to_start = {**get_bots_in_dir(os.path.join(bot_dir, d)), **bots_to_start}
@@ -128,14 +233,14 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     LOG.info(bots_to_start.keys())
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
     logging.getLogger("tensorflow").setLevel(logging.ERROR)
-    proctor = None
+    # proctor = None
 
     # Load credentials
     if cred_file:
         cred_file = os.path.expanduser(cred_file)
         if not os.path.isfile(cred_file) and os.path.isfile(os.path.join(os.getcwd(), cred_file)):
             cred_file = os.path.join(os.getcwd(), cred_file)
-        else:
+        elif not os.path.isfile(cred_file):
             cred_file = None
     elif os.path.isfile(os.path.join(os.getcwd(), "credentials.yml")):
         cred_file = os.path.join(os.getcwd(), "credentials.yml")
@@ -146,61 +251,68 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     else:
         credentials = {}
 
+    processes = []
+
     # Check for specified bot to start
     if bot_name:
         LOG.debug(f"Got requested bot:{bot_name}")
         bot = bots_to_start.get(bot_name)
         if bot:
+            bots_to_start = {bot_name: bot}
             try:
                 user = username or credentials.get(bot_name, {}).get("username")
                 password = password or credentials.get(bot_name, {}).get("password")
-                bot(start_socket(server, 8888), domain, user, password, True)
+                p, _ = _start_bot(bot, server, 8888, domain, user, password, is_prompter)
+                processes.append(p)
+                # bot(start_socket(server, 8888), domain, user, password, True)
             except Exception as e:
                 LOG.error(e)
         else:
             LOG.error(f"{bot_name} is not a valid bot!")
             return
+    # Else start all bots
     else:
         if excluded_bots:
+            # Remove any excluded bots
             for name in excluded_bots:
                 if name in bots_to_start.keys():
                     bots_to_start.pop(name)
 
-        # Start Proctor first if in the list of bots to start
-        if "Proctor" in bots_to_start.keys():
-            bot = bots_to_start.pop("Proctor")
-            try:
-                user = username or credentials.get("Proctor", {}).get("username")
-                password = password or credentials.get("Proctor", {}).get("password")
-                b = bot(start_socket(server, 8888), domain, user, password, True)
-                if b.bot_type == "proctor":
-                    proctor = b
-            except Exception as e:
-                LOG.error(e)
-                LOG.error(bot)
+        processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
 
-        # Start a socket for each unique bot, bots handle login names
-        for name, bot in bots_to_start.items():
-            LOG.debug(f"Starting: {name}")
-            try:
-                user = username or credentials.get(name, {}).get("username")
-                password = password or credentials.get(name, {}).get("password")
-                b = bot(start_socket(server, 8888), domain, user, password, True)
-                if b.bot_type == "proctor":
-                    proctor = b
-            except Exception as e:
-                LOG.error(name)
-                LOG.error(e)
-                LOG.error(bot)
-    LOG.info(">>>STARTED<<<")
+    if handle_restart:
+        LOG.info(f"Setting restart listener for {server}")
+        _listen_for_restart_chatbots(server)
     try:
+        # runner = Event()
         while True:
-            pass
+            LOG.info(">>>STARTED<<<")
+            # Wait for an event that will never come
+            runner.clear()
+            runner.wait()
+            LOG.info(">>>RESTART REQUESTED<<<")
+            # LOG.debug(f"procs={len(processes)} | {processes}")
+            for p in processes:
+                try:
+                    LOG.debug(f"Terminating {p.pid}")
+                    # processes.remove(p)
+                    p.terminate()
+                    time.sleep(1)
+                    if p.is_alive():
+                        LOG.warning(f"Process {p.pid} not terminated!! Killing..")
+                        p.kill()
+                        time.sleep(1)
+                        if p.is_alive():
+                            LOG.error(f"Process {p.pid} still alive!!")
+                except Exception as e:
+                    LOG.error(e)
+                    p.kill()
+            LOG.debug(f"Processes ended")
+            processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
-        if proctor:
-            proctor.pending_prompts.put(None)
-            proctor.thread.join(30)
+        for p in processes:
+            p.join()
 
 
 def cli_start_bots():
@@ -226,16 +338,20 @@ def cli_start_bots():
                         help=f"Klat server (default: {SERVER})", type=str)
     parser.add_argument("--debug", dest="debug", action='store_true',
                         help="Enable more verbose log output")
+    parser.add_argument("--bot-names", dest="bot-names",
+                        help="comma separated list of bots to include in running", type=str)
     parser.add_argument("--exclude", dest="exclude",
                         help="comma separated list of bots to exclude from running", type=str)
+    parser.add_argument("--handle-restart", dest="handle_restart", default=False,
+                        help="True to handle server emit to restart bots", type=bool)
     args = parser.parse_args()
 
     if args.debug:
         logging.getLogger("chatbots").setLevel(logging.DEBUG)
         logging.getLogger("chatbot").setLevel(logging.DEBUG)
     else:
-        logging.getLogger("chatbots").setLevel(logging.WARNING)
-        logging.getLogger("chatbot").setLevel(logging.WARNING)
+        logging.getLogger("chatbots").setLevel(logging.INFO)
+        logging.getLogger("chatbot").setLevel(logging.INFO)
 
     if args.exclude:
         excluded_bots = [name.strip() for name in args.exclude.split(",")]
@@ -243,21 +359,69 @@ def cli_start_bots():
         excluded_bots = None
     LOG.debug(args)
     start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
-               excluded_bots)
+               excluded_bots, args.handle_restart)
 
 
 def cli_stop_bots():
     """
     Stops all start-klat-bot instances
     """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Stop some chatbots")
+    parser.add_argument("--server", dest="server", default="",
+                        help=f"Klat server (default: None)", type=str)
+    args = parser.parse_args()
+    if args.server:
+        server_to_stop = args.server
+    else:
+        server_to_stop = None
     import psutil
 
     procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
     for pid, name in procs.items():
-        if "start-klat-bots" in name:
-            psutil.Process(pid).kill()
-    # TODO: Troubleshoot psutil kill DM
-    os.system("killall start-klat-bots")
+        if name.get("name") == "start-klat-bots" and \
+                (not server_to_stop or f"--server={server_to_stop}" in psutil.Process(pid).cmdline()):
+            LOG.info(f"Terminating {pid}")
+            psutil.Process(pid).terminate()
+            time.sleep(1)
+            if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
+                LOG.error(f"Process {pid} not terminated!!")
+                psutil.Process(pid).kill()
+
+
+def cli_start_prompter():
+    """
+    Entry Point to start a prompter bot
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Start a prompter chatbot")
+    parser.add_argument("--bot", dest="bot_name",
+                        help="Optional bot name to run a single bot only", type=str)
+    parser.add_argument("--dir", dest="bot_dir",
+                        help="Path to chatbots (default: ./)", type=str)
+    parser.add_argument("--username", dest="username",
+                        help="Klat username for a single bot", type=str)
+    parser.add_argument("--password", dest="password",
+                        help="Klat password for a single bot", type=str)
+    parser.add_argument("--server", dest="server", default=SERVER,
+                        help=f"Klat server (default: {SERVER})", type=str)
+    parser.add_argument("--debug", dest="debug", action='store_true',
+                        help="Enable more verbose log output")
+    parser.add_argument("--handle-restart", dest="handle_restart", default=False,
+                        help="True to handle server emit to restart bots", type=bool)
+    args = parser.parse_args()
+
+    if args.debug:
+        logging.getLogger("chatbots").setLevel(logging.DEBUG)
+        logging.getLogger("chatbot").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("chatbots").setLevel(logging.INFO)
+        logging.getLogger("chatbot").setLevel(logging.INFO)
+    LOG.debug(args)
+    start_bots("chatbotsforum.org", args.bot_dir, args.username, args.password, args.server, None, args.bot_name,
+               None, args.handle_restart, True)
 
 
 def debug_bots(bot_dir: str = os.getcwd()):
@@ -306,3 +470,74 @@ def debug_bots(bot_dir: str = os.getcwd()):
             running = False
         LOG.warning("Still Running")
     LOG.warning("Done Running")
+
+
+def clean_up_bot(bot):
+    """
+    Performs any standard cleanup for a bot on destroy
+    :param bot: ChatBot instance to clean up
+    """
+    from chatbot_core import ChatBot
+
+    if not isinstance(bot, ChatBot):
+        raise TypeError
+    bot.socket.disconnect()
+    if hasattr(bot, "shout_queue"):
+        bot.shout_queue.put(None)
+    if hasattr(bot, "shout_thread"):
+        if current_thread() != bot.shout_thread:
+            bot.shout_thread.join(0)
+    if hasattr(bot, "bus"):
+        bot.bus.close()
+
+
+def _restart_chatbots(message: Message):
+    """
+    Messagebus handler to restart chatbots on a server
+    :param message: Message associated with request
+    """
+    global runner
+    LOG.debug(f"Restart received: {message.data} | {message.context}")
+    runner.set()
+
+
+def _listen_for_restart_chatbots(server: str):
+    """
+    Registers a messagebus listener to restart chatbots for the given server
+    :param server: base url of the klat server messagebus to listen to
+    """
+    if server == "2222.us":
+        host = "64.34.186.120"
+    elif server == "5555.us":
+        host = "64.225.115.136"
+    else:
+        host = "167.172.112.7"
+    LOG.debug(f"Listening for restart message on {host}")
+    bus_config = {"host": host,
+                  "port": 8181,
+                  "ssl": False,
+                  "route": "/core"}
+    thread, bus = init_message_bus(bus_config)
+    bus.on("restart chatbots", _restart_chatbots)
+
+
+def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
+    """
+    Connects to a Neon Core messagebus and returns the thread and bus.
+    :param bus_config: messagebus configuration to use
+    :return: Thread, messagebus object
+    """
+    bus_config = bus_config or {"host": "167.172.112.7",
+                                "port": 8181,
+                                "ssl": False,
+                                "route": "/core"}
+    bus = MessageBusClient(bus_config["host"], bus_config["port"], bus_config["route"], bus_config["ssl"])
+    t = bus.run_in_thread()
+    bus.connected_event.wait(10)
+    LOG.info(f"Connected to Messagebus at: {bus_config['host']}")
+    return t, bus
+
+
+if __name__ == "__main__":
+    start_bots("chatbotsforum.org", "~/PycharmProjects/chatbots", "Prompter", "n30nn30n", "2222.us", None, "BLENDER",
+               None, True, True)

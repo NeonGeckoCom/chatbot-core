@@ -4,6 +4,7 @@ name: Pull to Master
 on:
   push:
     branches:
+      - dev
       - cert
   workflow_dispatch:
 

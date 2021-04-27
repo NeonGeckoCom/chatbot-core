@@ -1,8 +1,16 @@
 # Chatbot Core
+![Unit Tests](https://github.com/NeonGeckoCom/chatbot-core/workflows/Run%20Unit%20Tests/badge.svg)
+
 Bots using this framework connect to the Klat server and respond to user shouts. Bots will respond individually,
 like any other user in the conversation.
 
 ## Getting Started
+
+### Running in Colab
+Configured environment and implemented code can be run from Google Colab
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1gdFiHYMYjAzZGQPEepfpv4LNzEoEHGx2?usp=sharing)
+
+ 
 ### Installation
 To utilize this repository for creating your own chat bots, install this package via pip and then extend the `ChatBot` or
 `NeonBot` class to build your own chat bot (see the [Examples below](#python-examples)).
@@ -242,3 +250,38 @@ if __name__ == "__main__":
     while True:
         pass
 ```
+
+## Helper functions
+### Grammar check
+In order to apply quick validation on output of function consider using `grammar_check`,
+Sample Usage:
+```python
+from chatbot_core import grammar_check
+@grammar_check
+def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
+    return shout
+```
+Kernel of this function made with the help of [autocorrect](https://github.com/fsondej/autocorrect)
+
+### Find closest opinion
+Apply `find_closest_answer` to provide some known algorithms for closest opinions finding, 
+Sample Usage:
+```python
+from chatbot_core import find_closest_answer
+
+def ask_appraiser(self, options: dict) -> str:
+    # Let's consider storing response for current prompt in self.response variable
+    closest_opinion = find_closest_answer(algorithm='random',sentence=self.response,options=options)
+    for bot in options.keys():
+        if options[bot] == closest_opinion:
+            return f'I really like {bot} opinion!'
+    return 'I did not found any interesting answer here...'
+```
+#### Algorithm Table
+
+
+|    Algorithm Name    |                                                                                          Description                                                                                         |                                   When to use?                                   |
+|:--------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------:|
+|        random        |                                                                                   Picks response by random                                                                                   |                          When matters speed over result                          |
+|      bleu score      |                                                          Calculates precision using [n-gramms](https://en.wikipedia.org/wiki/N-gram)                                                         |                         When sentences have similar shape                        |
+| levenshtein distance | Calculates precision by measuring distance between words.  | When each word separately matters more than semantical meaning of the sentence.  |
