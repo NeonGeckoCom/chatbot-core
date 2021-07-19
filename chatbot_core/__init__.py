@@ -21,16 +21,14 @@ import random
 import re
 from queue import Queue
 from typing import Optional
-
 import time
 # import sys
-
 from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
 # import threading
-from threading import Thread
+from threading import Thread, Event
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
@@ -41,6 +39,7 @@ from autocorrect import Speller
 from nltk.translate.bleu_score import sentence_bleu
 from nltk import word_tokenize
 import jellyfish
+import spacy
 
 LOG = make_logger("chatbot")
 
@@ -918,3 +917,81 @@ class NeonBot(ChatBot):
         # Emit to Neon for a response
         self.log.debug(data)
         self.bus.emit(Message("recognizer_loop:utterance", data, context))
+
+
+class ParlaiBot(ChatBot):
+    """
+    Extensible class to handle a ParlAI-specific chatbot
+    """
+    def __init__(self, socket, domain, username, password, on_server, interactive_script, is_prompter=False):
+        super(ParlaiBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
+
+        self.on_server = on_server
+        self.bot_type = "submind"
+        self.nlp_engine = spacy.load("en_core_web_sm")
+
+        self.agent_id = 'local_agent'
+        self.event = Event()
+        self.parlai_thread = Thread(target=interactive_script, args=(self,), daemon=True)
+        self.parlai_thread.start()
+
+        self.current_response = ''
+        self.current_shout = ''
+        self.finished = False
+
+    # Agent-specific methods
+    def observe(self, msg):
+        """
+        Observe the other bot's action result
+        """
+        if msg['id'] != 'context':
+            self.event.set()
+            self.current_response = msg["text"]
+        self.log.debug(f'[OUT]: {self.current_response}')
+
+    def act(self):
+        """
+        Make an action to provide the other agent in the task with an input
+        """
+        reply = self.construct_reply()
+        # save the current shout locally and clear the attribute to prevent parley() without incoming shout
+        reply_text = self.current_shout
+        self.current_shout = ''
+        self.log.debug(f'CURRENT SHOUT {reply_text}')
+        # check for episode done
+        if '[DONE]' in reply_text:
+            raise StopIteration
+        # set reply text
+        reply['text'] = reply_text
+        # check if finished
+        if '[EXIT]' in reply_text:
+            self.finished = True
+            raise StopIteration
+        return reply
+
+    # Compatibility methods
+    def getID(self):
+        """
+        Return agent_id of the bot as an agent for ParlAI
+        """
+        return self.agent_id
+
+    def epoch_done(self):
+        """
+        Informs DD that the epoch is done. Using for exiting the process.
+        """
+        return self.finished
+
+    def reset(self):
+        """
+        Required for defining by agent, e.g. for clearing local variables on exit
+        """
+        pass
+
+    # Abstract helper methods
+    def construct_reply(self):
+        """
+        Construct a reply using parlai.core.message.Message in a concrete class. This method is a hack around
+        ParlAI installation, so this MUST always be defined in child classes
+        """
+        raise NotImplementedError
