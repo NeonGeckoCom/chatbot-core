@@ -955,7 +955,7 @@ class ParlaiBot(ChatBot):
         """
         Make an action to provide the other agent in the task with an input
         """
-        reply = self.construct_reply()
+        reply = self._construct_reply()
         # save the current shout locally and clear the attribute to prevent parley() without incoming shout
         reply_text = self.current_shout
         self.current_shout = ''
@@ -1034,7 +1034,7 @@ class ParlaiBot(ChatBot):
 
     # Abstract helper methods
     @abstractmethod
-    def construct_reply(self):
+    def _construct_reply(self):
         """
         Construct a reply using parlai.core.message.Message in a concrete class. This method is a hack around
         ParlAI installation, so this MUST always be defined in child classes
