@@ -19,6 +19,7 @@
 
 import random
 import re
+from abc import abstractmethod
 from queue import Queue
 from typing import Optional
 import time
@@ -921,7 +922,8 @@ class NeonBot(ChatBot):
 
 class ParlaiBot(ChatBot):
     """
-    Extensible class to handle a ParlAI-specific chatbot
+    Extensible class to handle a ParlAI-specific chatbot. Define interactive_script in your specific chatbot (for
+    reference, see any ParlaiBot-extended class in the chatbots package)
     """
     def __init__(self, socket, domain, username, password, on_server, interactive_script, is_prompter=False):
         super(ParlaiBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
@@ -988,10 +990,70 @@ class ParlaiBot(ChatBot):
         """
         pass
 
+    # Helper methods
+    @staticmethod
+    def _capitalize(resp: str) -> str:
+        """
+        Capitalize each sentence, and all "I"s if a pronoun.
+        :param resp: a response to be capitalized
+        :return: capitalized string
+        """
+        cap_marks = (".", "!", "?")
+        needs_cap = True  # the first word should be capitalized as well
+        cap_resp = []
+        for word in resp.split():
+            if needs_cap:
+                cap_resp.append(word.capitalize())
+                needs_cap = False
+            elif word in cap_marks or any([word.endswith(mark) for mark in cap_marks]):
+                cap_resp.append(word)
+                needs_cap = True
+            elif word == "i":
+                cap_resp.append("I")
+                needs_cap = False
+            else:
+                cap_resp.append(word)
+        return " ".join(cap_resp)
+
+    @staticmethod
+    def _fix_spacing(resp: str) -> str:
+        """Fix spacing, e.g. no spaces before the full period '.', or before and after an apostrophe.
+        :param resp: a phrase to fix"""
+        fixed_resp = ''
+        for i in range(len(resp)):
+            try:
+                if resp[i] == " " and resp[i + 1] in (".", "?", "!", "'"):
+                    continue
+                if resp[i] == " " and resp[i - 1] == "'" and resp[i - 2] != "s":
+                    continue
+                else:
+                    fixed_resp = fixed_resp + resp[i]
+            except IndexError:
+                continue
+        return fixed_resp
+
     # Abstract helper methods
+    @abstractmethod
     def construct_reply(self):
         """
         Construct a reply using parlai.core.message.Message in a concrete class. This method is a hack around
         ParlAI installation, so this MUST always be defined in child classes
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def _lookup_cache(self, key):
+        """
+        Lookup cache for particular prompt:response pair
+        """
+        pass
+
+    @abstractmethod
+    def _update_cache(self, prompt: str, resp: str) -> None:
+        """
+        Save the current prompt and resp to cache
+        :param prompt: incoming prompt
+        :param resp: generated response for prompt
+        :return:
+        """
+        pass
