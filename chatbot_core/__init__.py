@@ -921,11 +921,20 @@ class NeonBot(ChatBot):
 
 
 class ParlaiBot(ChatBot):
-    """
-    Extensible class to handle a ParlAI-specific chatbot. Define interactive_script in your specific chatbot (for
-    reference, see any ParlaiBot-extended class in the chatbots package)
-    """
+
     def __init__(self, socket, domain, username, password, on_server, interactive_script, is_prompter=False):
+        """
+        Instantiate a ParlAI-specific chatbot
+        :param socket: a socketIO connection instance (requires to specify server and port).
+                                        Use klat_connector.start_socket to instanciate one
+        :param domain: starting domain
+        :param username: klat username
+        :param password: klat user password
+        :param on_server: True if bot is being run on server, False if locally
+        :param interactive_script: a script that creates a world within the ParlAI framework (for reference, see any
+                                        ParlaiBot-extended class in the chatbots package, e.g. TuckerBot)
+        :param is_prompter: True if bot is to generate prompts for the Proctor
+        """
         super(ParlaiBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
 
         self.on_server = on_server

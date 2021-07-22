@@ -23,18 +23,34 @@ from typing import Optional
 
 class FIFOCache:
 
-    def __init__(self, capacity: int):
+    def __init__(self, capacity: int = 10):
+        """
+        Initialize an instance of the first-in-first-out cache with a set capacity
+        :param capacity: a maximum number of entries to store in the cache at the same time
+        """
         self.cache = OrderedDict()
         self.capacity = capacity
 
     def get(self, key: str) -> Optional[str]:
+        """
+        Lookup the cache using a string key
+        :param key: a key in the key-value pair
+        :return: a value associated with the provided key or None
+        """
         if key not in self.cache:
             return None
         else:
             return self.cache[key]
 
     def put(self, key: str, value: str) -> None:
-        self.cache[key] = value
-        self.cache.move_to_end(key)
-        if len(self.cache) > self.capacity:
-            self.cache.popitem(last=False)
+        """
+        Put the key-value into cache if key not in the cache already
+        :param key: a key to use in the cache dict
+        :param value: a value associated with the key
+        :return: None
+        """
+        if key not in self.cache:
+            self.cache[key] = value
+            self.cache.move_to_end(key)
+            if len(self.cache) > self.capacity:
+                self.cache.popitem(last=False)
