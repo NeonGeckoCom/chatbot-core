@@ -922,7 +922,8 @@ class NeonBot(ChatBot):
 
 class ParlaiBot(ChatBot):
 
-    def __init__(self, socket, domain, username, password, on_server, interactive_script, is_prompter=False):
+    def __init__(self, socket, domain, username, password, on_server, interactive_script, response_timeout=25,
+                 is_prompter=False):
         """
         Instantiate a ParlAI-specific chatbot
         :param socket: a socketIO connection instance (requires to specify server and port).
@@ -933,6 +934,7 @@ class ParlaiBot(ChatBot):
         :param on_server: True if bot is being run on server, False if locally
         :param interactive_script: a script that creates a world within the ParlAI framework (for reference, see any
                                         ParlaiBot-extended class in the chatbots package, e.g. TuckerBot)
+        :param response_timeout: timeout in seconds for ParlAI world to generate a response for a prompt
         :param is_prompter: True if bot is to generate prompts for the Proctor
         """
         super(ParlaiBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
@@ -949,6 +951,8 @@ class ParlaiBot(ChatBot):
         self.current_response = ''
         self.current_shout = ''
         self.finished = False
+
+        self._response_timeout = response_timeout
 
     # Agent-specific methods
     def observe(self, msg):
