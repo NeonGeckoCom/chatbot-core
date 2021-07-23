@@ -19,18 +19,17 @@
 
 import random
 import re
+from abc import abstractmethod
 from queue import Queue
 from typing import Optional
-
 import time
 # import sys
-
 from copy import deepcopy
 from enum import IntEnum
 
 from engineio.socket import Socket
 # import threading
-from threading import Thread
+from threading import Thread, Event
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
@@ -41,6 +40,7 @@ from autocorrect import Speller
 from nltk.translate.bleu_score import sentence_bleu
 from nltk import word_tokenize
 import jellyfish
+import spacy
 
 LOG = make_logger("chatbot")
 
@@ -918,3 +918,155 @@ class NeonBot(ChatBot):
         # Emit to Neon for a response
         self.log.debug(data)
         self.bus.emit(Message("recognizer_loop:utterance", data, context))
+
+
+class ParlaiBot(ChatBot):
+
+    def __init__(self, socket, domain, username, password, on_server, interactive_script, response_timeout=25,
+                 is_prompter=False):
+        """
+        Instantiate a ParlAI-specific chatbot
+        :param socket: a socketIO connection instance (requires to specify server and port).
+                                        Use klat_connector.start_socket to instanciate one
+        :param domain: starting domain
+        :param username: klat username
+        :param password: klat user password
+        :param on_server: True if bot is being run on server, False if locally
+        :param interactive_script: a script that creates a world within the ParlAI framework (for reference, see any
+                                        ParlaiBot-extended class in the chatbots package, e.g. TuckerBot)
+        :param response_timeout: timeout in seconds for ParlAI world to generate a response for a prompt
+        :param is_prompter: True if bot is to generate prompts for the Proctor
+        """
+        super(ParlaiBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
+
+        self.on_server = on_server
+        self.bot_type = "submind"
+        self.nlp_engine = spacy.load("en_core_web_sm")
+
+        self.agent_id = 'local_agent'
+        self.event = Event()
+        self.parlai_thread = Thread(target=interactive_script, args=(self,), daemon=True)
+        self.parlai_thread.start()
+
+        self.current_response = ''
+        self.current_shout = ''
+        self.finished = False
+
+        self._response_timeout = response_timeout
+
+    # Agent-specific methods
+    def observe(self, msg):
+        """
+        Observe the other bot's action result
+        """
+        if msg['id'] != 'context':
+            self.event.set()
+            self.current_response = msg["text"]
+        self.log.debug(f'[OUT]: {self.current_response}')
+
+    def act(self):
+        """
+        Make an action to provide the other agent in the task with an input
+        """
+        reply = self._construct_reply()
+        # save the current shout locally and clear the attribute to prevent parley() without incoming shout
+        reply_text = self.current_shout
+        self.current_shout = ''
+        self.log.debug(f'CURRENT SHOUT {reply_text}')
+        # check for episode done
+        if '[DONE]' in reply_text:
+            raise StopIteration
+        # set reply text
+        reply['text'] = reply_text
+        # check if finished
+        if '[EXIT]' in reply_text:
+            self.finished = True
+            raise StopIteration
+        return reply
+
+    # Compatibility methods
+    def getID(self):
+        """
+        Return agent_id of the bot as an agent for ParlAI
+        """
+        return self.agent_id
+
+    def epoch_done(self):
+        """
+        Informs DD that the epoch is done. Using for exiting the process.
+        """
+        return self.finished
+
+    def reset(self):
+        """
+        Required for defining by agent, e.g. for clearing local variables on exit
+        """
+        pass
+
+    # Helper methods
+    @staticmethod
+    def _capitalize(resp: str) -> str:
+        """
+        Capitalize each sentence, and all "I"s if a pronoun.
+        :param resp: a response to be capitalized
+        :return: capitalized string
+        """
+        cap_marks = (".", "!", "?")
+        needs_cap = True  # the first word should be capitalized as well
+        cap_resp = []
+        for word in resp.split():
+            if needs_cap:
+                cap_resp.append(word.capitalize())
+                needs_cap = False
+            elif word in cap_marks or any([word.endswith(mark) for mark in cap_marks]):
+                cap_resp.append(word)
+                needs_cap = True
+            elif word == "i":
+                cap_resp.append("I")
+                needs_cap = False
+            else:
+                cap_resp.append(word)
+        return " ".join(cap_resp)
+
+    @staticmethod
+    def _fix_spacing(resp: str) -> str:
+        """Fix spacing, e.g. no spaces before the full period '.', or before and after an apostrophe.
+        :param resp: a phrase to fix"""
+        fixed_resp = ''
+        for i in range(len(resp)):
+            try:
+                if resp[i] == " " and resp[i + 1] in (".", "?", "!", "'"):
+                    continue
+                if resp[i] == " " and resp[i - 1] == "'" and resp[i - 2] != "s":
+                    continue
+                else:
+                    fixed_resp = fixed_resp + resp[i]
+            except IndexError:
+                continue
+        return fixed_resp
+
+    # Abstract helper methods
+    @abstractmethod
+    def _construct_reply(self):
+        """
+        Construct a reply using parlai.core.message.Message in a concrete class. This method is a hack around
+        ParlAI installation, so this MUST always be defined in child classes
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _lookup_cache(self, key):
+        """
+        Lookup cache for particular prompt:response pair
+        """
+        pass
+
+    @abstractmethod
+    def _update_cache(self, prompt: str, resp: str) -> None:
+        """
+        Save the current prompt and resp to cache
+        :param prompt: incoming prompt
+        :param resp: generated response for prompt
+        :return:
+        """
+        pass
