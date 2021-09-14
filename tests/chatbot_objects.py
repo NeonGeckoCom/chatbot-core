@@ -25,7 +25,8 @@ import os
 
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ChatBot, LOG
+from chatbot_core import ChatBot
+from chatbot_core.utils import LOG
 
 
 class V2Bot(ChatBot):

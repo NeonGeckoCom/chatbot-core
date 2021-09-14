@@ -40,7 +40,7 @@ from datetime import datetime
 import yaml
 from klat_connector import start_socket
 
-from chatbot_core.logger import LOG
+from chatbot_core.utils.logger import LOG
 # from chatbot_core import ChatBot
 
 

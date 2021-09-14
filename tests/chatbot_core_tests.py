@@ -28,8 +28,7 @@ from klat_connector import start_socket
 
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ConversationControls, ConversationState
-from chatbot_core.utils import clean_up_bot
+from chatbot_core.utils import clean_up_bot, ConversationControls, ConversationState
 from tests.chatbot_objects import *
 
 
@@ -38,7 +37,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.bot = ChatBot(start_socket("5555.us"), "Private", "testrunner", "testpassword", True)
+        cls.bot = ChatBot(start_socket("2222.us"), "Private", "testrunner", "testpassword", True)
         cls.test_input = "prompt goes here"
 
     @classmethod
@@ -181,7 +180,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(10)
     def test_15_histories_length(self):
-        self.assertTrue(len(self.bot.request_history) == len(self.bot.participant_history))
+        self.assertTrue(len(self.bot.request_history) == len(self.bot.participant_history[0]))
 
     # @pytest.mark.timeout(10)
     # def test_12_shutdown_testing(self):
@@ -194,7 +193,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_base_bot(self):
-        from chatbot_core.utils import _start_bot
+        from chatbot_core.utils.base import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(ChatBot, "5555.us", 8888, "Private", "testrunner", "testpassword")
@@ -214,7 +213,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v2_bot(self):
-        from chatbot_core.utils import _start_bot
+        from chatbot_core.utils.base import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(V2Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")
@@ -234,7 +233,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v3_bot(self):
-        from chatbot_core.utils import _start_bot
+        from chatbot_core.utils.base import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(V3Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")

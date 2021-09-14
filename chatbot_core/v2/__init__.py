@@ -16,18 +16,27 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import os
+from klat_connector.mq_klat_api import KlatAPIMQ
 
-from typing import List
 
-import chatbot_core
+class ChatBot(KlatAPIMQ):
 
-from chatbot_core.v1 import ChatBot as ChatBot_v1
-from chatbot_core.v2 import ChatBot as ChatBot_v2
+    def _stop_connection(self):
+        pass
 
-version = os.environ.get('CHATBOT_VERSION', 'v1').lower()
+    def handle_kick_out(self, channel, method, _, body):
+        """Handles incoming request to chat bot"""
+        body_data = b64_to_dict(body)
+        if body_data.get('receiver', None) == self.nick:
+            self.current_conversations.remove(body_data.get('cid', None))
 
-if version == 'v2':
-    chatbot_core.ChatBot = ChatBot_v2
-else:
-    chatbot_core.ChatBot = ChatBot_v1
+    def handle_invite(self, channel, method, _, body):
+        """Handles incoming request to chat bot"""
+        body_data = b64_to_dict(body)
+        if body_data.get('cid', None) and body.get('receiver', None) == self.nick:
+            self.current_conversations.add(body_data['cid'])
+
+    def _setup_listeners(self):
+        super()._setup_listeners()
+        self.register_consumer('invitation', self.vhost, 'invite', self.handle_invite, self.default_error_handler)
+        self.register_consumer('kick out', self.vhost, 'kick_out', self.handle_kick_out, self.default_error_handler)
