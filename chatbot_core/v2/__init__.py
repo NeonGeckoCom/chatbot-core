@@ -21,9 +21,6 @@ from klat_connector.mq_klat_api import KlatAPIMQ
 
 class ChatBot(KlatAPIMQ):
 
-    def _stop_connection(self):
-        pass
-
     def handle_kick_out(self, channel, method, _, body):
         """Handles incoming request to chat bot"""
         body_data = b64_to_dict(body)
