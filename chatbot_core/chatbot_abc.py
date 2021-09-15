@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from chatbot_core.utils import make_logger
+from chatbot_core.utils import *
 
 logger = make_logger(__name__)
 
