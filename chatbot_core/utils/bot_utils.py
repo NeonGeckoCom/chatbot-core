@@ -538,6 +538,15 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
     return t, bus
 
 
+def generate_random_response(from_iterable: iter):
+    """
+        Generates some random bot response from the given options or the default list
+
+        :param from_iterable: source iterable to get random value from
+    """
+    return random.choice(from_iterable)
+
+
 if __name__ == "__main__":
     start_bots("chatbotsforum.org", "~/PycharmProjects/chatbots", "Prompter", "n30nn30n", "2222.us", None, "BLENDER",
                None, True, True)

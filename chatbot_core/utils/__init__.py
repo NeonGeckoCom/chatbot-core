@@ -21,4 +21,5 @@
 from chatbot_core.utils.cache import FIFOCache
 from chatbot_core.utils.logger import make_logger
 from chatbot_core.utils.enum import ConversationState, ConversationControls
-from chatbot_core.utils.base import *
+from chatbot_core.utils.bot_utils import *
+from chatbot_core.utils.string_utils import remove_prefix

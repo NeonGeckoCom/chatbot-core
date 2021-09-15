@@ -17,9 +17,9 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from klat_connector.mq_klat_api import KlatAPIMQ
+from chatbot_core.chatbot_abc import ChatBotABC
 
-
-class ChatBot(KlatAPIMQ):
+class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def handle_kick_out(self, channel, method, _, body):
         """Handles incoming request to chat bot"""
@@ -37,3 +37,52 @@ class ChatBot(KlatAPIMQ):
         super()._setup_listeners()
         self.register_consumer('invitation', self.vhost, 'invite', self.handle_invite, self.default_error_handler)
         self.register_consumer('kick out', self.vhost, 'kick_out', self.handle_kick_out, self.default_error_handler)
+
+    def on_vote(self, prompt_id: str, selected: str, voter: str):
+        pass
+
+    def on_discussion(self, user: str, shout: str):
+        pass
+
+    def on_proposed_response(self):
+        pass
+
+    def on_selection(self, prompt: str, user: str, response: str):
+        pass
+
+    def on_ready_for_next(self, user: str):
+        pass
+
+    def at_chatbot(self, user: str, shout: str, timestamp: str) -> str:
+        pass
+
+    def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
+        pass
+
+    def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
+        pass
+
+    def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
+        pass
+
+    def ask_appraiser(self, options: dict) -> str:
+        pass
+
+    def ask_discusser(self, options: dict) -> str:
+        pass
+
+    @staticmethod
+    def _shout_is_prompt(shout):
+        pass
+
+    def _send_first_prompt(self):
+        pass
+
+    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
+        pass
+
+    def _handle_next_shout(self):
+        pass
+
+    def _pause_responses(self, duration: int = 5):
+        pass

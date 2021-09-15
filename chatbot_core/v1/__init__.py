@@ -33,7 +33,8 @@ from threading import Thread, Event
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
-from chatbot_core.utils import init_message_bus, make_logger, ConversationState
+from chatbot_core.utils import init_message_bus, make_logger, ConversationState, remove_prefix, generate_random_response
+from chatbot_core.chatbot_abc import ChatBotABC
 from mycroft_bus_client import Message, MessageBusClient
 from autocorrect import Speller
 from nltk.translate.bleu_score import sentence_bleu
@@ -45,10 +46,9 @@ import spacy
 LOG = make_logger("chatbot")
 
 
-class ChatBot(KlatApi):
+class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
                  username: str = None, password: str = None, on_server: bool = True, is_prompter: bool = False):
-        print(socket, domain, username, password, on_server, is_prompter)
         socket = socket or start_socket()
         init_nick = "Prompter" if is_prompter else ""
         super(ChatBot, self).__init__(socket, domain, init_nick)
@@ -250,7 +250,7 @@ class ChatBot(KlatApi):
                 options: dict = deepcopy(self.proposed_responses[self.active_prompt])
                 discussion = self.ask_discusser(options)
                 if discussion:
-                    self._hesitate_before_response(start_time)
+                    self._hesitate_before_response(start_time=start_time)
                     self.discuss_response(discussion)
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
@@ -276,11 +276,11 @@ class ChatBot(KlatApi):
             # Incoming prompt
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
                 # self.state = ConversationState.RESP
-                # self.active_prompt = self._remove_prefix(shout, "!PROMPT:")
+                # self.active_prompt = remove_prefix(shout, "!PROMPT:")
                 if self.bot_type == "proctor":
                     self.log.debug(f"Incoming prompt: {shout}")
                     try:
-                        self.ask_proctor(self._remove_prefix(shout, "!PROMPT:"), user, cid, dom)
+                        self.ask_proctor(remove_prefix(shout, "!PROMPT:"), user, cid, dom)
                     except Exception as x:
                         self.log.error(f"{self.nick} | {x}")
                 # else:
@@ -405,41 +405,6 @@ class ChatBot(KlatApi):
             #     self.proposed_responses[prompt] = {user: response}
         self.on_proposed_response()
 
-    # Proctor Functions
-    def call_discussion(self, timeout: int):
-        """
-        Called by proctor to ask all subminds to discuss a response
-        """
-        self.state = ConversationState.DISC
-        self.send_shout(f"{ConversationControls.DISC} \"{self.active_prompt}\" for {timeout} seconds.")
-
-    def call_voting(self, timeout: int):
-        """
-        Called by proctor to ask all subminds to vote on a response
-        """
-        self.state = ConversationState.VOTE
-        self.send_shout(f"{ConversationControls.VOTE} \"{self.active_prompt}\" for {timeout} seconds.")
-
-    def close_voting(self):
-        """
-        Called by proctor to announce to all subminds that voting is over and the response will be selected
-        """
-        self.state = ConversationState.PICK
-        self.send_shout(f"{ConversationControls.PICK} \"{self.active_prompt}\"")
-
-    def pick_respondents(self, bots: list):
-        """
-        Called by proctor to select which bots may respond to the next prompt
-        """
-        bot_str = ",".join(bots)
-        self.send_shout(f"{bot_str}{ConversationControls.WAIT}")
-
-    def announce_selection(self, user: str, selection: str):
-        """
-        Called by proctor to announce the selected user and response
-        """
-        self.send_shout(f"The selected response is from {user}: \"{selection}\"")
-
     # Submind Functions
     def propose_response(self, shout: str):
         """
@@ -449,7 +414,7 @@ class ChatBot(KlatApi):
         # Generate a random response if none is provided
         if shout == self.active_prompt:
             self.log.info(f"Pick random response for {self.nick}")
-            shout = self._generate_random_response()
+            shout = generate_random_response(self.fallback_responses)
 
         if not shout:
             if self.bot_type == "submind":
@@ -479,31 +444,6 @@ class ChatBot(KlatApi):
             self.log.warning(f"Empty discussion provided! ({self.nick})")
         else:
             self.send_shout(shout)
-
-    def vote_response(self, response_user: str):
-        """
-        Called when a bot appraiser has selected a response
-        :param response_user: bot username associated with chosen response
-        """
-        if self.state != ConversationState.VOTE:
-            self.log.warning(f"Late Vote! {response_user}")
-            return None
-        elif not response_user:
-            self.log.error("Null response user returned!")
-            return None
-        elif response_user == "abstain" or response_user == self.nick:
-            # self.log.debug(f"Abstaining voter! ({self.nick})")
-            self.send_shout("I abstain from voting.")
-            return "abstain"
-        else:
-            self.send_shout(f"I vote for {response_user}")
-            return response_user
-
-    def _generate_random_response(self):
-        """
-        Generates some random bot response from the given options or the default list
-        """
-        return random.choice(self.fallback_responses)
 
     def on_login(self):
         """
@@ -610,18 +550,6 @@ class ChatBot(KlatApi):
         pass
 
     @staticmethod
-    def _remove_prefix(prefixed_string: str, prefix: str):
-        """
-        Removes the specified prefix from the string
-        :param prefixed_string: raw string to clean
-        :param prefix: prefix to remove
-        :return: string with prefix removed
-        """
-        if prefixed_string.startswith(prefix):
-            return prefixed_string[len(prefix):]
-        return prefixed_string
-
-    @staticmethod
     def _user_is_proctor(nick):
         """
         Determines if the passed nick is a proctor.
@@ -663,13 +591,6 @@ class ChatBot(KlatApi):
         self.enable_responses = False
         time.sleep(duration)
         self.enable_responses = True
-
-    def _hesitate_before_response(self, start_time):
-        if time.time() - start_time < 5:
-            # Apply some random wait time if we got a response very quickly
-            time.sleep(random.randrange(0, 50) / 10)
-        else:
-            self.log.debug("Skipping artificial wait!")
 
     def _handle_next_shout(self):
         """

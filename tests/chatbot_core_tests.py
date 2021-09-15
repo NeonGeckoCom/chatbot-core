@@ -193,7 +193,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_base_bot(self):
-        from chatbot_core.utils.base import _start_bot
+        from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(ChatBot, "5555.us", 8888, "Private", "testrunner", "testpassword")
@@ -213,7 +213,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v2_bot(self):
-        from chatbot_core.utils.base import _start_bot
+        from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(V2Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")
@@ -233,7 +233,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v3_bot(self):
-        from chatbot_core.utils.base import _start_bot
+        from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(V3Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")

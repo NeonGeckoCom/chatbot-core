@@ -18,7 +18,10 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from abc import abstractmethod
 
-from chatbot_core.v1 import ChatBot
+if os.environ.get('CHATBOT_VERSION', 'v1') == 'v2':
+    raise ImportError('Neon Bot does not support version 2.0')
+else:
+    from chatbot_core import ChatBot
 
 
 class ParlaiBot(ChatBot):
