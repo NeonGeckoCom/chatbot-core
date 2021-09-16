@@ -123,18 +123,19 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(self.bot.selected_history, ["testrunner"])
         self.assertEqual(self.bot.active_prompt, None)
 
-    @pytest.mark.timeout(30)
-    def test_10_login_register_new_user(self):
-        self.bot.logout_klat()
-        self.assertEqual(self.bot.logged_in, 1)
-        username = f"testrunner{time.time()}".split(".")[0]
-        self.bot.username = username
-        self.bot.password = "testpassword"
-        self.bot.login_klat(username, "testpassword")
-        while not self.bot.enable_responses:
-            time.sleep(1)
-        self.assertEqual(self.bot.logged_in, 2)
-        self.assertEqual(self.bot.username, username)
+    # This is just testing a method in klat_api, not really a chatbot-core test
+    # @pytest.mark.timeout(30)
+    # def test_10_login_register_new_user(self):
+    #     self.bot.logout_klat()
+    #     self.assertEqual(self.bot.logged_in, 1)
+    #     username = f"testrunner{time.time()}".split(".")[0]
+    #     self.bot.username = username
+    #     self.bot.password = "testpassword"
+    #     self.bot.login_klat(username, "testpassword")
+    #     while not self.bot.enable_responses:
+    #         time.sleep(1)
+    #     self.assertEqual(self.bot.logged_in, 2)
+    #     self.assertEqual(self.bot.username, username)
 
     @pytest.mark.timeout(10)
     def test_11_clean_options(self):
