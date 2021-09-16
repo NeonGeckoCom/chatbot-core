@@ -33,31 +33,28 @@ from chatbot_core.utils import clean_up_bot
 from tests.chatbot_objects import *
 
 
+SERVER = "2222.us"
+
+
 @pytest.mark.timeout(timeout=300, method='signal')
 class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.bot = ChatBot(start_socket("5555.us"), "Private", "testrunner", "testpassword", True)
+        cls.bot = ChatBot(start_socket(SERVER), "Private", "testrunner", "testpassword", True)
         cls.test_input = "prompt goes here"
 
     @classmethod
     def tearDownClass(cls) -> None:
         clean_up_bot(cls.bot)
 
-        # cls.bot.socket.disconnect()
-
-        # if cls.bot.shout_thread.isAlive():
-        #     cls.bot.shout_queue.put(None)
-        #     cls.bot.shout_thread.join(0)
-
     @pytest.mark.timeout(10)
     def test_01_initial_connection_settings(self):
         self.bot.bot_type = "submind"
-        while not self.bot.ready:
-            time.sleep(1)
+        self.bot.klat_ready.wait()
         self.assertEqual(self.bot.nick, "testrunner")
         self.assertEqual(self.bot.logged_in, 2)
+        self.assertTrue(self.bot.socket.connected)
 
     @pytest.mark.timeout(10)
     def test_02_submind_response(self):
