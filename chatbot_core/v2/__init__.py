@@ -20,6 +20,7 @@ from klat_connector.mq_klat_api import KlatAPIMQ
 from chatbot_core.chatbot_abc import ChatBotABC
 
 class ChatBot(KlatAPIMQ, ChatBotABC):
+    """MQ-based chatbot implementation"""
 
     def handle_kick_out(self, channel, method, _, body):
         """Handles incoming request to chat bot"""
