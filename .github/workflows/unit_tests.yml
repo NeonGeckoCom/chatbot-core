@@ -3,9 +3,6 @@
 name: Run Unit Tests
 on:
   push:
-    branches:
-      - dev
-      - cert
   workflow_dispatch:
 
 jobs:
@@ -23,7 +20,7 @@ jobs:
           pip install -r requirements.txt
           pip install git+https://${{secrets.neon_token}}@github.com/neongeckocom/klat-connector
         env:
-          PWD: ${{secrets.neon_token}}
+          GITHUB_TOKEN: ${{secrets.neon_token}}
       - name: Test with pytest
         run: |
           pip install pytest pytest-timeout pytest-cov
