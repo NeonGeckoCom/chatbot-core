@@ -174,8 +174,9 @@ class ChatbotCoreTests(unittest.TestCase):
         resp = self.bot.vote_response("")
         self.assertIsNone(resp)
 
-        resp = self.bot.vote_response("testrunner")
-        self.assertEqual(resp, "testrunner")
+        self.assertNotEqual(self.bot.nick, "someuser")
+        resp = self.bot.vote_response("someuser")
+        self.assertEqual(resp, "someuser")
 
     @pytest.mark.timeout(10)
     def test_15_histories_length(self):
