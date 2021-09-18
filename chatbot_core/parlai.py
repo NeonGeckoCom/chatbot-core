@@ -24,27 +24,20 @@ else:
     from chatbot_core import ChatBot
 
 
-class ParlaiBot(ChatBot):
+class ParlaiBot:
+    """Class declaring ParlAI-specific methods"""
 
-    def __init__(self, socket, domain, username, password, on_server, interactive_script, response_timeout=25,
-                 is_prompter=False):
+    def __init__(self, interactive_script, response_timeout=25,
+                 done_string: str = '[DONE]',
+                 exit_string: str = '[EXIT]'):
         """
-        Instantiate a ParlAI-specific chatbot
-        :param socket: a socketIO connection instance (requires to specify server and port).
-                                        Use klat_connector.start_socket to instanciate one
-        :param domain: starting domain
-        :param username: klat username
-        :param password: klat user password
-        :param on_server: True if bot is being run on server, False if locally
-        :param interactive_script: a script that creates a world within the ParlAI framework (for reference, see any
-                                        ParlaiBot-extended class in the chatbots package, e.g. TuckerBot)
-        :param response_timeout: timeout in seconds for ParlAI world to generate a response for a prompt
-        :param is_prompter: True if bot is to generate prompts for the Proctor
+            :param interactive_script: a script that creates a world within the ParlAI framework (for reference, see any
+                                            ParlaiBot-extended class in the chatbots package, e.g. TuckerBot)
+            :param response_timeout: timeout in seconds for ParlAI world to generate a response for a prompt
+            :param done_string: string that signals about episode done
+            :param exit_string: string that signals about the finish
         """
-        super(ParlaiBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
 
-        self.on_server = on_server
-        self.bot_type = "submind"
         self.nlp_engine = spacy.load("en_core_web_sm")
 
         self.agent_id = 'local_agent'
@@ -57,6 +50,8 @@ class ParlaiBot(ChatBot):
         self.finished = False
 
         self._response_timeout = response_timeout
+        self.done_string = done_string
+        self.exit_string = exit_string
 
     # Agent-specific methods
     def observe(self, msg):
@@ -78,12 +73,12 @@ class ParlaiBot(ChatBot):
         self.current_shout = ''
         self.log.debug(f'CURRENT SHOUT {reply_text}')
         # check for episode done
-        if '[DONE]' in reply_text:
+        if self.done_string in reply_text:
             raise StopIteration
         # set reply text
         reply['text'] = reply_text
         # check if finished
-        if '[EXIT]' in reply_text:
+        if self.exit_string in reply_text:
             self.finished = True
             raise StopIteration
         return reply
