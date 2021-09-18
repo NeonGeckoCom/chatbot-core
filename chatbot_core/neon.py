@@ -20,10 +20,12 @@ import os
 
 from mycroft_bus_client import Message
 
+from chatbot_core import ChatBot
+
 if os.environ.get('CHATBOT_VERSION', 'v1') == 'v2':
-    raise ImportError('Neon Bot does not support version 2.0')
-else:
-    from chatbot_core import ChatBot
+    raise ImportWarning('Version 2.0 is currently alpha')
+
+from chatbot_core import ChatBot
 
 
 class NeonBot(ChatBot):
@@ -31,21 +33,21 @@ class NeonBot(ChatBot):
     Extensible class to handle a chatbot implemented in custom-conversations skill
     """
 
-    def __init__(self, socket, domain, username, password, on_server, script, is_prompter=False, bus_config=None):
+    def __init__(self, *args, **kwargs):
         self.bot_type = "submind"
         self.response = None
         self.response_timeout = 15
         self.bus: Optional[MessageBusClient] = None
-        self.bus_config = bus_config or {"host": "167.172.112.7",
-                                         "port": 8181,
-                                         "ssl": False,
-                                         "route": "/core"}
-        self.script = script
+        self.bus_config = kwargs.pop('bus_config', {"host": "167.172.112.7",
+                                                    "port": 8181,
+                                                    "ssl": False,
+                                                    "route": "/core"})
+        self.script = kwargs.pop('script', None)
         self.script_ended = False
         self.script_started = False
         self._init_bus()
         self._set_bus_listeners()
-        super(NeonBot, self).__init__(socket, domain, username, password, on_server, is_prompter)
+        super(NeonBot, self).__init__(*args, **kwargs)
 
         timeout = time.time() + 60
         while not self.script_started and time.time() < timeout:
