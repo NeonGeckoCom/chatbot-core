@@ -32,31 +32,28 @@ from chatbot_core.utils import clean_up_bot, ConversationControls, ConversationS
 from tests.chatbot_objects import *
 
 
+SERVER = "2222.us"
+
+
 @pytest.mark.timeout(timeout=300, method='signal')
 class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.bot = ChatBot(start_socket("2222.us"), "Private", "testrunner", "testpassword", True)
+        cls.bot = ChatBot(start_socket(SERVER), "Private", "testrunner", "testpassword", True)
         cls.test_input = "prompt goes here"
 
     @classmethod
     def tearDownClass(cls) -> None:
         clean_up_bot(cls.bot)
 
-        # cls.bot.socket.disconnect()
-
-        # if cls.bot.shout_thread.isAlive():
-        #     cls.bot.shout_queue.put(None)
-        #     cls.bot.shout_thread.join(0)
-
     @pytest.mark.timeout(10)
     def test_01_initial_connection_settings(self):
         self.bot.bot_type = "submind"
-        while not self.bot.ready:
-            time.sleep(1)
+        self.bot.klat_ready.wait()
         self.assertEqual(self.bot.nick, "testrunner")
         self.assertEqual(self.bot.logged_in, 2)
+        self.assertTrue(self.bot.socket.connected)
 
     @pytest.mark.timeout(10)
     def test_02_submind_response(self):
@@ -125,18 +122,19 @@ class ChatbotCoreTests(unittest.TestCase):
         self.assertEqual(self.bot.selected_history, ["testrunner"])
         self.assertEqual(self.bot.active_prompt, None)
 
-    @pytest.mark.timeout(30)
-    def test_10_login_register_new_user(self):
-        self.bot.logout_klat()
-        self.assertEqual(self.bot.logged_in, 1)
-        username = f"testrunner{time.time()}".split(".")[0]
-        self.bot.username = username
-        self.bot.password = "testpassword"
-        self.bot.login_klat(username, "testpassword")
-        while not self.bot.enable_responses:
-            time.sleep(1)
-        self.assertEqual(self.bot.logged_in, 2)
-        self.assertEqual(self.bot.username, username)
+    # This is just testing a method in klat_api, not really a chatbot-core test
+    # @pytest.mark.timeout(30)
+    # def test_10_login_register_new_user(self):
+    #     self.bot.logout_klat()
+    #     self.assertEqual(self.bot.logged_in, 1)
+    #     username = f"testrunner{time.time()}".split(".")[0]
+    #     self.bot.username = username
+    #     self.bot.password = "testpassword"
+    #     self.bot.login_klat(username, "testpassword")
+    #     while not self.bot.enable_responses:
+    #         time.sleep(1)
+    #     self.assertEqual(self.bot.logged_in, 2)
+    #     self.assertEqual(self.bot.username, username)
 
     @pytest.mark.timeout(10)
     def test_11_clean_options(self):
@@ -175,12 +173,13 @@ class ChatbotCoreTests(unittest.TestCase):
         resp = self.bot.vote_response("")
         self.assertIsNone(resp)
 
-        resp = self.bot.vote_response("testrunner")
-        self.assertEqual(resp, "testrunner")
+        self.assertNotEqual(self.bot.nick, "someuser")
+        resp = self.bot.vote_response("someuser")
+        self.assertEqual(resp, "someuser")
 
     @pytest.mark.timeout(10)
     def test_15_histories_length(self):
-        self.assertTrue(len(self.bot.request_history) == len(self.bot.participant_history[0]))
+        self.assertTrue(len(self.bot.request_history) == len(self.bot.participant_history))
 
     # @pytest.mark.timeout(10)
     # def test_12_shutdown_testing(self):
