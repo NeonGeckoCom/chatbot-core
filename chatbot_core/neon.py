@@ -20,12 +20,13 @@ import os
 
 from mycroft_bus_client import Message
 
+from neon_utils import LOG
+
+from chatbot_core.utils import BotTypes
 from chatbot_core import ChatBot
 
 if os.environ.get('CHATBOT_VERSION', 'v1') == 'v2':
-    raise ImportWarning('Version 2.0 is currently alpha')
-
-from chatbot_core import ChatBot
+    LOG.warning('Version 2.0 is currently alpha')
 
 
 class NeonBot(ChatBot):
@@ -34,7 +35,7 @@ class NeonBot(ChatBot):
     """
 
     def __init__(self, *args, **kwargs):
-        self.bot_type = "submind"
+        self.bot_type = BotTypes.SUBMIND
         self.response = None
         self.response_timeout = 15
         self.bus: Optional[MessageBusClient] = None

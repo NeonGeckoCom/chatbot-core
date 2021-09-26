@@ -25,7 +25,6 @@ from typing import Optional
 import time
 # import sys
 from copy import deepcopy
-from enum import IntEnum
 
 from engineio.socket import Socket
 # import threading
@@ -33,7 +32,7 @@ from threading import Thread, Event
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
-from chatbot_core.utils import init_message_bus, make_logger, ConversationState, remove_prefix, generate_random_response
+from chatbot_core.utils import init_message_bus, make_logger, ConversationState, remove_prefix, generate_random_response, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
 from mycroft_bus_client import Message, MessageBusClient
 from autocorrect import Speller
@@ -170,14 +169,14 @@ class ChatBot(KlatApi, ChatBotABC):
                 self.log.error(e)
                 self.log.error(f'@user error: {shout}')
 
-            if self.bot_type == "proctor":
+            if self.bot_type == BotTypes.PROCTOR:
                 self.log.info("@Proctor shout incoming")
                 try:
                     self.ask_proctor(shout, user, cid, dom)
                 except Exception as e:
                     self.log.error(e)
                     self.log.error(f'Ignoring incoming: {shout}')
-            elif self.bot_type == "observer":
+            elif self.bot_type == BotTypes.OBSERVER:
                 self.log.info("@observer shout incoming")
                 # TODO: Consider something here DM
                 # try:
@@ -185,7 +184,7 @@ class ChatBot(KlatApi, ChatBotABC):
                 # except Exception as e:
                 #     self.log.error(e)
                 #     self.log.error(f'Ignoring incoming: {shout}')
-            elif self.bot_type == "submind":
+            elif self.bot_type == BotTypes.SUBMIND:
                 self.log.info(f"@bot shout incoming")
                 resp = self.at_chatbot(user, shout, timestamp)
                 if self.is_prompter:
@@ -195,7 +194,7 @@ class ChatBot(KlatApi, ChatBotABC):
                     return
         # Ignore anything from a different conversation that isn't @ this bot
         elif not self.is_current_cid(cid):
-            if self.bot_type == "proctor" and self._user_is_prompter(user):
+            if self.bot_type == BotTypes.PROCTOR and self._user_is_prompter(user):
                 self.ask_proctor(shout, user, cid, dom)
             else:
                 self.log.warning(f"Crossposted shout ignored ({cid} != {self._cid}|user={user})")
@@ -213,7 +212,8 @@ class ChatBot(KlatApi, ChatBotABC):
                 self.send_shout(resp)
                 return
         # Subminds ignore facilitators
-        elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks and self.bot_type == "submind":
+        elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks \
+                and self.bot_type == BotTypes.SUBMIND:
             self.log.debug(f"{self.nick} ignoring facilitator shout: {shout}")
         # Cleanup nick for comparison to logged in user
         if "#" in user:
@@ -233,16 +233,16 @@ class ChatBot(KlatApi, ChatBotABC):
                 participants = set(participant.lower().strip() for participant in participants.split(","))
                 self.participant_history.append(participants)
 
-                if self.bot_type == "submind" and self.nick.lower() not in re.split("[, ]", shout.lower()):
+                if self.bot_type == BotTypes.SUBMIND and self.nick.lower() not in re.split("[, ]", shout.lower()):
                     self.log.info(f"{self.nick} will sit this round out.")
                     self.state = ConversationState.WAIT
                 else:
                     self.log.info(f"{self.nick} will participate in the next round.")
                     self.state = ConversationState.IDLE
 
-                if self.bot_type == "submind":  # Only subminds need to be ready for the next prompt
+                if self.bot_type == BotTypes.SUBMIND:  # Only subminds need to be ready for the next prompt
                     self.send_shout(ConversationControls.NEXT)
-            elif self.state == ConversationState.WAIT and self.bot_type == "submind":
+            elif self.state == ConversationState.WAIT and self.bot_type == BotTypes.SUBMIND:
                 self.log.debug(f"{self.nick} is sitting this round out!")
             elif shout.startswith(ConversationControls.DISC) and self._user_is_proctor(user):  # Discuss Options
                 self.state = ConversationState.DISC
@@ -254,7 +254,7 @@ class ChatBot(KlatApi, ChatBotABC):
                     self.discuss_response(discussion)
             elif shout.startswith(ConversationControls.VOTE) and self._user_is_proctor(user):  # Vote
                 self.state = ConversationState.VOTE
-                if self.bot_type == "submind":  # Facilitators don't participate here
+                if self.bot_type == BotTypes.SUBMIND:  # Facilitators don't participate here
                     start_time = time.time()
                     options: dict = self._clean_options()
                     selected = self.ask_appraiser(options)
@@ -277,7 +277,7 @@ class ChatBot(KlatApi, ChatBotABC):
             elif self._shout_is_prompt(shout) and self.conversation_is_proctored:
                 # self.state = ConversationState.RESP
                 # self.active_prompt = remove_prefix(shout, "!PROMPT:")
-                if self.bot_type == "proctor":
+                if self.bot_type == BotTypes.PROCTOR:
                     self.log.debug(f"Incoming prompt: {shout}")
                     try:
                         self.ask_proctor(remove_prefix(shout, "!PROMPT:"), user, cid, dom)
@@ -334,7 +334,7 @@ class ChatBot(KlatApi, ChatBotABC):
                 for candidate in self.conversation_users:
                     if candidate.lower() in shout.lower().split():
                         candidate_bot = candidate
-                        if self.bot_type == "proctor":
+                        if self.bot_type == BotTypes.PROCTOR:
                             self.log.debug(f"{user} votes for {candidate_bot}")
                         self.on_vote(self.prompt_id, candidate_bot, user)
                         break
@@ -366,7 +366,7 @@ class ChatBot(KlatApi, ChatBotABC):
                 self.on_ready_for_next(user)
             # This came from a different non-neon user and is not related to a proctored conversation
             elif user.lower() not in ("neon", self.nick.lower(), None) and self.enable_responses:
-                if self.bot_type == "submind":
+                if self.bot_type == BotTypes.SUBMIND:
                     self.log.debug(f"{self.nick} handling {shout}")
                     # Submind handle prompt
                     if not self.conversation_is_proctored:
@@ -381,7 +381,7 @@ class ChatBot(KlatApi, ChatBotABC):
                                 self.log.info(f"{self.nick} ignoring input: {shout}")
                         except Exception as x:
                             self.log.error(f"{self.nick} | {x}")
-                elif self.bot_type in ("proctor", "observer"):
+                elif self.bot_type in (BotTypes.PROCTOR, BotTypes.OBSERVER):
                     pass
                 else:
                     self.log.error(f"{self.nick} has unknown bot type: {self.bot_type}")
@@ -417,7 +417,7 @@ class ChatBot(KlatApi, ChatBotABC):
             shout = generate_random_response(self.fallback_responses)
 
         if not shout:
-            if self.bot_type == "submind":
+            if self.bot_type == BotTypes.SUBMIND:
                 self.log.warning(f"Empty response provided! ({self.nick})")
         elif not self.conversation_is_proctored:
             self.send_shout(shout)

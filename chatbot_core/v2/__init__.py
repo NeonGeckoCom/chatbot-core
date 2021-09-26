@@ -16,28 +16,92 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import time
+
+from neon_utils.socket_utils import b64_to_dict, dict_to_b64
+from neon_utils import LOG
+
 from klat_connector.mq_klat_api import KlatAPIMQ
 from chatbot_core.chatbot_abc import ChatBotABC
+from chatbot_core.utils import BotTypes
+
 
 class ChatBot(KlatAPIMQ, ChatBotABC):
     """MQ-based chatbot implementation"""
 
+    def __init__(self, config: dict, service_name: str, vhost: str, bot_type: str = BotTypes.SUBMIND):
+        super().__init__(config, service_name, vhost)
+        self.bot_type = bot_type
+
     def handle_kick_out(self, channel, method, _, body):
         """Handles incoming request to chat bot"""
         body_data = b64_to_dict(body)
-        if body_data.get('receiver', None) == self.nick:
-            self.current_conversations.remove(body_data.get('cid', None))
+        self.current_conversations.remove(body_data.get('cid', None))
 
     def handle_invite(self, channel, method, _, body):
         """Handles incoming request to chat bot"""
         body_data = b64_to_dict(body)
-        if body_data.get('cid', None) and body.get('receiver', None) == self.nick:
+        if body_data.get('cid', None):
             self.current_conversations.add(body_data['cid'])
 
     def _setup_listeners(self):
         super()._setup_listeners()
-        self.register_consumer('invitation', self.vhost, 'invite', self.handle_invite, self.default_error_handler)
-        self.register_consumer('kick out', self.vhost, 'kick_out', self.handle_kick_out, self.default_error_handler)
+        self.register_consumer('invitation',
+                               self.vhost,
+                               f'{self.nick}_invite',
+                               self.handle_invite,
+                               self.default_error_handler)
+        self.register_consumer('kick_out',
+                               self.vhost,
+                               f'{self.nick}_kick_out',
+                               self.handle_kick_out,
+                               self.default_error_handler)
+        self.register_consumer('user_message',
+                               self.vhost,
+                               f'{self.nick}_user_message',
+                               self._on_mentioned_user_message,
+                               self.default_error_handler)
+
+    def _on_mentioned_user_message(self, channel, method, _, body):
+        body_data = b64_to_dict(body)
+        if body_data.get('cid', None) in self.current_conversations:
+            self.handle_incoming_shout(body_data)
+        else:
+            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data}')
+
+    def handle_incoming_shout(self, message_data: dict):
+        shout = message_data.get('shout', None)
+        if shout:
+            response = self.ask_chatbot(user=message_data.get('user', 'anonymous'),
+                                        shout=shout,
+                                        timestamp=str(message_data.get('timestamp', int(time.time()))))
+            if response:
+                self._send_shout('bot_response', {
+                    'nick': self.nick,
+                    'bot_type': self.bot_type,
+                    'service_name': self.service_name,
+                    'cid': message_data.get('cid', None),
+                    'time': str(int(time.time())),
+                    'shout': response
+                })
+            else:
+                LOG.warning(f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
+        else:
+            LOG.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
+
+    def _on_connect(self):
+        self._send_shout('connection', {'nick': self.nick,
+                                        'bot_type': self.bot_type,
+                                        'service_name': self.service_name,
+                                        'time': time.time()})
+        self.is_running = True
+
+    def _on_disconnect(self):
+        self._send_shout('disconnection', {'nick': self.nick,
+                                           'bot_type': self.bot_type,
+                                           'service_name': self.service_name,
+                                           'time': time.time()})
+        self.is_running = False
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
@@ -77,9 +141,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         pass
 
     def _send_first_prompt(self):
-        pass
-
-    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
         pass
 
     def _handle_next_shout(self):

@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 class ConversationControls:
     RESP = " asks us to consider:"
@@ -17,3 +17,9 @@ class ConversationState(IntEnum):
     VOTE = 3  # Voting on responses
     PICK = 4  # Proctor will select response
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
+
+
+class BotTypes:
+    PROCTOR = 'proctor'
+    SUBMIND = 'submind'
+    OBSERVER = 'observer'
