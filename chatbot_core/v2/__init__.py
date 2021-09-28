@@ -18,6 +18,8 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import time
 
+from abc import abstractmethod
+
 from neon_utils.socket_utils import b64_to_dict, dict_to_b64
 from neon_utils import LOG
 
@@ -29,7 +31,7 @@ from chatbot_core.utils import BotTypes
 class ChatBot(KlatAPIMQ, ChatBotABC):
     """MQ-based chatbot implementation"""
 
-    def __init__(self, config: dict, service_name: str, vhost: str, bot_type: str = BotTypes.SUBMIND):
+    def __init__(self, config: dict, service_name: str, vhost: str, bot_type: repr(BotTypes) = BotTypes.SUBMIND):
         super().__init__(config, service_name, vhost)
         self.bot_type = bot_type
 
@@ -63,6 +65,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                self.default_error_handler)
 
     def _on_mentioned_user_message(self, channel, method, _, body):
+        """
+            MQ handler for mentioned user message
+        """
         body_data = b64_to_dict(body)
         if body_data.get('cid', None) in self.current_conversations:
             self.handle_incoming_shout(body_data)
@@ -70,6 +75,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning(f'Skipping processing of mentioned user message with data: {body_data}')
 
     def handle_incoming_shout(self, message_data: dict):
+        """
+            Handles incoming shout for bot. If receives response - emits message into "bot_response" queue
+
+            :param message_data: dict containing message data received
+        """
         shout = message_data.get('shout', None)
         if shout:
             response = self.ask_chatbot(user=message_data.get('user', 'anonymous'),
@@ -80,7 +90,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     'nick': self.nick,
                     'bot_type': self.bot_type,
                     'service_name': self.service_name,
-                    'cid': message_data.get('cid', None),
+                    'cid': message_data.get('cid', ''),
+                    'responded_shout': message_data.get('shout_id', ''),
                     'time': str(int(time.time())),
                     'shout': response
                 })
@@ -103,48 +114,63 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                            'time': time.time()})
         self.is_running = False
 
+    @abstractmethod
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
 
+    @abstractmethod
     def on_discussion(self, user: str, shout: str):
         pass
 
+    @abstractmethod
     def on_proposed_response(self):
         pass
 
+    @abstractmethod
     def on_selection(self, prompt: str, user: str, response: str):
         pass
 
+    @abstractmethod
     def on_ready_for_next(self, user: str):
         pass
 
+    @abstractmethod
     def at_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         pass
 
+    @abstractmethod
     def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
         pass
 
+    @abstractmethod
     def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         pass
 
+    @abstractmethod
     def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
         pass
 
+    @abstractmethod
     def ask_appraiser(self, options: dict) -> str:
         pass
 
+    @abstractmethod
     def ask_discusser(self, options: dict) -> str:
         pass
 
     @staticmethod
+    @abstractmethod
     def _shout_is_prompt(shout):
         pass
 
+    @abstractmethod
     def _send_first_prompt(self):
         pass
 
+    @abstractmethod
     def _handle_next_shout(self):
         pass
 
+    @abstractmethod
     def _pause_responses(self, duration: int = 5):
         pass
