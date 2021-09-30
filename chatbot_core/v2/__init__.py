@@ -34,6 +34,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def __init__(self, config: dict, service_name: str, vhost: str, bot_type: repr(BotTypes) = BotTypes.SUBMIND):
         super().__init__(config, service_name, vhost)
         self.bot_type = bot_type
+        self.current_conversations = dict()
 
     def handle_kick_out(self, channel, method, _, body):
         """Handles incoming request to chat bot"""
