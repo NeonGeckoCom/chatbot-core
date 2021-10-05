@@ -7,5 +7,5 @@ jellyfish~=0.8.2
 nltk~=3.5
 spacy~=2.3.1
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.3.1/en_core_web_sm-2.3.1.tar.gz
-klat-connector~=0.6
+klat-connector~=0.6.2a0
 neon-utils~=0.7
