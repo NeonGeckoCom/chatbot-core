@@ -25,6 +25,7 @@ import pytest
 import time
 
 from klat_connector import start_socket
+from klat_connector.mach_server import MachKlatServer
 
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -33,7 +34,7 @@ from chatbot_core.utils import clean_up_bot
 from tests.chatbot_objects import *
 
 
-SERVER = "2222.us"
+SERVER = "0.0.0.0"
 
 
 @pytest.mark.timeout(timeout=300, method='signal')
@@ -41,12 +42,14 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.sio_server = MachKlatServer()
         cls.bot = ChatBot(start_socket(SERVER), "Private", "testrunner", "testpassword", True)
         cls.test_input = "prompt goes here"
 
     @classmethod
     def tearDownClass(cls) -> None:
         clean_up_bot(cls.bot)
+        cls.sio_server.shutdown_server()
 
     @pytest.mark.timeout(10)
     def test_01_initial_connection_settings(self):
