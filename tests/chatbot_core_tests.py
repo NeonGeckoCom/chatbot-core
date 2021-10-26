@@ -199,7 +199,7 @@ class ChatbotCoreTests(unittest.TestCase):
         from chatbot_core.utils import _start_bot
         from multiprocessing import Process, synchronize
 
-        t, e = _start_bot(ChatBot, "5555.us", 8888, "Private", "testrunner", "testpassword")
+        t, e = _start_bot(ChatBot, SERVER, 8888, "Private", "testrunner", "testpassword")
         self.assertIsInstance(t, Process)
         self.assertIsInstance(e, synchronize.Event)
         # self.assertFalse(e.is_set())
@@ -219,7 +219,7 @@ class ChatbotCoreTests(unittest.TestCase):
         from chatbot_core.utils import _start_bot
         from multiprocessing import Process, synchronize
 
-        t, e = _start_bot(V2Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")
+        t, e = _start_bot(V2Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
         self.assertIsInstance(t, Process)
         self.assertIsInstance(e, synchronize.Event)
         # self.assertFalse(e.is_set())
@@ -239,7 +239,7 @@ class ChatbotCoreTests(unittest.TestCase):
         from chatbot_core.utils import _start_bot
         from multiprocessing import Process, synchronize
 
-        t, e = _start_bot(V3Bot, "5555.us", 8888, "Private", "testrunner", "testpassword")
+        t, e = _start_bot(V3Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
         self.assertIsInstance(t, Process)
         self.assertIsInstance(e, synchronize.Event)
         # self.assertFalse(e.is_set())
