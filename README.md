@@ -112,6 +112,9 @@ respond to incoming prompts. These conversations use a *Proctor* to pose questio
 process among the multiple *subminds*. The following additional methods should be implemented to fully support 
 participating in proctored conversations. It is not explicitly required to implement all methods, but doing so is recommended.
 
+### ask_chatbot
+Override `ask_chatbot` to propose generated response from bot to conversation. `shout` - question from user.
+
 ### ask_discusser
 Override `ask_discusser` to provide some discussion of the proposed responses after all *subminds* have had an opportunity
 to respond. Discussion can be anything, but generally is an endoresement of one of the proposed responses (a bot may 
@@ -124,6 +127,30 @@ which bot/response they vote for, or possibly to affect their discussion of the 
 ### ask_appraiser
 Override `ask_appraiser` to select a bot to vote for (a bot may not vote for themself). Any means may be used to select 
 a bot; `options` provides a dictionary of valid names to vote for and their responses.
+
+### on_login
+Override `on_login` to execute any initialization after logging in or after connection if no username/password.
+
+### on_vote
+Override `on_vote` in any bot to handle counting votes. Proctors use this to select a response.
+
+### on_discussion
+Override `on_discussion` in any bot to handle discussion from other subminds. This may inform voting for the current prompt.
+
+### on_proposed_response
+Override `on_proposed_response` in Proctor to check when to notify bots to vote.
+
+### on_selection
+Override `on_selection` in any bot to handle a proctor selection of a response.
+
+### at_chatbot
+Override `at_chatbot` in subminds to handle an incoming shout that is directed at this bot. Defaults to ask_chatbot.
+
+### ask_proctor
+Override `ask_proctor` in proctor to handle a new prompt to queue.
+
+### ask_history
+Override `ask_history` in scorekeepers to handle an incoming request for the selection history.
 
 ## Python Examples
 ### Standard Bot
