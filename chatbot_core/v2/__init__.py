@@ -70,7 +70,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             MQ handler for mentioned user message
         """
         body_data = b64_to_dict(body)
-        if body_data.get('cid', None) in self.current_conversations:
+        if body_data.get('cid', None) in list(self.current_conversations):
             self.handle_incoming_shout(body_data)
         else:
             LOG.warning(f'Skipping processing of mentioned user message with data: {body_data}')
