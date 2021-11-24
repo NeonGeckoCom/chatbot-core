@@ -66,6 +66,9 @@ class ChatbotCoreTests(unittest.TestCase):
                                          f"{self.test_input} (for 0 seconds).", self.bot._cid, self.bot._dom,
                               datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(self.bot.active_prompt, self.test_input)
+        LOG.info(self.nick)
+        LOG.info(self.bot._user_is_proctor(self.nick))
+        LOG.info()
         self.assertEqual(self.bot.state, ConversationState.RESP)
         self.assertEqual(self.bot.request_history[0][0], "testrunner", f"history={self.bot.request_history}")
         self.assertEqual(self.bot.request_history[0][1], self.test_input)
