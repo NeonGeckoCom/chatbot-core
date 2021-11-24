@@ -66,6 +66,7 @@ class ChatbotCoreTests(unittest.TestCase):
                                          f"{self.test_input} (for 0 seconds).", self.bot._cid, self.bot._dom,
                               datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(self.bot.active_prompt, self.test_input)
+        LOG.info(self.bot._user_is_proctor(self.bot.nick))
         self.assertEqual(self.bot.state, ConversationState.RESP)
         self.assertEqual(self.bot.request_history[0][0], "testrunner", f"history={self.bot.request_history}")
         self.assertEqual(self.bot.request_history[0][1], self.test_input)
@@ -196,7 +197,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_base_bot(self):
-        from chatbot_core.utils import _start_bot
+        from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(ChatBot, SERVER, 8888, "Private", "testrunner", "testpassword")
@@ -216,7 +217,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v2_bot(self):
-        from chatbot_core.utils import _start_bot
+        from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(V2Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
@@ -236,7 +237,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v3_bot(self):
-        from chatbot_core.utils import _start_bot
+        from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
         t, e = _start_bot(V3Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
