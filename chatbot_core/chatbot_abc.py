@@ -29,6 +29,11 @@ class ChatBotABC(ABC):
     """Abstract class gathering all the chatbot-related methods children should implement"""
 
     @abstractmethod
+    def parse_init(self, *args, **kwargs) -> tuple:
+        """Parses dynamic init arguments on the considered instance class initialization"""
+        pass
+
+    @abstractmethod
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         """
         Override in any bot to handle counting votes. Proctors use this to select a response.

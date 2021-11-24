@@ -31,11 +31,21 @@ from chatbot_core.utils import BotTypes
 class ChatBot(KlatAPIMQ, ChatBotABC):
     """MQ-based chatbot implementation"""
 
-    def __init__(self, config: dict, service_name: str, vhost: str, bot_type: repr(BotTypes) = BotTypes.SUBMIND):
+    def __init__(self, *args, **kwargs):
+        config, service_name, vhost, bot_type = self.parse_init(*args, **kwargs)
         super().__init__(config, service_name, vhost)
         self.bot_type = bot_type
         self.current_conversations = dict()
         self.on_server = False
+
+    def parse_init(self, *args, **kwargs) -> tuple:
+        """Parses dynamic params input to ChatBot v2"""
+        config, service_name, vhost, bot_type = (list(args) + [None] * 4)[:4]
+        config: dict = config or kwargs.get('config', {})
+        service_name: str = service_name or kwargs.get('service_name', 'undefined_service')
+        vhost: str = vhost or kwargs.get('vhost', '/')
+        bot_type: repr(BotTypes) = bot_type or kwargs.get('bot_type', BotTypes.SUBMIND)
+        return config, service_name, vhost, bot_type
 
     def handle_kick_out(self, channel, method, _, body):
         """Handles incoming request to chat bot"""

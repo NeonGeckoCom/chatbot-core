@@ -47,8 +47,8 @@ LOG = make_logger("chatbot")
 
 
 class ChatBot(KlatApi, ChatBotABC):
-    def __init__(self, socket: Socket, domain: str = "chatbotsforum.org",
-                 username: str = None, password: str = None, on_server: bool = True, is_prompter: bool = False):
+    def __init__(self, *args, **kwargs):
+        socket, domain, username, password, on_server, is_prompter = self.parse_init(*args, **kwargs)
         socket = socket or start_socket()
         init_nick = "Prompter" if is_prompter else ""
         super(ChatBot, self).__init__(socket, domain, init_nick)
@@ -106,6 +106,17 @@ class ChatBot(KlatApi, ChatBotABC):
 
         self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
+
+    def parse_init(self, *args, **kwargs) -> tuple:
+        """Parses dynamic params input to ChatBot v1"""
+        socket, domain, username, password, on_server, is_prompter = (list(args) + [None] * 6)[:6]
+        socket: Socket = socket or kwargs.get('socket', None)
+        domain: str = domain or kwargs.get('domain', "chatbotsforum.org")
+        username: str = username or kwargs.get('username', None)
+        password: str = password or kwargs.get('password', None)
+        on_server: bool = on_server or kwargs.get('on_server', True)
+        is_prompter: bool = is_prompter or kwargs.get('is_prompter', False)
+        return socket, domain, username, password, on_server, is_prompter
 
     def handle_login_return(self, status):
         # self.log.debug(f"login returned: {status}")
