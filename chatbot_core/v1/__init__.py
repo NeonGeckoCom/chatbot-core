@@ -32,7 +32,8 @@ from threading import Thread, Event
 
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
-from chatbot_core.utils import init_message_bus, make_logger, ConversationState, remove_prefix, generate_random_response, BotTypes
+from chatbot_core.utils import init_message_bus, make_logger, ConversationState,ConversationControls,\
+    remove_prefix, generate_random_response, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
 from mycroft_bus_client import Message, MessageBusClient
 from autocorrect import Speller
