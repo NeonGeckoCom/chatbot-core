@@ -26,7 +26,8 @@ import chatbot_core
 
 from chatbot_core.v1 import ChatBot as ChatBot_v1
 from chatbot_core.v2 import ChatBot as ChatBot_v2
-from chatbot_core.utils import generate_random_response, grammar_check
+from chatbot_core.utils import generate_random_response, clean_up_bot,\
+    grammar_check, ConversationControls, ConversationState
 
 version = os.environ.get('CHATBOT_VERSION', 'v1').lower()
 

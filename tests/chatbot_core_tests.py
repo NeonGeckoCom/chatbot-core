@@ -29,8 +29,8 @@ from klat_connector.mach_server import MachKlatServer
 
 # Required for pytest on GitHub
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core.utils import clean_up_bot, ConversationControls, ConversationState
-from tests.chatbot_objects import *
+from chatbot_core import clean_up_bot, ConversationControls, ConversationState
+from tests.chatbot_objects import V3Bot, V2Bot
 
 
 SERVER = "0.0.0.0"
