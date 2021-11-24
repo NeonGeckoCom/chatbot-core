@@ -557,7 +557,7 @@ class ChatBot(KlatApi, ChatBotABC):
         :param nick: nick to check
         :return: true if nick belongs to a proctor
         """
-        return nick.lower() == "proctor"
+        return "proctor" in nick.lower()
 
     @staticmethod
     def _user_is_prompter(nick):
