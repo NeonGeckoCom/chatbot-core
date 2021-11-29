@@ -19,6 +19,7 @@
 
 import random
 
+from typing import List, Dict
 from abc import ABC, abstractmethod
 from chatbot_core.utils import *
 
@@ -237,3 +238,66 @@ class ChatBotABC(ABC):
             :param duration: seconds to pause
         """
         pass
+
+    @property
+    def base_nick(self):
+        """Gets base nick of current instance"""
+        if self.nick:
+            return self.nick.split('-')[0]
+
+    def init_small_talk(self) -> Dict[int, list]:
+        """Inits current bots smalltalk options by fetching configuration files"""
+        small_talk_dict = {}
+
+        bot_smalltalk_path = os.environ.get(f'{self.base_nick.upper()}_SMALLTALK_PATH',
+                                            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'smalltalk.json'))
+        bot_smalltalk_path = os.path.expanduser(bot_smalltalk_path)
+        if not os.path.isfile(bot_smalltalk_path):
+            LOG.warning('Failed to fetch bot-specific smalltalk file, seeking generic file inside working directory')
+            bot_smalltalk_path = 'smalltalk.json'
+
+        if os.path.isfile(bot_smalltalk_path):
+            try:
+                with open(bot_smalltalk_path) as f:
+                    small_talk_dict = json.loads(f)
+                    small_talk_dict = {int(k): v for k, v in small_talk_dict.items()}
+                    LOG.debug(f'Initialized small talk dict for bot {self.nick} from path: {bot_smalltalk_path}')
+            except Exception as ex:
+                LOG.error(f'Failed to get small talk dict from {bot_smalltalk_path}: {ex}')
+        return small_talk_dict
+
+    def init_greetings(self) -> List[str]:
+        """Inits current bots smalltalk options by fetching configuration files"""
+        greetings = []
+
+        greetings_path = os.environ.get(f'{self.base_nick.upper()}_GREETINGS_PATH',
+                                            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'greetings.json'))
+        greetings_path = os.path.expanduser(greetings_path)
+        if not os.path.isfile(greetings_path):
+            LOG.warning('Failed to fetch bot-specific smalltalk file, seeking generic file inside working directory')
+            greetings_path = 'smalltalk.json'
+
+        if os.path.isfile(greetings_path):
+            try:
+                with open(greetings_path) as f:
+                    greetings = json.loads(f)
+                    LOG.debug(f'Initialized greetings for bot {self.nick} from path: {greetings_path}')
+            except Exception as ex:
+                LOG.error(f'Failed to get greetings from {greetings_path}: {ex}')
+        return greetings
+
+    def greet(self):
+        """Method that gets invoked once bots needs to send greeting"""
+        if not hasattr(self, 'greetings'):
+            self.greetings = self.init_greetings()
+        if not self.greetings:
+            self.greetings = ["Hi there!", "How are you?"]
+        return random.choice(self.greetings)
+
+    def small_talk(self):
+        """Method that gets invoked once bots needs to conduct small talk"""
+        if not hasattr(self, 'small_talk_dict'):
+            self.small_talk_dict = self.init_greetings()
+        if not self.small_talk_dict:
+            self.small_talk_dict = {1: ['Have no idea what to say...']}
+        return random.choice(random.choice(self.small_talk_dict))
