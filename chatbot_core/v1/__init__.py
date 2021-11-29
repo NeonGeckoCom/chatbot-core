@@ -106,8 +106,8 @@ class ChatBot(KlatApi, ChatBotABC):
 
         self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
-        self.init_greetings()
-        self.init_small_talk()
+        self.greetings = self.init_greetings()
+        self.small_talk_dict = self.init_small_talk()
 
     def parse_init(self, *args, **kwargs) -> tuple:
         """Parses dynamic params input to ChatBot v1"""
