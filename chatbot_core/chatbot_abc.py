@@ -274,8 +274,8 @@ class ChatBotABC(ABC):
                                             os.path.join(os.path.dirname(os.path.abspath(__file__)), 'greetings.json'))
         greetings_path = os.path.expanduser(greetings_path)
         if not os.path.isfile(greetings_path):
-            LOG.warning('Failed to fetch bot-specific smalltalk file, seeking generic file inside working directory')
-            greetings_path = 'smalltalk.json'
+            LOG.warning('Failed to fetch bot-specific greetings file, seeking generic file inside working directory')
+            greetings_path = 'greetings.json'
 
         if os.path.isfile(greetings_path):
             try:
