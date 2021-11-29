@@ -37,8 +37,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.bot_type = bot_type
         self.current_conversations = dict()
         self.on_server = False
-        self.init_greetings()
-        self.init_small_talk()
+        self.greetings = self.init_greetings()
+        self.small_talk_dict = self.init_small_talk()
 
     def parse_init(self, *args, **kwargs) -> tuple:
         """Parses dynamic params input to ChatBot v2"""
