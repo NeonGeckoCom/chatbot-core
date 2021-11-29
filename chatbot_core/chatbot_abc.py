@@ -267,7 +267,7 @@ class ChatBotABC(ABC):
         return small_talk_dict
 
     def init_greetings(self) -> List[str]:
-        """Inits current bots smalltalk options by fetching configuration files"""
+        """Inits current bots greetings options by fetching configuration files"""
         greetings = []
 
         greetings_path = os.environ.get(f'{self.base_nick.upper()}_GREETINGS_PATH',
