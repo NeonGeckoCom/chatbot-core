@@ -248,13 +248,15 @@ class ChatBotABC(ABC):
     def init_small_talk(self) -> Dict[int, list]:
         """Inits current bots smalltalk options by fetching configuration files"""
         small_talk_dict = {}
+        small_talk_file = f'{self.base_nick}_small_talk.json'
+        small_talk_env = f'{self.base_nick}_small_talk_path'
 
-        bot_smalltalk_path = os.environ.get(f'{self.base_nick.upper()}_SMALLTALK_PATH',
-                                            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'smalltalk.json'))
+        bot_smalltalk_path = os.environ.get(small_talk_env.upper(),
+                                            os.path.join(os.path.dirname(os.path.abspath(__file__)), small_talk_file))
         bot_smalltalk_path = os.path.expanduser(bot_smalltalk_path)
         if not os.path.isfile(bot_smalltalk_path):
             LOG.warning('Failed to fetch bot-specific smalltalk file, seeking generic file inside working directory')
-            bot_smalltalk_path = 'smalltalk.json'
+            bot_smalltalk_path = small_talk_file
 
         if os.path.isfile(bot_smalltalk_path):
             try:
@@ -269,13 +271,15 @@ class ChatBotABC(ABC):
     def init_greetings(self) -> List[str]:
         """Inits current bots greetings options by fetching configuration files"""
         greetings = []
+        greeting_file = f'{self.base_nick}_greetings.json'
+        greeting_path_env = f'{self.base_nick}_greetings_path'
 
-        greetings_path = os.environ.get(f'{self.base_nick.upper()}_GREETINGS_PATH',
-                                            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'greetings.json'))
+        greetings_path = os.environ.get(greeting_path_env.upper(),
+                                        os.path.join(os.path.dirname(os.path.abspath(__file__)), greeting_file))
         greetings_path = os.path.expanduser(greetings_path)
         if not os.path.isfile(greetings_path):
             LOG.warning('Failed to fetch bot-specific greetings file, seeking generic file inside working directory')
-            greetings_path = 'greetings.json'
+            greetings_path = greeting_file
 
         if os.path.isfile(greetings_path):
             try:
