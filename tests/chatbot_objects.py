@@ -407,3 +407,33 @@ class V3Bot(ChatBot):
                     # self.discuss_response(f"{user}'s idea is awful, do not consider it!")
                     if random.randint(1, 100) < 40:     # 40% chance to give up and remain silent till vote
                         self.has_given_up = True
+
+class V4Bot(ChatBot):
+    """The simplest implementation for testing utility"""
+
+    def __init__(self, socket, domain, user, password, on_server=True):
+        super(V4Bot, self).__init__(socket, domain, user, password, on_server)
+
+    @property
+    def nick(self):
+        return 'v4_bot-1234'
+
+    # @grammar_check
+    def ask_chatbot(self, user: str, shout: str, timestamp: str):
+        """
+        Handles an incoming shout into the current conversation
+        :param user: user associated with shout
+        :param shout: text shouted by user
+        :param timestamp: formatted timestamp of shout
+        """
+        return 'Have no idea about the subject, but I learn fast!'
+
+    def ask_appraiser(self, options: dict):
+        """
+        Selects one of the responses to a prompt and casts a vote in the conversation
+        GRUFF selects botname associated with response least similar to responses from bots in the grudge_against list,
+        or least similar to all the responses if grudges against no one or everyone else. This evaluation is done in
+        self.ask_discusser (if there is the discussion step) because discussion has almost the same logic.
+        :param options: proposed responses (botname: response)
+        """
+        return 'abstain'

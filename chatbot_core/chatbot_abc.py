@@ -16,7 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+import json
 import random
 
 from typing import List, Dict
@@ -242,58 +242,16 @@ class ChatBotABC(ABC):
     @property
     def base_nick(self):
         """Gets base nick of current instance"""
-        if self.nick:
+        if not hasattr(self, 'nick'):
+            return
+        else:
             return self.nick.split('-')[0]
-
-    def init_small_talk(self) -> Dict[int, list]:
-        """Inits current bots smalltalk options by fetching configuration files"""
-        small_talk_dict = {}
-        small_talk_file = f'{self.base_nick}_small_talk.json'
-        small_talk_env = f'{self.base_nick}_small_talk_path'
-
-        bot_smalltalk_path = os.environ.get(small_talk_env.upper(),
-                                            os.path.join(os.path.dirname(os.path.abspath(__file__)), small_talk_file))
-        bot_smalltalk_path = os.path.expanduser(bot_smalltalk_path)
-        if not os.path.isfile(bot_smalltalk_path):
-            LOG.warning('Failed to fetch bot-specific smalltalk file, seeking generic file inside working directory')
-            bot_smalltalk_path = small_talk_file
-
-        if os.path.isfile(bot_smalltalk_path):
-            try:
-                with open(bot_smalltalk_path) as f:
-                    small_talk_dict = json.loads(f)
-                    small_talk_dict = {int(k): v for k, v in small_talk_dict.items()}
-                    LOG.debug(f'Initialized small talk dict for bot {self.nick} from path: {bot_smalltalk_path}')
-            except Exception as ex:
-                LOG.error(f'Failed to get small talk dict from {bot_smalltalk_path}: {ex}')
-        return small_talk_dict
-
-    def init_greetings(self) -> List[str]:
-        """Inits current bots greetings options by fetching configuration files"""
-        greetings = []
-        greeting_file = f'{self.base_nick}_greetings.json'
-        greeting_path_env = f'{self.base_nick}_greetings_path'
-
-        greetings_path = os.environ.get(greeting_path_env.upper(),
-                                        os.path.join(os.path.dirname(os.path.abspath(__file__)), greeting_file))
-        greetings_path = os.path.expanduser(greetings_path)
-        if not os.path.isfile(greetings_path):
-            LOG.warning('Failed to fetch bot-specific greetings file, seeking generic file inside working directory')
-            greetings_path = greeting_file
-
-        if os.path.isfile(greetings_path):
-            try:
-                with open(greetings_path) as f:
-                    greetings = json.loads(f)
-                    LOG.debug(f'Initialized greetings for bot {self.nick} from path: {greetings_path}')
-            except Exception as ex:
-                LOG.error(f'Failed to get greetings from {greetings_path}: {ex}')
-        return greetings
 
     def greet(self):
         """Method that gets invoked once bots needs to send greeting"""
         if not hasattr(self, 'greetings'):
-            self.greetings = self.init_greetings()
+            self.greetings = self.resolve_bot_resource(file_name='greetings.json',
+                                                       seek_generic=True)
         if not self.greetings:
             self.greetings = ["Hi there!", "How are you?"]
         return random.choice(self.greetings)
@@ -301,7 +259,41 @@ class ChatBotABC(ABC):
     def small_talk(self):
         """Method that gets invoked once bots needs to conduct small talk"""
         if not hasattr(self, 'small_talk_dict'):
-            self.small_talk_dict = self.init_greetings()
+            self.small_talk_dict = self.resolve_bot_resource(file_name='small_talk.json',
+                                                             seek_generic=True)
         if not self.small_talk_dict:
             self.small_talk_dict = {1: ['Have no idea what to say...']}
-        return random.choice(random.choice(self.small_talk_dict))
+        return random.choice(self.small_talk_dict[random.choice(list(self.small_talk_dict))])
+
+    def resolve_bot_resource(self, file_name: str, seek_generic: bool = True):
+        """
+            Resolves bot resource from name of the file
+
+            :param file_name: name of the file to consider
+            :param seek_generic: to check for generic file matching name (defaults to True)
+        """
+        result = None
+        is_generic = False
+        file_name_splitted = file_name.split('/')
+        file_name_splitted[-1] = f'{self.base_nick}_{file_name_splitted[-1]}'
+        nicked_file_name = '/'.join(file_name_splitted)
+        file_location_env = f'{file_name_splitted[-1].split(".")[0]}_path'.upper()
+        nicked_file_path = os.path.join(os.environ.get(file_location_env, os.path.dirname(os.path.abspath(__file__))),
+                                        nicked_file_name)
+        nicked_file_path = os.path.expanduser(nicked_file_path)
+        if not os.path.isfile(nicked_file_path) and seek_generic:
+            LOG.warning('Failed to fetch nick-specific file, seeking inside working directory')
+            nicked_file_path = file_name
+            is_generic = True
+        if os.path.isfile(nicked_file_path):
+            try:
+                with open(nicked_file_path) as f:
+                    # TODO: different implementations for different extensions
+                    if file_name.split('.')[-1] == 'json':
+                        result = json.load(f)
+                        if is_generic:
+                            result = result.get(self.base_nick, None)
+                        LOG.debug(f'Initialized resource data from file {file_name} for bot {self.nick}')
+            except Exception as ex:
+                LOG.error(f'Failed to get data from file_name={file_name} nick={self.nick}: {ex}')
+        return result

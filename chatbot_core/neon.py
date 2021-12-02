@@ -120,9 +120,9 @@ class NeonBot(ChatBot):
                 self.script_started = True
                 self.enable_responses = True
             elif input_to_neon and self.enable_responses:
-                # self.log.debug(f'sending shout: {message.data.get("utterance")}')
+                # self.log.debug(f'sending shout: {message.mocks.get("utterance")}')
                 # if self.on_server:
-                #     self.propose_response(message.data.get("utterance"))
+                #     self.propose_response(message.mocks.get("utterance"))
                 # else:
                 self.response = message.data.get("utterance")
 
