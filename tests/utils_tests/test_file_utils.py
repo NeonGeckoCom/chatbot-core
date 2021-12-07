@@ -4,7 +4,7 @@ import unittest
 import pytest
 from klat_connector import start_socket
 
-from tests.chatbot_objects import TestBot
+from tests.chatbot_objects import MockBot
 
 SERVER = os.environ.get('server', "2222.us")
 
@@ -16,7 +16,7 @@ class FileUtilsTests(unittest.TestCase):
     def setUpClass(cls):
         os.environ["V4_BOT_GREETINGS_PATH"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mocks')
         os.environ["V4_BOT_SMALL_TALK_PATH"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mocks')
-        cls.bot = TestBot(start_socket(SERVER, 8888), "Private", None, None, True)
+        cls.bot = MockBot(start_socket(SERVER, 8888), "Private", None, None, True)
 
     def test_get_base_nick(self):
         self.assertEqual(self.bot.base_nick, 'test_bot')
