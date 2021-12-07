@@ -90,15 +90,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if body_data.get('cid', None) in list(self.current_conversations):
             self.handle_incoming_shout(body_data)
         else:
-            LOG.warning(f'Skipping processing of mentioned user message with mocks: {body_data}')
+            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data}')
 
     def handle_incoming_shout(self, message_data: dict):
         """
             Handles incoming shout for bot. If receives response - emits message into "bot_response" queue
 
-            :param message_data: dict containing message mocks received
+            :param message_data: dict containing message data received
         """
-        LOG.info(f'Message mocks: {message_data}')
+        LOG.info(f'Message data: {message_data}')
         shout = message_data.get('shout', None) or message_data.get('messageText', None)
         if shout:
             LOG.info(f'Received incoming shout: {shout}')
@@ -118,9 +118,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     'shout': response
                 })
             else:
-                LOG.warning(f'{self.nick}: No response was sent as no mocks was received from message mocks: {message_data}')
+                LOG.warning(f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
         else:
-            LOG.warning(f'{self.nick}: Missing "shout" in received message mocks: {message_data}')
+            LOG.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
     def _on_connect(self):
         self._send_shout('connection', {'nick': self.nick,
@@ -142,7 +142,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param vhost: mq virtual host (defaults to self.vhost)
             :param exchange: mq exchange (defaults to base one)
             :param queue: message queue prefix (defaults to self.service_name)
-            :param request_data: mocks to publish in sync
+            :param request_data: data to publish in sync
         """
         curr_time = int(time.time())
         LOG.info(f'{curr_time} Emitting sync message from {self.nick}')
