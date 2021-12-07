@@ -265,12 +265,14 @@ class ChatBotABC(ABC):
             self.small_talk_dict = {1: ['Have no idea what to say...']}
         return random.choice(self.small_talk_dict[random.choice(list(self.small_talk_dict))])
 
-    def resolve_bot_resource(self, file_name: str, seek_generic: bool = True):
+    def resolve_bot_resource(self, file_name: str, seek_generic: bool = True) -> dict:
         """
             Resolves bot resource from name of the file
 
             :param file_name: name of the file to consider
             :param seek_generic: to check for generic file matching name (defaults to True)
+
+            :return: dictionary containing the data extracted from provided file source
         """
         result = None
         is_generic = False

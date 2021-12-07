@@ -408,15 +408,15 @@ class V3Bot(ChatBot):
                     if random.randint(1, 100) < 40:     # 40% chance to give up and remain silent till vote
                         self.has_given_up = True
 
-class V4Bot(ChatBot):
+class TestBot(ChatBot):
     """The simplest implementation for testing utility"""
 
     def __init__(self, socket, domain, user, password, on_server=True):
-        super(V4Bot, self).__init__(socket, domain, user, password, on_server)
+        super(TestBot, self).__init__(socket, domain, user, password, on_server)
 
     @property
     def nick(self):
-        return 'v4_bot-1234'
+        return 'test_bot-1234'
 
     # @grammar_check
     def ask_chatbot(self, user: str, shout: str, timestamp: str):

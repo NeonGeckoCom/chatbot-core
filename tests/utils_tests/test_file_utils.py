@@ -4,7 +4,7 @@ import unittest
 import pytest
 from klat_connector import start_socket
 
-from tests.chatbot_objects import V4Bot
+from tests.chatbot_objects import TestBot
 
 
 @pytest.mark.timeout(timeout=300, method='signal')
@@ -14,10 +14,10 @@ class FileUtilsTests(unittest.TestCase):
     def setUpClass(cls):
         os.environ["V4_BOT_GREETINGS_PATH"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mocks')
         os.environ["V4_BOT_SMALL_TALK_PATH"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mocks')
-        cls.bot = V4Bot(start_socket("0000.us", 8888), f"chatbotsforum.org", None, None, True)
+        cls.bot = TestBot(start_socket("0000.us", 8888), f"chatbotsforum.org", None, None, True)
 
     def test_get_base_nick(self):
-        self.assertEqual(self.bot.base_nick, 'v4_bot')
+        self.assertEqual(self.bot.base_nick, 'test_bot')
 
     def test_resolve_resource(self):
         extracted_data = self.bot.resolve_bot_resource(file_name='greetings.json')

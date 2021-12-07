@@ -17,12 +17,14 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
+import time
+from typing import Optional
 
-from mycroft_bus_client import Message
+from mycroft_bus_client import Message, MessageBusClient
 
 from neon_utils import LOG
 
-from chatbot_core.utils import BotTypes
+from chatbot_core.utils import BotTypes, init_message_bus
 from chatbot_core import ChatBot
 
 if os.environ.get('CHATBOT_VERSION', 'v1') == 'v2':
@@ -120,9 +122,9 @@ class NeonBot(ChatBot):
                 self.script_started = True
                 self.enable_responses = True
             elif input_to_neon and self.enable_responses:
-                # self.log.debug(f'sending shout: {message.mocks.get("utterance")}')
+                # self.log.debug(f'sending shout: {message.data.get("utterance")}')
                 # if self.on_server:
-                #     self.propose_response(message.mocks.get("utterance"))
+                #     self.propose_response(message.data.get("utterance"))
                 # else:
                 self.response = message.data.get("utterance")
 

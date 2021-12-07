@@ -32,6 +32,6 @@ from chatbot_core.utils import generate_random_response, clean_up_bot,\
 version = os.environ.get('CHATBOT_VERSION', 'v1').lower()
 
 if version == 'v2':
-    chatbot_core.ChatBot = ChatBot_v2
+    ChatBot = ChatBot_v2
 else:
-    chatbot_core.ChatBot = ChatBot_v1
+    ChatBot = ChatBot_v1
