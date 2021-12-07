@@ -26,22 +26,22 @@ jobs:
           pip install .
         env:
           GITHUB_TOKEN: ${{secrets.neon_token}}
-      - name: Test with pytest
-        run: |
-          pip install pytest pytest-timeout pytest-cov
-          pytest tests/chatbot_core_tests.py --doctest-modules --junitxml=tests/test-results.xml
-      - name: Upload pytest test results
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-results
-          path: tests/test-results.xml
-      - name: Test with pytest
+      - name: Test Chatbot-Core Utils
         run: |
           pytest tests/utils_tests/test_file_utils.py --doctest-modules --junitxml=tests/test-utils-results.xml
         env:
           server: ${{secrets.test_server_url}}
-      - name: Upload pytest test results
+      - name: Upload Chatbot-Core Utils Test Results
         uses: actions/upload-artifact@v2
         with:
           name: test-utils-results
           path: tests/test-utils-results.xml
+      - name: Test Chatbot-Core
+        run: |
+          pip install pytest pytest-timeout pytest-cov
+          pytest tests/chatbot_core_tests.py --doctest-modules --junitxml=tests/test-results.xml
+      - name: Upload Chatbot-Core Test Results
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: tests/test-results.xml
