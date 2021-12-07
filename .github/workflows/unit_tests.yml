@@ -35,3 +35,13 @@ jobs:
         with:
           name: test-results
           path: tests/test-results.xml
+      - name: Test with pytest
+        run: |
+          pytest tests/utils_tests/test_file_utils.py --doctest-modules --junitxml=tests/test-utils-results.xml
+        env:
+          server: ${{secrets.test_server_url}}
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-utils-results
+          path: tests/test-utils-results.xml
