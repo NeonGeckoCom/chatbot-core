@@ -174,7 +174,7 @@ class ChatBotABC(ABC):
         pass
 
     @abstractmethod
-    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
+    def handle_shout(self, *args, **kwargs):
         """
             Handles an incoming shout into the current conversation
             :param user: user associated with shout
@@ -182,27 +182,10 @@ class ChatBotABC(ABC):
             :param cid: cid shout belongs to
             :param dom: domain conversation belongs to
             :param timestamp: formatted timestamp of shout
+
+            TODO: implement it generically
         """
         pass
-
-    def vote_response(self, response_user: str):
-        """
-        Called when a bot appraiser has selected a response
-        :param response_user: bot username associated with chosen response
-        """
-        if self.state != ConversationState.VOTE:
-            self.log.warning(f"Late Vote! {response_user}")
-            return None
-        elif not response_user:
-            self.log.error("Null response user returned!")
-            return None
-        elif response_user == "abstain" or response_user == self.nick:
-            # self.log.debug(f"Abstaining voter! ({self.nick})")
-            self.send_shout("I abstain from voting.")
-            return "abstain"
-        else:
-            self.send_shout(f"I vote for {response_user}")
-            return response_user
 
     @staticmethod
     def _user_is_proctor(nick):
@@ -221,6 +204,15 @@ class ChatBotABC(ABC):
         :return: true if nick belongs to a proctor
         """
         return "prompter" in nick.lower()
+
+    @abstractmethod
+    def vote_response(self, response_user: str, cid: str = None):
+        """
+            Called when a bot appraiser has selected a response
+            :param response_user: bot username associated with chosen response
+            :param cid: dedicated conversation id (optional)
+        """
+        pass
 
     @abstractmethod
     def _handle_next_shout(self):

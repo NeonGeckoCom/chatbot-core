@@ -18,12 +18,16 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import time
 
-from abc import abstractmethod
+from queue import Queue
+from threading import Thread
+from typing import Tuple
 
-from neon_utils.socket_utils import b64_to_dict, dict_to_b64
+from neon_utils.socket_utils import b64_to_dict
 from neon_utils import LOG
 
 from klat_connector.mq_klat_api import KlatAPIMQ
+
+from chatbot_core import ConversationState
 from chatbot_core.chatbot_abc import ChatBotABC
 from chatbot_core.utils import BotTypes
 
@@ -37,6 +41,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.bot_type = bot_type
         self.current_conversations = dict()
         self.on_server = False
+        self.shout_queue = Queue(maxsize=256)
+        self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
+        self.shout_thread.start()
 
     def parse_init(self, *args, **kwargs) -> tuple:
         """Parses dynamic params input to ChatBot v2"""
@@ -62,10 +69,19 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         LOG.info(f'Received invitation to cid: {new_cid}')
         if new_cid and not self.current_conversations.get(new_cid, None):
             self.current_conversations[new_cid] = body_data
+            self.set_conversation_state(new_cid, ConversationState.IDLE)
+            # TODO: emit greeting here (Kirill)
+
+    def get_conversation_state(self, cid) -> ConversationState:
+        return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
+
+    def set_conversation_state(self, cid, state):
+        self.current_conversations.setdefault(cid, {})['state'] = state
 
     def _setup_listeners(self):
         super()._setup_listeners()
-        LOG.info(f'Registering handlers: {[self.nick+"_invite", self.nick+"_kick_out", self.nick+"_user_message"]}')
+        LOG.info(
+            f'Registering handlers: {[self.nick + "_invite", self.nick + "_kick_out", self.nick + "_user_message"]}')
         self.register_consumer('invitation',
                                self.vhost,
                                f'{self.nick}_invite',
@@ -90,35 +106,126 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if body_data.get('cid', None) in list(self.current_conversations):
             self.handle_incoming_shout(body_data)
         else:
-            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data}')
+            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data} '
+                        f'as it is not in current conversations')
 
     def handle_incoming_shout(self, message_data: dict):
         """
-            Handles incoming shout for bot. If receives response - emits message into "bot_response" queue
+            Handles an incoming shout into the current conversation
+            :param message_data: data of incoming message
+        """
+        self.shout_queue.put(message_data)
+
+    def handle_shout_submind(self, cid, message_data, shout, message_sender, is_message_from_proctor,
+                             conversation_state) -> Tuple[str, str]:
+        """
+            Base shout handler for submind, can be updated for reflect some specific implementation for chat bot
+            :param cid: current conversation id
+            :param message_data: message data received
+            :param shout: incoming shout data
+            :param message_sender: nick of message sender
+            :param is_message_from_proctor: is message sender a Proctor
+            :param conversation_state: state of the conversation from ConversationStates
+
+            :returns response and response queue to which publish response
+        """
+        response = None
+        LOG.info(f'Received incoming shout: {shout}')
+        response_queue = None
+        if not is_message_from_proctor:
+            response = self.ask_chatbot(user=message_sender,
+                                        shout=shout,
+                                        timestamp=str(message_data.get('timeCreated', int(time.time()))))
+        else:
+            response_queue = 'submind_response'
+            self.set_conversation_state(cid, conversation_state)
+            if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
+                response = self.ask_chatbot(user=message_sender,
+                                            shout=shout,
+                                            timestamp=str(message_data.get('timeCreated', int(time.time()))))
+            elif conversation_state == ConversationState.DISC:
+                start_time = time.time()
+                options: dict = message_data.get('proposed_responses', {})
+                discussion = self.ask_discusser(options)
+                if response:
+                    self._hesitate_before_response(start_time=start_time)
+                    self.discuss_response(discussion)
+            elif conversation_state == ConversationState.VOTE:
+                start_time = time.time()
+                selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
+                self._hesitate_before_response(start_time)
+                if not selected or selected == self.nick:
+                    selected = "abstain"
+                response = self.vote_response(selected)
+            elif conversation_state == ConversationState.WAIT:
+                response = 'I am ready for the next prompt'
+        return response, response_queue
+
+    def handle_shout_proctor(self, cid, message_data, shout, message_sender, is_message_from_proctor,
+                             conversation_state) -> str:
+        """
+            Base shout handler for Proctor, can be updated for reflect some specific implementation for chat bot
+            :param cid: current conversation id
+            :param message_data: message data received
+            :param shout: incoming shout data
+            :param message_sender: nick of message sender
+            :param is_message_from_proctor: is message sender a Proctor
+            :param conversation_state: state of the conversation from ConversationStates
+
+            :returns response message
+        """
+        # TODO: this should be implemented in Proctor class
+        return 'Not Implemented'
+
+    def handle_shout_observer(self, cid, message_data, shout, message_sender, is_message_from_proctor,
+                              conversation_state):
+        """
+            Base shout handler for observers, can be updated for reflect some specific implementation for chat bot
+            :param cid: current conversation id
+            :param message_data: message data received
+            :param shout: incoming shout data
+            :param message_sender: nick of message sender
+            :param is_message_from_proctor: is message sender a Proctor
+            :param conversation_state: state of the conversation from ConversationStates
+
+            :returns response and response queue to which publish response
+        """
+        # TODO: this should be implemented in Observer class
+        return 'Not Implemented'
+
+    def handle_shout(self, message_data: dict):
+        """
+            Handles shout for bot. If receives response - emits message into "bot_response" queue
 
             :param message_data: dict containing message data received
         """
         LOG.info(f'Message data: {message_data}')
-        shout = message_data.get('shout', None) or message_data.get('messageText', None)
+        shout = message_data.get('shout') or message_data.get('messageText', '')
+        cid = message_data.get('cid', '')
+        conversation_state = ConversationState(message_data.get('conversation_state', 0)).name
+        message_sender = message_data.get('user', 'anonymous')
+        is_message_from_proctor = self._user_is_proctor(message_sender)
+        default_queue_name = 'bot_response'
         if shout:
-            LOG.info(f'Received incoming shout: {shout}')
-            response = self.ask_chatbot(user=message_data.get('user', 'anonymous'),
-                                        shout=shout,
-                                        timestamp=str(message_data.get('timeCreated', int(time.time()))))
+            bot_types_to_method = {
+                BotTypes.SUBMIND: self.handle_shout_submind,
+                BotTypes.PROCTOR: self.handle_shout_proctor,
+                BotTypes.OBSERVER: self.handle_shout_observer
+            }
+            response, queue_name = bot_types_to_method.get(self.bot_type, self.handle_shout_submind)(cid=cid, message_data=message_data,
+                                                                                                     shout=shout, message_sender=message_sender,
+                                                                                                     is_message_from_proctor=is_message_from_proctor,
+                                                                                                     conversation_state=conversation_state)
             if response:
                 LOG.info(f'Sending response: {response}')
-
-                self._send_shout('bot_response', {
-                    'nick': self.nick,
-                    'bot_type': self.bot_type,
-                    'service_name': self.service_name,
-                    'cid': message_data.get('cid', ''),
-                    'responded_shout': message_data.get('messageID', ''),
-                    'time': str(int(time.time())),
-                    'shout': response
-                })
+                self.send_shout(response,
+                                responded_message=message_data.get('messageID', ''),
+                                cid=cid,
+                                dom=message_data.get('dom', ''),
+                                queue_name=queue_name or default_queue_name)
             else:
-                LOG.warning(f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
+                LOG.warning(
+                    f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
         else:
             LOG.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
@@ -148,8 +255,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         LOG.info(f'{curr_time} Emitting sync message from {self.nick}')
         self._on_connect()
 
-    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
-        pass
+    def discuss_response(self, shout: str, cid: str = None):
+        """
+        Called when a bot has some discussion to share
+        :param shout: Response to post to conversation
+        :param cid: mentioned conversation id
+        """
+        if self.current_conversations.get(cid, {}).get('state') != ConversationState.DISC:
+            LOG.warning(f"Late Discussion! {shout}")
+        elif not shout:
+            LOG.warning(f"Empty discussion provided! ({self.nick})")
+        else:
+            self.send_shout(shout)
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
@@ -184,15 +301,65 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def ask_discusser(self, options: dict) -> str:
         pass
 
-    @staticmethod
-    def _shout_is_prompt(shout):
-        pass
-
     def _send_first_prompt(self):
         pass
 
+    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None, queue_name='bot_response'):
+        """
+            Convenience method to emit shout via MQ with extensive instance properties
+
+            :param shout: response message to emit
+            :param responded_message: responded message if any
+            :param cid: id of desired conversation
+            :param dom: domain name
+            :param queue_name: name of the response mq queue
+        """
+        if not cid:
+            LOG.warning('No cid was mentioned')
+            return
+        discussion_state = self.current_conversations.get(cid, {}).get('state')
+        self._send_shout(queue_name, {
+            'nick': self.nick,
+            'bot_type': self.bot_type,
+            'service_name': self.service_name,
+            'cid': cid,
+            'dom': dom,
+            'discussion_state': discussion_state,
+            'responded_shout': responded_message,
+            'shout': shout,
+            'time': str(int(time.time()))})
+
+    def vote_response(self, response_user: str, cid: str = None):
+        """
+            For V2 it is possible to participate in discussions for multiple conversations
+            but no more than one discussion per conversation.
+        """
+        if cid and \
+                self.current_conversations.get('cid', {}).get('state', ConversationState.IDLE) \
+                != ConversationState.VOTE:
+            LOG.warning(f"Late Vote! {response_user}")
+            return None
+        elif not response_user:
+            LOG.error("Null response user returned!")
+            return None
+        elif response_user == "abstain" or response_user == self.nick:
+            # self.log.debug(f"Abstaining voter! ({self.nick})")
+            return "abstain"
+        else:
+            self.send_shout(f"I vote for {response_user}")
+            return response_user
+
     def _handle_next_shout(self):
-        pass
+        """
+            Called recursively to handle incoming shouts synchronously
+        """
+        curr_time = int(time.time())
+        # checks for processing the new series of shouts each 10 seconds
+        while int(time.time()) - curr_time > 10:
+            next_message_data = self.shout_queue.get()
+            while next_message_data:
+                self.handle_shout(next_message_data)
+                next_message_data = self.shout_queue.get()
 
     def _pause_responses(self, duration: int = 5):
         pass

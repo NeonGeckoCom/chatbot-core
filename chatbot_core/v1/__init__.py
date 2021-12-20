@@ -457,6 +457,26 @@ class ChatBot(KlatApi, ChatBotABC):
         else:
             self.send_shout(shout)
 
+    def vote_response(self, response_user: str, cid: str = None):
+        """
+            Called when a bot appraiser has selected a response
+            :param response_user: bot username associated with chosen response
+            :param cid: dedicated conversation id (optional)
+        """
+        if self.state != ConversationState.VOTE:
+            self.log.warning(f"Late Vote! {response_user}")
+            return None
+        elif not response_user:
+            self.log.error("Null response user returned!")
+            return None
+        elif response_user == "abstain" or response_user == self.nick:
+            # self.log.debug(f"Abstaining voter! ({self.nick})")
+            self.send_shout("I abstain from voting.")
+            return "abstain"
+        else:
+            self.send_shout(f"I vote for {response_user}")
+            return response_user
+
     def on_login(self):
         """
         Override to execute any initialization after logging in or after connection if no username/password
