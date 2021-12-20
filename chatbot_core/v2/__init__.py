@@ -261,7 +261,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         :param shout: Response to post to conversation
         :param cid: mentioned conversation id
         """
-        if self.current_conversations.get(cid, {}).get('state') != ConversationState.DISC:
+        if self.get_conversation_state(cid) != ConversationState.DISC:
             LOG.warning(f"Late Discussion! {shout}")
         elif not shout:
             LOG.warning(f"Empty discussion provided! ({self.nick})")
@@ -317,14 +317,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if not cid:
             LOG.warning('No cid was mentioned')
             return
-        discussion_state = self.current_conversations.get(cid, {}).get('state')
+        conversation_state = self.get_conversation_state(cid)
         self._send_shout(queue_name, {
             'nick': self.nick,
             'bot_type': self.bot_type,
             'service_name': self.service_name,
             'cid': cid,
             'dom': dom,
-            'discussion_state': discussion_state,
+            'conversation_state': conversation_state,
             'responded_shout': responded_message,
             'shout': shout,
             'time': str(int(time.time()))})
@@ -334,9 +334,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             For V2 it is possible to participate in discussions for multiple conversations
             but no more than one discussion per conversation.
         """
-        if cid and \
-                self.current_conversations.get('cid', {}).get('state', ConversationState.IDLE) \
-                != ConversationState.VOTE:
+        if cid and self.get_conversation_state(cid) != ConversationState.VOTE:
             LOG.warning(f"Late Vote! {response_user}")
             return None
         elif not response_user:
