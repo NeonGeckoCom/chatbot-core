@@ -146,10 +146,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif conversation_state == ConversationState.DISC:
                 start_time = time.time()
                 options: dict = message_data.get('proposed_responses', {})
-                discussion = self.ask_discusser(options)
+                response = self.ask_discusser(options)
                 if response:
                     self._hesitate_before_response(start_time=start_time)
-                    self.discuss_response(discussion)
+                    self.discuss_response(response)
             elif conversation_state == ConversationState.VOTE:
                 start_time = time.time()
                 selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
@@ -266,7 +266,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         elif not shout:
             LOG.warning(f"Empty discussion provided! ({self.nick})")
         else:
-            self.send_shout(shout)
+            LOG.info('Shout response is valid')
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
