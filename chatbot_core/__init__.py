@@ -16,22 +16,9 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import os
-
-from typing import List
-from neon_utils import LOG
-from klat_connector import start_socket
-
-import chatbot_core
-
-from chatbot_core.v1 import ChatBot as ChatBot_v1
-from chatbot_core.v2 import ChatBot as ChatBot_v2
 from chatbot_core.utils import generate_random_response, clean_up_bot,\
     grammar_check, ConversationControls, ConversationState
+from chatbot_core.utils.version_utils import get_class
+from chatbot_core.version_mapping import CHATBOT_VERSIONS
 
-version = os.environ.get('CHATBOT_VERSION', 'v1').lower()
-
-if version == 'v2':
-    chatbot_core.ChatBot = ChatBot_v2
-else:
-    chatbot_core.ChatBot = ChatBot_v1
+ChatBot = get_class(CHATBOT_VERSIONS)
