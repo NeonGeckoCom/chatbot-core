@@ -18,7 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from abc import abstractmethod
 from threading import Event, Thread
-from neon_utils import LOG
+from neon_utils.logger import LOG
 
 import spacy
 

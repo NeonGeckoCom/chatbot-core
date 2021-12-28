@@ -20,11 +20,10 @@ import os
 import time
 from typing import Optional
 
-from mycroft_bus_client import Message
-
+from mycroft_bus_client import Message, MessageBusClient
 from neon_utils import LOG
 
-from chatbot_core.utils import BotTypes, MessageBusClient, init_message_bus
+from chatbot_core.utils import BotTypes, init_message_bus
 from chatbot_core import ChatBot
 
 if os.environ.get('CHATBOT_VERSION', 'v1') == 'v2':
