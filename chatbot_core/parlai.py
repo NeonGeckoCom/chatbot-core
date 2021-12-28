@@ -17,6 +17,11 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from abc import abstractmethod
+from threading import Event, Thread
+from neon_utils.logger import LOG
+
+import spacy
+
 
 class ParlaiBot:
     """Class declaring ParlAI-specific methods"""
@@ -31,7 +36,7 @@ class ParlaiBot:
             :param done_string: string that signals about episode done
             :param exit_string: string that signals about the finish
         """
-
+        self.log = LOG.create_logger('parlai_logger')
         self.nlp_engine = spacy.load("en_core_web_sm")
 
         self.agent_id = 'local_agent'
