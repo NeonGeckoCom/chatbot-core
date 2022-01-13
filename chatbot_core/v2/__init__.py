@@ -109,6 +109,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning(f'Skipping processing of mentioned user message with data: {body_data} '
                         f'as it is not in current conversations')
 
+    def _on_user_message(self, channel, method, _, body):
+        """
+            MQ handler for mentioned user message
+        """
+        body_data = b64_to_dict(body)
+        # Processing message in case its either broadcast or its received is this instance,
+        # forbids recursive calls
+        if body_data.get('broadcast', False) or \
+                body_data.get('receiver', None) == self.nick and \
+                self.nick != body_data.get('user', None):
+            self._on_mentioned_user_message(channel, method, _, body)
+
     def handle_incoming_shout(self, message_data: dict):
         """
             Handles an incoming shout into the current conversation
@@ -116,10 +128,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         self.shout_queue.put(message_data)
 
-    def handle_shout_submind(self, cid, message_data, shout, message_sender, is_message_from_proctor,
-                             conversation_state) -> Tuple[str, str]:
+    def make_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
+                      conversation_state) -> Tuple[str, str]:
         """
-            Base shout handler for submind, can be updated for reflect some specific implementation for chat bot
+            Makes response based on incoming message data and its context
             :param cid: current conversation id
             :param message_data: message data received
             :param shout: incoming shout data
@@ -137,7 +149,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                         shout=shout,
                                         timestamp=str(message_data.get('timeCreated', int(time.time()))))
         else:
-            response_queue = 'submind_response'
+            response_queue = f'{message_sender}_user_message'
             self.set_conversation_state(cid, conversation_state)
             if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
                 response = self.ask_chatbot(user=message_sender,
@@ -161,38 +173,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 response = 'I am ready for the next prompt'
         return response, response_queue
 
-    def handle_shout_proctor(self, cid, message_data, shout, message_sender, is_message_from_proctor,
-                             conversation_state) -> str:
-        """
-            Base shout handler for Proctor, can be updated for reflect some specific implementation for chat bot
-            :param cid: current conversation id
-            :param message_data: message data received
-            :param shout: incoming shout data
-            :param message_sender: nick of message sender
-            :param is_message_from_proctor: is message sender a Proctor
-            :param conversation_state: state of the conversation from ConversationStates
-
-            :returns response message
-        """
-        # TODO: this should be implemented in Proctor class
-        return 'Not Implemented'
-
-    def handle_shout_observer(self, cid, message_data, shout, message_sender, is_message_from_proctor,
-                              conversation_state):
-        """
-            Base shout handler for observers, can be updated for reflect some specific implementation for chat bot
-            :param cid: current conversation id
-            :param message_data: message data received
-            :param shout: incoming shout data
-            :param message_sender: nick of message sender
-            :param is_message_from_proctor: is message sender a Proctor
-            :param conversation_state: state of the conversation from ConversationStates
-
-            :returns response and response queue to which publish response
-        """
-        # TODO: this should be implemented in Observer class
-        return 'Not Implemented'
-
     def handle_shout(self, message_data: dict):
         """
             Handles shout for bot. If receives response - emits message into "bot_response" queue
@@ -205,17 +185,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         conversation_state = ConversationState(message_data.get('conversation_state', 0)).name
         message_sender = message_data.get('user', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
-        default_queue_name = 'bot_response'
+        default_queue_name = 'user_message'
         if shout:
-            bot_types_to_method = {
-                BotTypes.SUBMIND: self.handle_shout_submind,
-                BotTypes.PROCTOR: self.handle_shout_proctor,
-                BotTypes.OBSERVER: self.handle_shout_observer
-            }
-            response, queue_name = bot_types_to_method.get(self.bot_type, self.handle_shout_submind)(cid=cid, message_data=message_data,
-                                                                                                     shout=shout, message_sender=message_sender,
-                                                                                                     is_message_from_proctor=is_message_from_proctor,
-                                                                                                     conversation_state=conversation_state)
+            response, queue_name = self.make_response(cid=cid, message_data=message_data,
+                                                      shout=shout, message_sender=message_sender,
+                                                      is_message_from_proctor=is_message_from_proctor,
+                                                      conversation_state=conversation_state)
             if response:
                 LOG.info(f'Sending response: {response}')
                 self.send_shout(response,
