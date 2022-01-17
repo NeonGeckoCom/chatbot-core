@@ -97,6 +97,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                f'{self.nick}_user_message',
                                self._on_mentioned_user_message,
                                self.default_error_handler)
+        self.register_consumer('proctor_message',
+                               self.vhost,
+                               '',
+                               self._on_mentioned_user_message,
+                               self.default_error_handler,
+                               exchange='proctor_shout',
+                               exchange_type='fanout')
 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
@@ -286,7 +293,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         pass
 
     def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None, queue_name='bot_response',
-                   context: dict = None):
+                   context: dict = None, **kwargs):
         """
             Convenience method to emit shout via MQ with extensive instance properties
 
@@ -311,7 +318,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             'responded_shout': responded_message,
             'shout': shout,
             'context': context or {},
-            'time': str(int(time.time()))})
+            'time': str(int(time.time())),
+            **kwargs})
 
     def vote_response(self, response_user: str, cid: str = None):
         """
