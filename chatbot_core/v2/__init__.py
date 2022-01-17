@@ -129,7 +129,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.shout_queue.put(message_data)
 
     def make_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
-                      conversation_state) -> Tuple[str, str]:
+                      conversation_state) -> dict:
         """
             Makes response based on incoming message data and its context
             :param cid: current conversation id
@@ -139,39 +139,43 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param is_message_from_proctor: is message sender a Proctor
             :param conversation_state: state of the conversation from ConversationStates
 
-            :returns response and response queue to which publish response
+            :returns response data as a dictionary, example:
+                {
+                 "shout": "I vote for Wolfram",
+                 "context": {"selected": "wolfram"},
+                 "queue": "pat_user_message"
+                }
         """
-        response = None
+        response = {'shout': '', 'context': {}, 'queue': ''}
         LOG.info(f'Received incoming shout: {shout}')
-        response_queue = None
         if not is_message_from_proctor:
-            response = self.ask_chatbot(user=message_sender,
-                                        shout=shout,
-                                        timestamp=str(message_data.get('timeCreated', int(time.time()))))
+            response['shout'] = self.ask_chatbot(user=message_sender,
+                                                 shout=shout,
+                                                 timestamp=str(message_data.get('timeCreated', int(time.time()))))
         else:
-            response_queue = f'{message_sender}_user_message'
+            response['queue'] = f'{message_sender}_user_message'
             self.set_conversation_state(cid, conversation_state)
             if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
-                response = self.ask_chatbot(user=message_sender,
-                                            shout=shout,
-                                            timestamp=str(message_data.get('timeCreated', int(time.time()))))
+                response['shout'] = self.ask_chatbot(user=message_sender,
+                                                     shout=shout,
+                                                     timestamp=str(message_data.get('timeCreated', int(time.time()))))
             elif conversation_state == ConversationState.DISC:
                 start_time = time.time()
                 options: dict = message_data.get('proposed_responses', {})
-                response = self.ask_discusser(options)
+                response['shout'] = self.ask_discusser(options)
                 if response:
                     self._hesitate_before_response(start_time=start_time)
-                    self.discuss_response(response)
             elif conversation_state == ConversationState.VOTE:
                 start_time = time.time()
                 selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
                 self._hesitate_before_response(start_time)
                 if not selected or selected == self.nick:
                     selected = "abstain"
-                response = self.vote_response(selected)
+                response['shout'] = self.vote_response(selected)
+                response['context']['selected'] = selected
             elif conversation_state == ConversationState.WAIT:
-                response = 'I am ready for the next prompt'
-        return response, response_queue
+                response['shout'] = 'I am ready for the next prompt'
+        return response
 
     def handle_shout(self, message_data: dict):
         """
@@ -187,17 +191,19 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         is_message_from_proctor = self._user_is_proctor(message_sender)
         default_queue_name = 'user_message'
         if shout:
-            response, queue_name = self.make_response(cid=cid, message_data=message_data,
-                                                      shout=shout, message_sender=message_sender,
-                                                      is_message_from_proctor=is_message_from_proctor,
-                                                      conversation_state=conversation_state)
-            if response:
+            response = self.make_response(cid=cid, message_data=message_data,
+                                          shout=shout, message_sender=message_sender,
+                                          is_message_from_proctor=is_message_from_proctor,
+                                          conversation_state=conversation_state)
+            shout = response.get('shout', None)
+            if shout:
                 LOG.info(f'Sending response: {response}')
-                self.send_shout(response,
+                self.send_shout(shout=shout,
                                 responded_message=message_data.get('messageID', ''),
                                 cid=cid,
                                 dom=message_data.get('dom', ''),
-                                queue_name=queue_name or default_queue_name)
+                                queue_name=response.get('queue', None) or default_queue_name,
+                                context=response.get('context', None))
             else:
                 LOG.warning(
                     f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
@@ -279,7 +285,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _send_first_prompt(self):
         pass
 
-    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None, queue_name='bot_response'):
+    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None, queue_name='bot_response',
+                   context: dict = None):
         """
             Convenience method to emit shout via MQ with extensive instance properties
 
@@ -288,6 +295,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param cid: id of desired conversation
             :param dom: domain name
             :param queue_name: name of the response mq queue
+            :param context: message context to pass along with response
         """
         if not cid:
             LOG.warning('No cid was mentioned')
@@ -302,6 +310,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             'conversation_state': conversation_state,
             'responded_shout': responded_message,
             'shout': shout,
+            'context': context or {},
             'time': str(int(time.time()))})
 
     def vote_response(self, response_user: str, cid: str = None):
@@ -317,10 +326,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             return None
         elif response_user == "abstain" or response_user == self.nick:
             # self.log.debug(f"Abstaining voter! ({self.nick})")
-            return "abstain"
+            return "I abstain from voting"
         else:
-            self.send_shout(f"I vote for {response_user}")
-            return response_user
+            return f"I vote for {response_user}"
 
     def _handle_next_shout(self):
         """
