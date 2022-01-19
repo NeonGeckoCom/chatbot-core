@@ -5,8 +5,8 @@ from chatbot_core import ConversationState
 
 def create_conversation_cycle() -> cycle:
     """Cycle through conversation states"""
-    return cycle([ConversationState.IDLE,
-                  ConversationState.RESP,
+    return cycle([ConversationState.RESP,
                   ConversationState.DISC,
                   ConversationState.VOTE,
-                  ConversationState.PICK])
+                  ConversationState.PICK,
+                  ConversationState.IDLE])
