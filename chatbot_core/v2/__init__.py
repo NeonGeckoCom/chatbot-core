@@ -97,13 +97,26 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                f'{self.nick}_user_message',
                                self._on_mentioned_user_message,
                                self.default_error_handler)
-        self.register_consumer('proctor_message',
-                               self.vhost,
-                               '',
-                               self._on_mentioned_user_message,
-                               self.default_error_handler,
-                               exchange='proctor_shout',
-                               exchange_type='fanout')
+        self.register_subscriber('proctor_message',
+                                 self.vhost,
+                                 self._on_mentioned_user_message,
+                                 self.default_error_handler,
+                                 exchange='proctor_shout')
+        self.register_subscriber('proctor_ping',
+                                 self.vhost,
+                                 self.handle_proctor_ping,
+                                 self.default_error_handler,
+                                 exchange='proctor_ping')
+
+    def handle_proctor_ping(self, channel, method, _, body):
+        body_data = b64_to_dict(body)
+        if body_data.get('cid') in list(self.current_conversations):
+            with self.create_mq_connection(self.vhost) as mq_connection:
+                proctor_nick = body_data.get('nick', '')
+                self.publish_message(mq_connection, request_data=dict(nick=self.nick,
+                                                                      cid=body_data.get('cid')),
+                                     exchange=f'{proctor_nick}_pong',
+                                     expiration=3000)
 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
