@@ -1,10 +1,10 @@
 from itertools import cycle
 
-from chatbot_core import ConversationState
-
 
 def create_conversation_cycle() -> cycle:
     """Cycle through conversation states"""
+    from chatbot_core import ConversationState
+
     return cycle([ConversationState.RESP,
                   ConversationState.DISC,
                   ConversationState.VOTE,

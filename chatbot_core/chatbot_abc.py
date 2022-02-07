@@ -143,14 +143,13 @@ class ChatBotABC(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
     def _shout_is_prompt(shout):
         """
         Determines if the passed shout is a new prompt for the proctor.
         :param shout: incoming shout
         :return: true if shout should be considered a prompt
         """
-        return False
+        return shout.lower().startswith("!prompt:")
 
     @staticmethod
     def _hesitate_before_response(start_time, timeout: int = 5):
