@@ -26,6 +26,7 @@ from neon_utils.socket_utils import b64_to_dict
 from neon_utils import LOG
 
 from klat_connector.mq_klat_api import KlatAPIMQ
+from pika.exchange_type import ExchangeType
 
 from chatbot_core import ConversationState
 from chatbot_core.chatbot_abc import ChatBotABC
@@ -231,16 +232,22 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
     def _on_connect(self):
-        self._send_shout('connection', {'nick': self.nick,
-                                        'bot_type': self.bot_type,
-                                        'service_name': self.service_name,
-                                        'time': time.time()})
+        """Emits fanout message to connection exchange once connecting"""
+        self._send_shout(exchange='connection',
+                         message_body={'nick': self.nick,
+                                       'bot_type': self.bot_type,
+                                       'service_name': self.service_name,
+                                       'time': time.time()},
+                         exchange_type=ExchangeType.fanout.value)
 
     def _on_disconnect(self):
-        self._send_shout('disconnection', {'nick': self.nick,
-                                           'bot_type': self.bot_type,
-                                           'service_name': self.service_name,
-                                           'time': time.time()})
+        """Emits fanout message to connection exchange once disconnecting"""
+        self._send_shout(exchange='disconnection',
+                         message_body={'nick': self.nick,
+                                       'bot_type': self.bot_type,
+                                       'service_name': self.service_name,
+                                       'time': time.time()},
+                         exchange_type=ExchangeType.fanout.value)
 
     def sync(self, vhost: str = None, exchange: str = None, queue: str = None, request_data: dict = None):
         """
@@ -305,7 +312,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _send_first_prompt(self):
         pass
 
-    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None, queue_name='bot_response',
+    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None,
+                   queue_name='bot_response',
+                   exchange='',
+                   broadcast: bool = False,
                    context: dict = None, **kwargs):
         """
             Convenience method to emit shout via MQ with extensive instance properties
@@ -315,24 +325,38 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param cid: id of desired conversation
             :param dom: domain name
             :param queue_name: name of the response mq queue
+            :param exchange: name of mq exchange
+            :param broadcast: to broadcast shout (defaults to False)
             :param context: message context to pass along with response
         """
         if not cid:
             LOG.warning('No cid was mentioned')
             return
+
         conversation_state = self.get_conversation_state(cid)
-        self._send_shout(queue_name, {
-            'nick': self.nick,
-            'bot_type': self.bot_type,
-            'service_name': self.service_name,
-            'cid': cid,
-            'dom': dom,
-            'conversation_state': conversation_state,
-            'responded_shout': responded_message,
-            'shout': shout,
-            'context': context or {},
-            'time': str(int(time.time())),
-            **kwargs})
+        exchange_type = ExchangeType.direct.value
+        if broadcast:
+            # prohibits fanouts to default exchange for consistency
+            exchange = exchange or queue_name
+            queue_name = ''
+            exchange_type = ExchangeType.direct.value
+
+        self._send_shout(
+            queue_name=queue_name,
+            exchange=exchange,
+            exchange_type=exchange_type,
+            message_body={
+                'nick': self.nick,
+                'bot_type': self.bot_type,
+                'service_name': self.service_name,
+                'cid': cid,
+                'dom': dom,
+                'conversation_state': conversation_state,
+                'responded_shout': responded_message,
+                'shout': shout,
+                'context': context or {},
+                'time': str(int(time.time())),
+                **kwargs})
 
     def vote_response(self, response_user: str, cid: str = None):
         """
