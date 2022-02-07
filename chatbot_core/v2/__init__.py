@@ -224,7 +224,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 cid=cid,
                                 dom=message_data.get('dom', ''),
                                 queue_name=response.get('queue', None) or default_queue_name,
-                                context=response.get('context', None))
+                                context=response.get('context', None),
+                                broadcast=True)
             else:
                 LOG.warning(
                     f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
