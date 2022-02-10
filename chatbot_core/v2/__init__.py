@@ -150,8 +150,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         self.shout_queue.put(message_data)
 
-    def make_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
-                      conversation_state) -> dict:
+    def get_chatbot_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
+                             conversation_state) -> dict:
         """
             Makes response based on incoming message data and its context
             :param cid: current conversation id
@@ -213,10 +213,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         is_message_from_proctor = self._user_is_proctor(message_sender)
         default_queue_name = 'user_message'
         if shout:
-            response = self.make_response(cid=cid, message_data=message_data,
-                                          shout=shout, message_sender=message_sender,
-                                          is_message_from_proctor=is_message_from_proctor,
-                                          conversation_state=conversation_state)
+            response = self.get_chatbot_response(cid=cid, message_data=message_data,
+                                                 shout=shout, message_sender=message_sender,
+                                                 is_message_from_proctor=is_message_from_proctor,
+                                                 conversation_state=conversation_state)
             shout = response.get('shout', None)
             if shout:
                 LOG.info(f'Sending response: {response}')
