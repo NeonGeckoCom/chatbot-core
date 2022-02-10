@@ -133,7 +133,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def _on_user_message(self, channel, method, _, body):
         """
-            MQ handler for mentioned user message
+            MQ handler for user message, gets processed in case its addressed to current user or is a broadcast call
         """
         body_data = b64_to_dict(body)
         # Processing message in case its either broadcast or its received is this instance,
