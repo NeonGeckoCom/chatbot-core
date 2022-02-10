@@ -51,7 +51,8 @@ class ChatBot(KlatApi, ChatBotABC):
         socket, domain, username, password, on_server, is_prompter = self.parse_init(*args, **kwargs)
         socket = socket or start_socket()
         init_nick = "Prompter" if is_prompter else ""
-        super().__init__(socket, domain, init_nick)
+        KlatApi.__init__(self, socket, domain, init_nick)
+        ChatBotABC.__init__(self)
         global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
