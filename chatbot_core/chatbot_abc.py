@@ -20,6 +20,8 @@
 import random
 
 from abc import ABC, abstractmethod
+from typing import Optional
+
 from chatbot_core.utils import *
 
 logger = make_logger(__name__)
@@ -203,7 +205,7 @@ class ChatBotABC(ABC):
         return "prompter" in nick.lower()
 
     @abstractmethod
-    def vote_response(self, response_user: str, cid: str = None):
+    def vote_response(self, response_user: str, cid: Optional[str] = None):
         """
             Called when a bot appraiser has selected a response
             :param response_user: bot username associated with chosen response
