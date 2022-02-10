@@ -22,6 +22,7 @@ from queue import Queue
 from threading import Thread
 from typing import Tuple
 
+from neon_mq_connector.utils import RepeatingTimer
 from neon_utils.socket_utils import b64_to_dict
 from neon_utils import LOG
 
@@ -41,9 +42,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         super().__init__(config, service_name, vhost)
         self.bot_type = bot_type
         self.current_conversations = dict()
-        self.on_server = False
+        self.on_server = True
         self.shout_queue = Queue(maxsize=256)
-        self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
+        self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
+                                           interval=kwargs.get('shout_thread_interval', 10))
         self.shout_thread.start()
 
     def parse_init(self, *args, **kwargs) -> tuple:
@@ -380,13 +382,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
             Called recursively to handle incoming shouts synchronously
         """
-        curr_time = int(time.time())
-        # checks for processing the new series of shouts each 10 seconds
-        while int(time.time()) - curr_time > 10:
+        next_message_data = self.shout_queue.get()
+        while next_message_data:
+            self.handle_shout(next_message_data)
             next_message_data = self.shout_queue.get()
-            while next_message_data:
-                self.handle_shout(next_message_data)
-                next_message_data = self.shout_queue.get()
 
     def _pause_responses(self, duration: int = 5):
         pass
