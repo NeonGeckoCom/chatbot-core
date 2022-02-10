@@ -469,7 +469,7 @@ class ChatBot(KlatApi, ChatBotABC):
         elif not response_user:
             self.log.error("Null response user returned!")
             return None
-        elif response_user == "abstain" or response_user == self.nick:
+        elif response_user in (self.nick, "abstain"):
             # self.log.debug(f"Abstaining voter! ({self.nick})")
             self.send_shout("I abstain from voting.")
             return "abstain"
