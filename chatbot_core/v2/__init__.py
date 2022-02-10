@@ -275,8 +275,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning(f"Late Discussion! {shout}")
         elif not shout:
             LOG.warning(f"Empty discussion provided! ({self.nick})")
-        else:
-            LOG.info('Shout response is valid')
+
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
