@@ -181,8 +181,6 @@ class ChatBotABC(ABC):
             :param cid: cid shout belongs to
             :param dom: domain conversation belongs to
             :param timestamp: formatted timestamp of shout
-
-            TODO: implement it generically
         """
         pass
 
