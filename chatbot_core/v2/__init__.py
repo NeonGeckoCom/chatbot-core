@@ -43,7 +43,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.bot_type = bot_type
         self.current_conversations = dict()
         self.on_server = True
-        self.shout_queue = Queue(maxsize=256)
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
                                            interval=kwargs.get('shout_thread_interval', 10))
         self.shout_thread.start()

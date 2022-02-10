@@ -61,7 +61,6 @@ class ChatBot(KlatApi, ChatBotABC):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
-        self.shout_queue = Queue(maxsize=256)
 
         self.username = username
         self.password = password

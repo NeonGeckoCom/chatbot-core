@@ -20,6 +20,7 @@
 import random
 
 from abc import ABC, abstractmethod
+from queue import Queue
 from typing import Optional
 
 from chatbot_core.utils import *
@@ -29,6 +30,9 @@ logger = make_logger(__name__)
 
 class ChatBotABC(ABC):
     """Abstract class gathering all the chatbot-related methods children should implement"""
+
+    def __init__(self):
+        self.shout_queue = Queue(maxsize=256)
 
     @abstractmethod
     def parse_init(self, *args, **kwargs) -> tuple:
