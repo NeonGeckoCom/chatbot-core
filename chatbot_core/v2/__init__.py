@@ -115,6 +115,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if body_data.get('cid') in list(self.current_conversations):
             with self.create_mq_connection(self.vhost) as mq_connection:
                 proctor_nick = body_data.get('nick', '')
+                LOG.info(f'Sending pong to {proctor_nick}')
                 self.publish_message(mq_connection, request_data=dict(nick=self.nick,
                                                                       cid=body_data.get('cid')),
                                      exchange=f'{proctor_nick}_pong',
@@ -175,7 +176,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                  shout=shout,
                                                  timestamp=str(message_data.get('timeCreated', int(time.time()))))
         else:
-            response['queue'] = f'{message_sender}_user_message'
+            response['to_discussion'] = '1'
             self.set_conversation_state(cid, conversation_state)
             if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
                 response['shout'] = self.ask_chatbot(user=message_sender,
@@ -211,7 +212,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         conversation_state = ConversationState(message_data.get('conversation_state', 0)).name
         message_sender = message_data.get('user', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
-        default_queue_name = 'user_message'
+        default_queue_name = 'bot_response'
         if shout:
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
@@ -334,13 +335,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning('No cid was mentioned')
             return
 
-        conversation_state = self.get_conversation_state(cid)
+        conversation_state = self.get_conversation_state(cid).value
         exchange_type = ExchangeType.direct.value
         if broadcast:
             # prohibits fanouts to default exchange for consistency
             exchange = exchange or queue_name
             queue_name = ''
-            exchange_type = ExchangeType.direct.value
+            exchange_type = ExchangeType.fanout.value
 
         self._send_shout(
             queue_name=queue_name,
