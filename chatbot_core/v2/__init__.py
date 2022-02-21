@@ -18,10 +18,6 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import time
 
-from queue import Queue
-from threading import Thread
-from typing import Tuple
-
 from neon_mq_connector.utils import RepeatingTimer
 from neon_utils.socket_utils import b64_to_dict
 from neon_utils import LOG
@@ -39,8 +35,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def __init__(self, *args, **kwargs):
         config, service_name, vhost, bot_type = self.parse_init(*args, **kwargs)
-        KlatAPIMQ.__init__(config, service_name, vhost)
-        ChatBotABC.__init__()
+        KlatAPIMQ.__init__(self, config, service_name, vhost)
+        ChatBotABC.__init__(self)
         self.bot_type = bot_type
         self.current_conversations = dict()
         self.on_server = True
@@ -121,6 +117,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                                       cid=body_data.get('cid')),
                                      exchange=f'{proctor_nick}_pong',
                                      expiration=3000)
+                self.send_shout(shout='I am ready for the next prompt',
+                                cid=body_data.get('cid'),
+                                broadcast=True,
+                                dom=body_data.get('dom', ''))
 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
@@ -179,6 +179,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         else:
             response['to_discussion'] = '1'
             self.set_conversation_state(cid, conversation_state)
+            response['conversation_state'] = conversation_state
             if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
                 response['shout'] = self.ask_chatbot(user=message_sender,
                                                      shout=shout,
@@ -201,11 +202,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 response['shout'] = 'I am ready for the next prompt'
         return response
 
-    def handle_shout(self, message_data: dict):
+    def handle_shout(self, message_data: dict, skip_callback: bool = False):
         """
             Handles shout for bot. If receives response - emits message into "bot_response" queue
 
             :param message_data: dict containing message data received
+            :param skip_callback: to skip callback after handling shoult (default to False)
         """
         LOG.info(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
@@ -220,7 +222,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                  is_message_from_proctor=is_message_from_proctor,
                                                  conversation_state=conversation_state)
             shout = response.get('shout', None)
-            if shout:
+            if shout and not skip_callback:
                 LOG.info(f'Sending response: {response}')
                 self.send_shout(shout=shout,
                                 responded_message=message_data.get('messageID', ''),
@@ -336,7 +338,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning('No cid was mentioned')
             return
 
-        conversation_state = self.get_conversation_state(cid).value
+        conversation_state = self.get_conversation_state(cid)
+        if isinstance(conversation_state, ConversationState):
+            conversation_state = conversation_state.value
         exchange_type = ExchangeType.direct.value
         if broadcast:
             # prohibits fanouts to default exchange for consistency

@@ -1,5 +1,6 @@
 from enum import IntEnum, Enum
 
+
 class ConversationControls:
     RESP = " asks us to consider:"
     DISC = "Please Discuss"
@@ -23,3 +24,11 @@ class BotTypes:
     PROCTOR = 'proctor'
     SUBMIND = 'submind'
     OBSERVER = 'observer'
+
+
+CONVERSATION_STATE_ANNOUNCEMENTS = {
+    ConversationState.RESP: 'Accepting responses from subminds ({interval} seconds)',
+    ConversationState.DISC: 'Discussing responses from subminds ({interval} seconds)',
+    ConversationState.VOTE: 'Voting for candidate responses ({interval} seconds)',
+    ConversationState.PICK: 'Selecting a winner among participants'
+}
