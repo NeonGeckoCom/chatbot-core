@@ -212,7 +212,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         LOG.info(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
-        conversation_state = ConversationState(message_data.get('conversation_state', 0)).name
+        conversation_state = ConversationState(message_data.get('conversation_state', 0))
         message_sender = message_data.get('user', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
         default_queue_name = 'bot_response'
