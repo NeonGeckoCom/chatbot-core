@@ -75,7 +75,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
 
     def set_conversation_state(self, cid, state):
+        LOG.debug(f'State was: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
         self.current_conversations.setdefault(cid, {})['state'] = state
+        LOG.debug(f'State become: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
 
     def _setup_listeners(self):
         super()._setup_listeners()
@@ -117,10 +119,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                                       cid=body_data.get('cid')),
                                      exchange=f'{proctor_nick}_pong',
                                      expiration=3000)
-                self.send_shout(shout='I am ready for the next prompt',
-                                cid=body_data.get('cid'),
-                                broadcast=True,
-                                dom=body_data.get('dom', ''))
+                self.set_conversation_state(body_data.get('cid'), ConversationState.WAIT)
 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
@@ -178,22 +177,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                  timestamp=str(message_data.get('timeCreated', int(time.time()))))
         else:
             response['to_discussion'] = '1'
-            self.set_conversation_state(cid, conversation_state)
             response['conversation_state'] = conversation_state
-            if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
+
+            self.set_conversation_state(cid, conversation_state)
+            if conversation_state == ConversationState.RESP:
                 response['shout'] = self.ask_chatbot(user=message_sender,
                                                      shout=shout,
                                                      timestamp=str(message_data.get('timeCreated', int(time.time()))))
             elif conversation_state == ConversationState.DISC:
-                start_time = time.time()
                 options: dict = message_data.get('proposed_responses', {})
                 response['shout'] = self.ask_discusser(options)
-                if response:
-                    self._hesitate_before_response(start_time=start_time)
             elif conversation_state == ConversationState.VOTE:
-                start_time = time.time()
                 selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
-                self._hesitate_before_response(start_time)
                 if not selected or selected == self.nick:
                     selected = "abstain"
                 response['shout'] = self.vote_response(selected)
@@ -213,7 +208,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
-        message_sender = message_data.get('user', 'anonymous')
+        message_sender = message_data.get('nick', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
         default_queue_name = 'bot_response'
         if shout:
@@ -228,6 +223,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 responded_message=message_data.get('messageID', ''),
                                 cid=cid,
                                 dom=message_data.get('dom', ''),
+                                to_discussion=response.get('to_discussion', '0'),
                                 queue_name=response.get('queue', None) or default_queue_name,
                                 context=response.get('context', None),
                                 broadcast=True)
