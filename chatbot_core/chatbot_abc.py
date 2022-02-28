@@ -20,6 +20,9 @@
 import random
 
 from abc import ABC, abstractmethod
+from queue import Queue
+from typing import Optional
+
 from chatbot_core.utils import *
 
 logger = make_logger(__name__)
@@ -27,6 +30,9 @@ logger = make_logger(__name__)
 
 class ChatBotABC(ABC):
     """Abstract class gathering all the chatbot-related methods children should implement"""
+
+    def __init__(self):
+        self.shout_queue = Queue(maxsize=256)
 
     @abstractmethod
     def parse_init(self, *args, **kwargs) -> tuple:
@@ -143,14 +149,13 @@ class ChatBotABC(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
     def _shout_is_prompt(shout):
         """
         Determines if the passed shout is a new prompt for the proctor.
         :param shout: incoming shout
         :return: true if shout should be considered a prompt
         """
-        return False
+        return shout.lower().startswith("!prompt:")
 
     @staticmethod
     def _hesitate_before_response(start_time, timeout: int = 5):
@@ -174,7 +179,7 @@ class ChatBotABC(ABC):
         pass
 
     @abstractmethod
-    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
+    def handle_shout(self, *args, **kwargs):
         """
             Handles an incoming shout into the current conversation
             :param user: user associated with shout
@@ -184,25 +189,6 @@ class ChatBotABC(ABC):
             :param timestamp: formatted timestamp of shout
         """
         pass
-
-    def vote_response(self, response_user: str):
-        """
-        Called when a bot appraiser has selected a response
-        :param response_user: bot username associated with chosen response
-        """
-        if self.state != ConversationState.VOTE:
-            self.log.warning(f"Late Vote! {response_user}")
-            return None
-        elif not response_user:
-            self.log.error("Null response user returned!")
-            return None
-        elif response_user == "abstain" or response_user == self.nick:
-            # self.log.debug(f"Abstaining voter! ({self.nick})")
-            self.send_shout("I abstain from voting.")
-            return "abstain"
-        else:
-            self.send_shout(f"I vote for {response_user}")
-            return response_user
 
     @staticmethod
     def _user_is_proctor(nick):
@@ -221,6 +207,15 @@ class ChatBotABC(ABC):
         :return: true if nick belongs to a proctor
         """
         return "prompter" in nick.lower()
+
+    @abstractmethod
+    def vote_response(self, response_user: str, cid: Optional[str] = None):
+        """
+            Called when a bot appraiser has selected a response
+            :param response_user: bot username associated with chosen response
+            :param cid: dedicated conversation id (optional)
+        """
+        pass
 
     @abstractmethod
     def _handle_next_shout(self):

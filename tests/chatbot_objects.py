@@ -33,7 +33,7 @@ class V2Bot(ChatBot):
     def __init__(self, socket, domain, user, password, on_server=True):
         # self.on_server = on_server
         # if self.on_server:
-        super(V2Bot, self).__init__(socket, domain, user, password, on_server)
+        super().__init__(socket, domain, user, password, on_server)
         # else:
         #     self.nick = 'Gruff'
         self.bot_type = "submind"
@@ -223,7 +223,7 @@ class V3Bot(ChatBot):
     def __init__(self, socket, domain, user, password, on_server=True, is_prompter=False):
         # self.on_server = on_server
         # if self.on_server:
-        super(V3Bot, self).__init__(socket, domain, user, password, on_server, is_prompter)
+        super().__init__(socket, domain, user, password, on_server, is_prompter)
         # else:
         #     self.nick = 'Gruff'
         self.bot_type = "submind"

@@ -51,7 +51,8 @@ class ChatBot(KlatApi, ChatBotABC):
         socket, domain, username, password, on_server, is_prompter = self.parse_init(*args, **kwargs)
         socket = socket or start_socket()
         init_nick = "Prompter" if is_prompter else ""
-        super(ChatBot, self).__init__(socket, domain, init_nick)
+        KlatApi.__init__(self, socket, domain, init_nick)
+        ChatBotABC.__init__(self)
         global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
@@ -61,7 +62,6 @@ class ChatBot(KlatApi, ChatBotABC):
         self.bot_type = None
         self.proposed_responses = dict()
         self.selected_history = list()
-        self.shout_queue = Queue(maxsize=256)
 
         self.username = username
         self.password = password
@@ -456,6 +456,26 @@ class ChatBot(KlatApi, ChatBotABC):
             self.log.warning(f"Empty discussion provided! ({self.nick})")
         else:
             self.send_shout(shout)
+
+    def vote_response(self, response_user: str, cid: str = None):
+        """
+            Called when a bot appraiser has selected a response
+            :param response_user: bot username associated with chosen response
+            :param cid: dedicated conversation id (optional)
+        """
+        if self.state != ConversationState.VOTE:
+            self.log.warning(f"Late Vote! {response_user}")
+            return None
+        elif not response_user:
+            self.log.error("Null response user returned!")
+            return None
+        elif response_user in (self.nick, "abstain"):
+            # self.log.debug(f"Abstaining voter! ({self.nick})")
+            self.send_shout("I abstain from voting.")
+            return "abstain"
+        else:
+            self.send_shout(f"I vote for {response_user}")
+            return response_user
 
     def on_login(self):
         """

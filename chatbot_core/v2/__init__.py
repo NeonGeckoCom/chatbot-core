@@ -18,12 +18,14 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import time
 
-from abc import abstractmethod
-
-from neon_utils.socket_utils import b64_to_dict, dict_to_b64
+from neon_mq_connector.utils import RepeatingTimer
+from neon_utils.socket_utils import b64_to_dict
 from neon_utils import LOG
 
 from klat_connector.mq_klat_api import KlatAPIMQ
+from pika.exchange_type import ExchangeType
+
+from chatbot_core import ConversationState
 from chatbot_core.chatbot_abc import ChatBotABC
 from chatbot_core.utils import BotTypes
 
@@ -33,10 +35,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def __init__(self, *args, **kwargs):
         config, service_name, vhost, bot_type = self.parse_init(*args, **kwargs)
-        super().__init__(config, service_name, vhost)
+        KlatAPIMQ.__init__(self, config, service_name, vhost)
+        ChatBotABC.__init__(self)
         self.bot_type = bot_type
         self.current_conversations = dict()
-        self.on_server = False
+        self.on_server = True
+        self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
+                                           interval=kwargs.get('shout_thread_interval', 10))
+        self.shout_thread.start()
 
     def parse_init(self, *args, **kwargs) -> tuple:
         """Parses dynamic params input to ChatBot v2"""
@@ -62,10 +68,19 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         LOG.info(f'Received invitation to cid: {new_cid}')
         if new_cid and not self.current_conversations.get(new_cid, None):
             self.current_conversations[new_cid] = body_data
+            self.set_conversation_state(new_cid, ConversationState.IDLE)
+            # TODO: emit greeting here (Kirill)
+
+    def get_conversation_state(self, cid) -> ConversationState:
+        return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
+
+    def set_conversation_state(self, cid, state):
+        self.current_conversations.setdefault(cid, {})['state'] = state
 
     def _setup_listeners(self):
         super()._setup_listeners()
-        LOG.info(f'Registering handlers: {[self.nick+"_invite", self.nick+"_kick_out", self.nick+"_user_message"]}')
+        LOG.info(
+            f'Registering handlers: {[self.nick + "_invite", self.nick + "_kick_out", self.nick + "_user_message"]}')
         self.register_consumer('invitation',
                                self.vhost,
                                f'{self.nick}_invite',
@@ -81,6 +96,31 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                f'{self.nick}_user_message',
                                self._on_mentioned_user_message,
                                self.default_error_handler)
+        self.register_subscriber('proctor_message',
+                                 self.vhost,
+                                 self._on_mentioned_user_message,
+                                 self.default_error_handler,
+                                 exchange='proctor_shout')
+        self.register_subscriber('proctor_ping',
+                                 self.vhost,
+                                 self.handle_proctor_ping,
+                                 self.default_error_handler,
+                                 exchange='proctor_ping')
+
+    def handle_proctor_ping(self, channel, method, _, body):
+        body_data = b64_to_dict(body)
+        if body_data.get('cid') in list(self.current_conversations):
+            with self.create_mq_connection(self.vhost) as mq_connection:
+                proctor_nick = body_data.get('nick', '')
+                LOG.info(f'Sending pong to {proctor_nick}')
+                self.publish_message(mq_connection, request_data=dict(nick=self.nick,
+                                                                      cid=body_data.get('cid')),
+                                     exchange=f'{proctor_nick}_pong',
+                                     expiration=3000)
+                self.send_shout(shout='I am ready for the next prompt',
+                                cid=body_data.get('cid'),
+                                broadcast=True,
+                                dom=body_data.get('dom', ''))
 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
@@ -90,49 +130,130 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if body_data.get('cid', None) in list(self.current_conversations):
             self.handle_incoming_shout(body_data)
         else:
-            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data}')
+            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data} '
+                        f'as it is not in current conversations')
+
+    def _on_user_message(self, channel, method, _, body):
+        """
+            MQ handler for user message, gets processed in case its addressed to current user or is a broadcast call
+        """
+        body_data = b64_to_dict(body)
+        # Processing message in case its either broadcast or its received is this instance,
+        # forbids recursive calls
+        if body_data.get('broadcast', False) or \
+                body_data.get('receiver', None) == self.nick and \
+                self.nick != body_data.get('user', None):
+            self._on_mentioned_user_message(channel, method, _, body)
 
     def handle_incoming_shout(self, message_data: dict):
         """
-            Handles incoming shout for bot. If receives response - emits message into "bot_response" queue
+            Handles an incoming shout into the current conversation
+            :param message_data: data of incoming message
+        """
+        self.shout_queue.put(message_data)
+
+    def get_chatbot_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
+                             conversation_state) -> dict:
+        """
+            Makes response based on incoming message data and its context
+            :param cid: current conversation id
+            :param message_data: message data received
+            :param shout: incoming shout data
+            :param message_sender: nick of message sender
+            :param is_message_from_proctor: is message sender a Proctor
+            :param conversation_state: state of the conversation from ConversationStates
+
+            :returns response data as a dictionary, example:
+                {
+                 "shout": "I vote for Wolfram",
+                 "context": {"selected": "wolfram"},
+                 "queue": "pat_user_message"
+                }
+        """
+        response = {'shout': '', 'context': {}, 'queue': ''}
+        LOG.info(f'Received incoming shout: {shout}')
+        if not is_message_from_proctor:
+            response['shout'] = self.ask_chatbot(user=message_sender,
+                                                 shout=shout,
+                                                 timestamp=str(message_data.get('timeCreated', int(time.time()))))
+        else:
+            response['to_discussion'] = '1'
+            self.set_conversation_state(cid, conversation_state)
+            response['conversation_state'] = conversation_state
+            if conversation_state in (ConversationState.IDLE, ConversationState.RESP,):
+                response['shout'] = self.ask_chatbot(user=message_sender,
+                                                     shout=shout,
+                                                     timestamp=str(message_data.get('timeCreated', int(time.time()))))
+            elif conversation_state == ConversationState.DISC:
+                start_time = time.time()
+                options: dict = message_data.get('proposed_responses', {})
+                response['shout'] = self.ask_discusser(options)
+                if response:
+                    self._hesitate_before_response(start_time=start_time)
+            elif conversation_state == ConversationState.VOTE:
+                start_time = time.time()
+                selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
+                self._hesitate_before_response(start_time)
+                if not selected or selected == self.nick:
+                    selected = "abstain"
+                response['shout'] = self.vote_response(selected)
+                response['context']['selected'] = selected
+            elif conversation_state == ConversationState.WAIT:
+                response['shout'] = 'I am ready for the next prompt'
+        return response
+
+    def handle_shout(self, message_data: dict, skip_callback: bool = False):
+        """
+            Handles shout for bot. If receives response - emits message into "bot_response" queue
 
             :param message_data: dict containing message data received
+            :param skip_callback: to skip callback after handling shoult (default to False)
         """
         LOG.info(f'Message data: {message_data}')
-        shout = message_data.get('shout', None) or message_data.get('messageText', None)
+        shout = message_data.get('shout') or message_data.get('messageText', '')
+        cid = message_data.get('cid', '')
+        conversation_state = ConversationState(message_data.get('conversation_state', 0)).name
+        message_sender = message_data.get('user', 'anonymous')
+        is_message_from_proctor = self._user_is_proctor(message_sender)
+        default_queue_name = 'bot_response'
         if shout:
-            LOG.info(f'Received incoming shout: {shout}')
-            response = self.ask_chatbot(user=message_data.get('user', 'anonymous'),
-                                        shout=shout,
-                                        timestamp=str(message_data.get('timeCreated', int(time.time()))))
-            if response:
+            response = self.get_chatbot_response(cid=cid, message_data=message_data,
+                                                 shout=shout, message_sender=message_sender,
+                                                 is_message_from_proctor=is_message_from_proctor,
+                                                 conversation_state=conversation_state)
+            shout = response.get('shout', None)
+            if shout and not skip_callback:
                 LOG.info(f'Sending response: {response}')
-
-                self._send_shout('bot_response', {
-                    'nick': self.nick,
-                    'bot_type': self.bot_type,
-                    'service_name': self.service_name,
-                    'cid': message_data.get('cid', ''),
-                    'responded_shout': message_data.get('messageID', ''),
-                    'time': str(int(time.time())),
-                    'shout': response
-                })
+                self.send_shout(shout=shout,
+                                responded_message=message_data.get('messageID', ''),
+                                cid=cid,
+                                dom=message_data.get('dom', ''),
+                                queue_name=response.get('queue', None) or default_queue_name,
+                                context=response.get('context', None),
+                                broadcast=True)
             else:
-                LOG.warning(f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
+                LOG.warning(
+                    f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
         else:
             LOG.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
     def _on_connect(self):
-        self._send_shout('connection', {'nick': self.nick,
-                                        'bot_type': self.bot_type,
-                                        'service_name': self.service_name,
-                                        'time': time.time()})
+        """Emits fanout message to connection exchange once connecting"""
+        self._send_shout(exchange='connection',
+                         message_body={'nick': self.nick,
+                                       'bot_type': self.bot_type,
+                                       'service_name': self.service_name,
+                                       'time': time.time()},
+                         exchange_type=ExchangeType.fanout.value)
 
     def _on_disconnect(self):
-        self._send_shout('disconnection', {'nick': self.nick,
-                                           'bot_type': self.bot_type,
-                                           'service_name': self.service_name,
-                                           'time': time.time()})
+        """Emits fanout message to connection exchange once disconnecting"""
+        self._send_shout(exchange='disconnection',
+                         message_body={'nick': self.nick,
+                                       'bot_type': self.bot_type,
+                                       'service_name': self.service_name,
+                                       'time': time.time()},
+                         exchange_type=ExchangeType.fanout.value)
 
     def sync(self, vhost: str = None, exchange: str = None, queue: str = None, request_data: dict = None):
         """
@@ -148,8 +269,17 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         LOG.info(f'{curr_time} Emitting sync message from {self.nick}')
         self._on_connect()
 
-    def handle_shout(self, user: str, shout: str, cid: str, dom: str, timestamp: str):
-        pass
+    def discuss_response(self, shout: str, cid: str = None):
+        """
+        Called when a bot has some discussion to share
+        :param shout: Response to post to conversation
+        :param cid: mentioned conversation id
+        """
+        if self.get_conversation_state(cid) != ConversationState.DISC:
+            LOG.warning(f"Late Discussion! {shout}")
+        elif not shout:
+            LOG.warning(f"Empty discussion provided! ({self.nick})")
+
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
@@ -184,15 +314,82 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def ask_discusser(self, options: dict) -> str:
         pass
 
-    @staticmethod
-    def _shout_is_prompt(shout):
-        pass
-
     def _send_first_prompt(self):
         pass
 
+    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None,
+                   queue_name='bot_response',
+                   exchange='',
+                   broadcast: bool = False,
+                   context: dict = None, **kwargs):
+        """
+            Convenience method to emit shout via MQ with extensive instance properties
+
+            :param shout: response message to emit
+            :param responded_message: responded message if any
+            :param cid: id of desired conversation
+            :param dom: domain name
+            :param queue_name: name of the response mq queue
+            :param exchange: name of mq exchange
+            :param broadcast: to broadcast shout (defaults to False)
+            :param context: message context to pass along with response
+        """
+        if not cid:
+            LOG.warning('No cid was mentioned')
+            return
+
+        conversation_state = self.get_conversation_state(cid)
+        if isinstance(conversation_state, ConversationState):
+            conversation_state = conversation_state.value
+        exchange_type = ExchangeType.direct.value
+        if broadcast:
+            # prohibits fanouts to default exchange for consistency
+            exchange = exchange or queue_name
+            queue_name = ''
+            exchange_type = ExchangeType.fanout.value
+
+        self._send_shout(
+            queue_name=queue_name,
+            exchange=exchange,
+            exchange_type=exchange_type,
+            message_body={
+                'nick': self.nick,
+                'bot_type': self.bot_type,
+                'service_name': self.service_name,
+                'cid': cid,
+                'dom': dom,
+                'conversation_state': conversation_state,
+                'responded_shout': responded_message,
+                'shout': shout,
+                'context': context or {},
+                'time': str(int(time.time())),
+                **kwargs})
+
+    def vote_response(self, response_user: str, cid: str = None):
+        """
+            For V2 it is possible to participate in discussions for multiple conversations
+            but no more than one discussion per conversation.
+        """
+        if cid and self.get_conversation_state(cid) != ConversationState.VOTE:
+            LOG.warning(f"Late Vote! {response_user}")
+            return None
+        elif not response_user:
+            LOG.error("Null response user returned!")
+            return None
+        elif response_user == "abstain" or response_user == self.nick:
+            # self.log.debug(f"Abstaining voter! ({self.nick})")
+            return "I abstain from voting"
+        else:
+            return f"I vote for {response_user}"
+
     def _handle_next_shout(self):
-        pass
+        """
+            Called recursively to handle incoming shouts synchronously
+        """
+        next_message_data = self.shout_queue.get()
+        while next_message_data:
+            self.handle_shout(next_message_data)
+            next_message_data = self.shout_queue.get()
 
     def _pause_responses(self, duration: int = 5):
         pass
