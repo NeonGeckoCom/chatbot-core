@@ -195,6 +195,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 response['context']['selected'] = selected
             elif conversation_state == ConversationState.WAIT:
                 response['shout'] = 'I am ready for the next prompt'
+            response['context']['prompt_id'] = message_data.get('prompt_id', '')
         return response
 
     def handle_shout(self, message_data: dict, skip_callback: bool = False):
@@ -219,6 +220,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             shout = response.get('shout', None)
             if shout and not skip_callback:
                 LOG.info(f'Sending response: {response}')
+                prompt_id = response.get('context', {}).get('prompt_id')
                 self.send_shout(shout=shout,
                                 responded_message=message_data.get('messageID', ''),
                                 cid=cid,
@@ -226,6 +228,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 to_discussion=response.get('to_discussion', '0'),
                                 queue_name=response.get('queue', None) or default_queue_name,
                                 context=response.get('context', None),
+                                prompt_id=prompt_id,
                                 broadcast=True)
             else:
                 LOG.warning(
