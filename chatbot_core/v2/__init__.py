@@ -317,7 +317,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                    queue_name='bot_response',
                    exchange='',
                    broadcast: bool = False,
-                   context: dict = None, **kwargs):
+                   context: dict = None,
+                   prompt_id='',
+                   **kwargs):
         """
             Convenience method to emit shout via MQ with extensive instance properties
 
@@ -329,6 +331,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param exchange: name of mq exchange
             :param broadcast: to broadcast shout (defaults to False)
             :param context: message context to pass along with response
+            :param prompt_id: id of prompt to refer shout to
         """
         if not cid:
             LOG.warning('No cid was mentioned')
@@ -358,6 +361,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 'responded_shout': responded_message,
                 'shout': shout,
                 'context': context or {},
+                'prompt_id': prompt_id,
                 'time': str(int(time.time())),
                 **kwargs})
 
