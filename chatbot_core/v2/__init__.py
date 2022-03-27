@@ -40,6 +40,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.bot_type = bot_type
         self.current_conversations = dict()
         self.on_server = True
+        self.default_response_queue = 'shout'
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
                                            interval=kwargs.get('shout_thread_interval', 10))
         self.shout_thread.start()
@@ -77,12 +78,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def set_conversation_state(self, cid, state):
         LOG.debug(f'State was: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
         self.current_conversations.setdefault(cid, {})['state'] = state
-        LOG.debug(f'State become: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
+        LOG.debug(
+            f'State become: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
 
     def _setup_listeners(self):
         super()._setup_listeners()
-        LOG.info(
-            f'Registering handlers: {[self.nick + "_invite", self.nick + "_kick_out", self.nick + "_user_message"]}')
         self.register_consumer('invitation',
                                self.vhost,
                                f'{self.nick}_invite',
@@ -93,9 +93,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                f'{self.nick}_kick_out',
                                self.handle_kick_out,
                                self.default_error_handler)
-        self.register_consumer('user_message',
+        self.register_consumer('incoming_shout',
                                self.vhost,
-                               f'{self.nick}_user_message',
+                               f'{self.nick}_shout',
                                self._on_mentioned_user_message,
                                self.default_error_handler)
         self.register_subscriber('proctor_message',
@@ -123,10 +123,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
-            MQ handler for mentioned user message
+            MQ handler for requesting message for current bot
         """
         body_data = b64_to_dict(body)
-        if body_data.get('cid', None) in list(self.current_conversations):
+        if body_data.get('cid', None) in list(self.current_conversations) \
+                and not body_data.get('omit_reply', False):
             self.handle_incoming_shout(body_data)
         else:
             LOG.warning(f'Skipping processing of mentioned user message with data: {body_data} '
@@ -134,7 +135,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def _on_user_message(self, channel, method, _, body):
         """
-            MQ handler for user message, gets processed in case its addressed to current user or is a broadcast call
+            MQ handler for requesting message, gets processed in case its addressed to given instance or is a broadcast call
         """
         body_data = b64_to_dict(body)
         # Processing message in case its either broadcast or its received is this instance,
@@ -211,7 +212,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
         message_sender = message_data.get('nick', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
-        default_queue_name = 'bot_response'
         if shout:
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
@@ -226,7 +226,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 cid=cid,
                                 dom=message_data.get('dom', ''),
                                 to_discussion=response.get('to_discussion', '0'),
-                                queue_name=response.get('queue', None) or default_queue_name,
+                                queue_name=response.get('queue', None),
                                 context=response.get('context', None),
                                 prompt_id=prompt_id,
                                 broadcast=True)
@@ -238,21 +238,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def _on_connect(self):
         """Emits fanout message to connection exchange once connecting"""
-        self._send_shout(exchange='connection',
-                         message_body={'nick': self.nick,
-                                       'bot_type': self.bot_type,
-                                       'service_name': self.service_name,
-                                       'time': time.time()},
-                         exchange_type=ExchangeType.fanout.value)
+        self.send_shout(shout='hello',
+                        exchange='connection')
 
     def _on_disconnect(self):
         """Emits fanout message to connection exchange once disconnecting"""
-        self._send_shout(exchange='disconnection',
-                         message_body={'nick': self.nick,
-                                       'bot_type': self.bot_type,
-                                       'service_name': self.service_name,
-                                       'time': time.time()},
-                         exchange_type=ExchangeType.fanout.value)
+        self.send_shout(shout='bye',
+                        exchange='disconnection')
 
     def sync(self, vhost: str = None, exchange: str = None, queue: str = None, request_data: dict = None):
         """
@@ -278,7 +270,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             LOG.warning(f"Late Discussion! {shout}")
         elif not shout:
             LOG.warning(f"Empty discussion provided! ({self.nick})")
-
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
@@ -316,10 +307,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _send_first_prompt(self):
         pass
 
-    def send_shout(self, shout, responded_message=None, cid: str = None, dom: str = None,
-                   queue_name='bot_response',
+    def send_shout(self, shout, responded_message=None, cid: str = '', dom: str = '',
+                   queue_name='',
                    exchange='',
-                   broadcast: bool = False,
+                   broadcast: bool = True,
                    context: dict = None,
                    prompt_id='',
                    **kwargs):
@@ -332,23 +323,24 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param dom: domain name
             :param queue_name: name of the response mq queue
             :param exchange: name of mq exchange
-            :param broadcast: to broadcast shout (defaults to False)
+            :param broadcast: to broadcast shout (defaults to True)
             :param context: message context to pass along with response
             :param prompt_id: id of prompt to refer shout to
         """
-        if not cid:
-            LOG.warning('No cid was mentioned')
-            return
-
         conversation_state = self.get_conversation_state(cid)
         if isinstance(conversation_state, ConversationState):
             conversation_state = conversation_state.value
-        exchange_type = ExchangeType.direct.value
+        queue_name = queue_name or self.default_response_queue
         if broadcast:
             # prohibits fanouts to default exchange for consistency
             exchange = exchange or queue_name
             queue_name = ''
             exchange_type = ExchangeType.fanout.value
+        else:
+            exchange_type = ExchangeType.direct.value
+
+        kwargs.setdefault('omit_reply', False)
+        kwargs.setdefault('no_save', False)
 
         self._send_shout(
             queue_name=queue_name,
