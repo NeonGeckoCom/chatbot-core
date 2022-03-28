@@ -120,7 +120,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                      exchange=f'{proctor_nick}_pong',
                                      expiration=3000)
                 self.set_conversation_state(body_data.get('cid'), ConversationState.WAIT)
-
+                self.send_shout(shout='I am ready for the next prompt',
+                                cid=body_data.get('cid'))
+ 
     def _on_mentioned_user_message(self, channel, method, _, body):
         """
             MQ handler for requesting message for current bot
@@ -224,12 +226,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self.send_shout(shout=shout,
                                 responded_message=message_data.get('messageID', ''),
                                 cid=cid,
-                                dom=message_data.get('dom', ''),
                                 to_discussion=response.get('to_discussion', '0'),
                                 queue_name=response.get('queue', None),
                                 context=response.get('context', None),
-                                prompt_id=prompt_id,
-                                broadcast=True)
+                                prompt_id=prompt_id)
             else:
                 LOG.warning(
                     f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
