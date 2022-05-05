@@ -347,7 +347,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             exchange=exchange,
             exchange_type=exchange_type,
             message_body={
-                'nick': self.nick,
+                'nick': self.service_name,
                 'bot_type': self.bot_type,
                 'service_name': self.service_name,
                 'cid': cid,
