@@ -20,7 +20,6 @@ import time
 
 from neon_mq_connector.utils import RepeatingTimer
 from neon_utils.socket_utils import b64_to_dict
-from neon_utils import LOG
 
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
