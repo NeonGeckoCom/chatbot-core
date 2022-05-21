@@ -25,7 +25,7 @@ from typing import Optional
 
 from chatbot_core.utils import *
 
-logger = make_logger(__name__)
+LOG = make_logger("chatbot")
 
 
 class ChatBotABC(ABC):
@@ -33,6 +33,16 @@ class ChatBotABC(ABC):
 
     def __init__(self):
         self.shout_queue = Queue(maxsize=256)
+        self.__log = None
+
+    @property
+    def log(self):
+        if not self.__log:
+            global LOG
+            self.__log = make_logger(self.__class__.__name__)
+            self.__log.setLevel(LOG.level)
+            LOG = self.__log
+        return self.__log
 
     @abstractmethod
     def parse_init(self, *args, **kwargs) -> tuple:
@@ -169,7 +179,7 @@ class ChatBotABC(ABC):
             # Apply some random wait time if we got a response very quickly
             time.sleep(random.randrange(0, 50) / 10)
         else:
-            logger.debug("Skipping artificial wait!")
+            LOG.debug("Skipping artificial wait!")
 
     @abstractmethod
     def _send_first_prompt(self):

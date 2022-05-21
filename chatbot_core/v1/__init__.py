@@ -42,10 +42,6 @@ from nltk import word_tokenize
 import jellyfish
 import spacy
 
-
-LOG = make_logger("chatbot")
-
-
 class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):
         socket, domain, username, password, on_server, is_prompter = self.parse_init(*args, **kwargs)
@@ -53,7 +49,6 @@ class ChatBot(KlatApi, ChatBotABC):
         init_nick = "Prompter" if is_prompter else ""
         KlatApi.__init__(self, socket, domain, init_nick)
         ChatBotABC.__init__(self)
-        global LOG
         # self.log.debug("Connector started")
         self.on_server = on_server
         self.is_prompter = is_prompter
@@ -65,10 +60,6 @@ class ChatBot(KlatApi, ChatBotABC):
 
         self.username = username
         self.password = password
-
-        self.log = make_logger(self.__class__.__name__)
-        self.log.setLevel(LOG.level)
-        LOG = self.log
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
         self.response_probability = 75  # % probability for a bot to respond to an input in non-proctored conversation
@@ -123,18 +114,18 @@ class ChatBot(KlatApi, ChatBotABC):
 
         if status == 888:
             self.enable_responses = False
-            LOG.info(f"New user, registering {self.username}")
+            self.log.info(f"New user, registering {self.username}")
             self.register_klat(self.username, self.password)
         elif status == 999:
-            LOG.error(f"Incorrect Password!")
+            self.log.error(f"Incorrect Password!")
         elif status == 777:
-            LOG.error(f"User already logged in and was logged out!")
+            self.log.error(f"User already logged in and was logged out!")
         elif status == 666:
-            LOG.error(f"Nickname in use")
+            self.log.error(f"Nickname in use")
         elif status == 555:
-            LOG.error("Old nick not found!")
+            self.log.error("Old nick not found!")
         elif status != 0:
-            LOG.error(f"Unknown error {status} occurred while logging in!")
+            self.log.error(f"Unknown error {status} occurred while logging in!")
         self.enable_responses = True
         if not self.nick:
             self.log.error(f"No nick!! expected: {self.username}")
@@ -234,7 +225,7 @@ class ChatBot(KlatApi, ChatBotABC):
         # Handle prompts with incorrect prefix case
         if not shout.startswith("!PROMPT:") and shout.lower().startswith("!prompt:"):
             content = shout.split(':', 1)[1].strip()
-            LOG.info(f"Cleaned Prompt={content}")
+            self.log.info(f"Cleaned Prompt={content}")
             shout = f"!PROMPT:{content}"
 
         # Handle Parsed Shout

@@ -20,7 +20,6 @@ import time
 
 from neon_mq_connector.utils import RepeatingTimer
 from neon_utils.socket_utils import b64_to_dict
-from neon_utils import LOG
 
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
@@ -58,7 +57,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """Handles incoming request to chat bot"""
         body_data = b64_to_dict(body)
         cid = body_data.get('cid', None)
-        LOG.info(f'Received kick out from cid: {cid}')
+        self.log.info(f'Received kick out from cid: {cid}')
         if cid:
             self.current_conversations.pop(cid, None)
 
@@ -66,7 +65,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """Handles incoming request to chat bot"""
         body_data = b64_to_dict(body)
         new_cid = body_data.pop('cid', None)
-        LOG.info(f'Received invitation to cid: {new_cid}')
+        self.log.info(f'Received invitation to cid: {new_cid}')
         if new_cid and not self.current_conversations.get(new_cid, None):
             self.current_conversations[new_cid] = body_data
             self.set_conversation_state(new_cid, ConversationState.IDLE)
@@ -76,9 +75,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
 
     def set_conversation_state(self, cid, state):
-        LOG.debug(f'State was: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
+        self.log.debug(f'State was: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
         self.current_conversations.setdefault(cid, {})['state'] = state
-        LOG.debug(
+        self.log.debug(
             f'State become: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
 
     def _setup_listeners(self):
@@ -114,7 +113,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if body_data.get('cid') in list(self.current_conversations):
             with self.create_mq_connection(self.vhost) as mq_connection:
                 proctor_nick = body_data.get('nick', '')
-                LOG.info(f'Sending pong to {proctor_nick}')
+                self.log.info(f'Sending pong to {proctor_nick}')
                 self.publish_message(mq_connection, request_data=dict(nick=self.nick,
                                                                       cid=body_data.get('cid')),
                                      exchange=f'{proctor_nick}_pong',
@@ -132,7 +131,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 and not body_data.get('omit_reply', False):
             self.handle_incoming_shout(body_data)
         else:
-            LOG.warning(f'Skipping processing of mentioned user message with data: {body_data} '
+            self.log.warning(f'Skipping processing of mentioned user message with data: {body_data} '
                         f'as it is not in current conversations')
 
     def _on_user_message(self, channel, method, _, body):
@@ -173,7 +172,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 }
         """
         response = {'shout': '', 'context': {}, 'queue': ''}
-        LOG.info(f'Received incoming shout: {shout}')
+        self.log.info(f'Received incoming shout: {shout}')
         if not is_message_from_proctor:
             response['shout'] = self.ask_chatbot(user=message_sender,
                                                  shout=shout,
@@ -208,7 +207,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param message_data: dict containing message data received
             :param skip_callback: to skip callback after handling shoult (default to False)
         """
-        LOG.info(f'Message data: {message_data}')
+        self.log.info(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
@@ -221,7 +220,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                  conversation_state=conversation_state)
             shout = response.get('shout', None)
             if shout and not skip_callback:
-                LOG.info(f'Sending response: {response}')
+                self.log.info(f'Sending response: {response}')
                 prompt_id = response.get('context', {}).get('prompt_id')
                 self.send_shout(shout=shout,
                                 responded_message=message_data.get('messageID', ''),
@@ -231,10 +230,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 context=response.get('context', None),
                                 prompt_id=prompt_id)
             else:
-                LOG.warning(
+                self.log.warning(
                     f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
         else:
-            LOG.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
+            self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
     def _on_connect(self):
         """Emits fanout message to connection exchange once connecting"""
@@ -257,7 +256,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param request_data: data to publish in sync
         """
         curr_time = int(time.time())
-        LOG.info(f'{curr_time} Emitting sync message from {self.nick}')
+        self.log.info(f'{curr_time} Emitting sync message from {self.nick}')
         self._on_connect()
 
     def discuss_response(self, shout: str, cid: str = None):
@@ -267,9 +266,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         :param cid: mentioned conversation id
         """
         if self.get_conversation_state(cid) != ConversationState.DISC:
-            LOG.warning(f"Late Discussion! {shout}")
+            self.log.warning(f"Late Discussion! {shout}")
         elif not shout:
-            LOG.warning(f"Empty discussion provided! ({self.nick})")
+            self.log.warning(f"Empty discussion provided! ({self.nick})")
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         pass
@@ -366,13 +365,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             but no more than one discussion per conversation.
         """
         if cid and self.get_conversation_state(cid) != ConversationState.VOTE:
-            LOG.warning(f"Late Vote! {response_user}")
+            self.log.warning(f"Late Vote! {response_user}")
             return None
         elif not response_user:
-            LOG.error("Null response user returned!")
+            self.log.error("Null response user returned!")
             return None
         elif response_user == "abstain" or response_user == self.nick:
-            # self.log.debug(f"Abstaining voter! ({self.nick})")
+            # self.self.log.debug(f"Abstaining voter! ({self.nick})")
             return "I abstain from voting"
         else:
             return f"I vote for {response_user}"
