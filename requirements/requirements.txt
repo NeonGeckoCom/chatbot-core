@@ -1,5 +1,5 @@
 mycroft-messagebus-client
-klat-connector>=0.6.2a10
+klat-connector>=0.6.2a11
 neon-mq-connector>=0.4.1a3
 neon-utils~=0.7
 psutil~=5.7.3
