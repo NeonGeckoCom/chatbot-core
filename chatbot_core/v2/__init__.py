@@ -228,7 +228,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 to_discussion=response.get('to_discussion', '0'),
                                 queue_name=response.get('queue', None),
                                 context=response.get('context', None),
-                                prompt_id=prompt_id)
+                                is_announcement=response.get('is_announcement', False),
+                                prompt_id=prompt_id,
+                                **response.get('kwargs', {}))
             else:
                 self.log.warning(
                     f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
@@ -370,7 +372,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         elif not response_user:
             self.log.error("Null response user returned!")
             return None
-        elif response_user == "abstain" or response_user == self.nick:
+        elif response_user == "abstain" or response_user in (self.nick, self.service_name):
             # self.self.log.debug(f"Abstaining voter! ({self.nick})")
             return "I abstain from voting"
         else:
