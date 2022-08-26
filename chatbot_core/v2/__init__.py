@@ -369,10 +369,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         if cid and self.get_conversation_state(cid) != ConversationState.VOTE:
             self.log.warning(f"Late Vote! {response_user}")
-            return None
+            return ''
         elif not response_user:
             self.log.error("Null response user returned!")
-            return None
+            return ''
         elif response_user == "abstain" or response_user in (self.nick, self.service_name):
             # self.self.log.debug(f"Abstaining voter! ({self.nick})")
             return "I abstain from voting"
