@@ -191,9 +191,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 response['shout'] = self.ask_discusser(options)
             elif conversation_state == ConversationState.VOTE:
                 selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
-                if not selected or selected == self.nick:
-                    selected = "abstain"
                 response['shout'] = self.vote_response(selected)
+                if 'abstain' in response['shout'].lower():
+                    selected = "abstain"
                 response['context']['selected'] = selected
             elif conversation_state == ConversationState.WAIT:
                 response['shout'] = 'I am ready for the next prompt'
