@@ -180,6 +180,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         else:
             response['to_discussion'] = '1'
             response['conversation_state'] = conversation_state
+            message_sender = BotTypes.PROCTOR
 
             self.set_conversation_state(cid, conversation_state)
             if conversation_state == ConversationState.RESP:
