@@ -180,6 +180,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         else:
             response['to_discussion'] = '1'
             response['conversation_state'] = conversation_state
+            message_sender = BotTypes.PROCTOR
 
             self.set_conversation_state(cid, conversation_state)
             if conversation_state == ConversationState.RESP:
@@ -191,9 +192,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 response['shout'] = self.ask_discusser(options)
             elif conversation_state == ConversationState.VOTE:
                 selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
-                if not selected or selected == self.nick:
-                    selected = "abstain"
                 response['shout'] = self.vote_response(selected)
+                if 'abstain' in response['shout'].lower():
+                    selected = "abstain"
                 response['context']['selected'] = selected
             elif conversation_state == ConversationState.WAIT:
                 response['shout'] = 'I am ready for the next prompt'
@@ -368,10 +369,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         if cid and self.get_conversation_state(cid) != ConversationState.VOTE:
             self.log.warning(f"Late Vote! {response_user}")
-            return None
+            return ''
         elif not response_user:
             self.log.error("Null response user returned!")
-            return None
+            return ''
         elif response_user == "abstain" or response_user in (self.nick, self.service_name):
             # self.self.log.debug(f"Abstaining voter! ({self.nick})")
             return "I abstain from voting"
