@@ -315,7 +315,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                    broadcast: bool = True,
                    context: dict = None,
                    prompt_id='',
-                   **kwargs):
+                   **kwargs) -> str:
         """
             Convenience method to emit shout via MQ with extensive instance properties
 
@@ -328,6 +328,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param broadcast: to broadcast shout (defaults to True)
             :param context: message context to pass along with response
             :param prompt_id: id of prompt to refer shout to
+
+            :returns generated shout id
         """
         conversation_state = self.get_conversation_state(cid)
         if isinstance(conversation_state, ConversationState):
@@ -344,7 +346,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         kwargs.setdefault('omit_reply', False)
         kwargs.setdefault('no_save', False)
 
-        self._send_shout(
+        return self._send_shout(
             queue_name=queue_name,
             exchange=exchange,
             exchange_type=exchange_type,
