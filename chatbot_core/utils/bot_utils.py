@@ -57,7 +57,7 @@ def get_ip_address():
 
 
 ip = get_ip_address()
-if ip == "64.34.186.120":  # Test
+if ip == "64.34.190.150":  # Test
     SERVER = "2222.us"
 elif ip == "64.225.115.136":  # Cert
     SERVER = "5555.us"
@@ -511,7 +511,7 @@ def _listen_for_restart_chatbots(server: str):
     :param server: base url of the klat server messagebus to listen to
     """
     if server == "2222.us":
-        host = "64.34.186.120"
+        host = "64.34.190.150"
     elif server == "5555.us":
         host = "64.225.115.136"
     else:
