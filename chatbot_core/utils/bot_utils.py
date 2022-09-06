@@ -127,6 +127,9 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
     """
     from chatbot_core import ChatBot
 
+    LOG.debug(bot_path)
+    LOG.debug(names_to_consider)
+
     bots = {}
 
     try:
@@ -138,6 +141,7 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
         # only specified bot names
         if names_to_consider:
             bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
+        LOG.debug(bot_names)
         if bot_names:
             sys.path.append(bot_path)
 
