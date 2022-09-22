@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import logging
+# import logging
 
 # fmt = '%(asctime)s - %(levelname)-8s - %(name)s:%(filename)s:%(module)s:%(funcName)s:%(lineno)d - %(message)s'
 # logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt='%Y-%m-%d:%H:%M:%S')
