@@ -18,7 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import inspect
-import logging
+# import logging
 import os
 import pkgutil
 import socket
