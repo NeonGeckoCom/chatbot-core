@@ -18,7 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import inspect
-# import logging
+import logging
 import os
 import pkgutil
 import socket
@@ -57,7 +57,7 @@ def get_ip_address():
 
 
 ip = get_ip_address()
-if ip == "64.34.190.150":  # Test
+if ip == "64.34.186.120":  # Test
     SERVER = "2222.us"
 elif ip == "64.225.115.136":  # Cert
     SERVER = "5555.us"
@@ -127,9 +127,6 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
     """
     from chatbot_core import ChatBot
 
-    LOG.debug(bot_path)
-    LOG.debug(names_to_consider)
-
     bots = {}
 
     try:
@@ -141,7 +138,6 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
         # only specified bot names
         if names_to_consider:
             bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
-        LOG.debug(bot_names)
         if bot_names:
             sys.path.append(bot_path)
 
@@ -515,7 +511,7 @@ def _listen_for_restart_chatbots(server: str):
     :param server: base url of the klat server messagebus to listen to
     """
     if server == "2222.us":
-        host = "64.34.190.150"
+        host = "64.34.186.120"
     elif server == "5555.us":
         host = "64.225.115.136"
     else:
