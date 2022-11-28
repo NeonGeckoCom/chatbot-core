@@ -19,7 +19,7 @@
 import time
 
 from neon_mq_connector.utils import RepeatingTimer
-from neon_utils.socket_utils import b64_to_dict
+from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
@@ -53,23 +53,24 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         bot_type: repr(BotTypes) = bot_type or kwargs.get('bot_type', BotTypes.SUBMIND)
         return config, service_name, vhost, bot_type
 
-    def handle_kick_out(self, channel, method, _, body):
-        """Handles incoming request to chat bot"""
-        body_data = b64_to_dict(body)
-        cid = body_data.get('cid', None)
+    @create_mq_callback()
+    def handle_kick_out(self, body: dict):
+        """Handles incoming request to chatbot"""
+        cid = body.get('cid', None)
         self.log.info(f'Received kick out from cid: {cid}')
         if cid:
+            self.send_announcement(f'{self.nick.split("-")[0]} kicked out', cid)
             self.current_conversations.pop(cid, None)
 
-    def handle_invite(self, channel, method, _, body):
-        """Handles incoming request to chat bot"""
-        body_data = b64_to_dict(body)
-        new_cid = body_data.pop('cid', None)
+    @create_mq_callback()
+    def handle_invite(self, body: dict):
+        """Handles incoming request to chatbot"""
+        new_cid = body.pop('cid', None)
         self.log.info(f'Received invitation to cid: {new_cid}')
         if new_cid and not self.current_conversations.get(new_cid, None):
-            self.current_conversations[new_cid] = body_data
+            self.current_conversations[new_cid] = body
             self.set_conversation_state(new_cid, ConversationState.IDLE)
-            # TODO: emit greeting here (Kirill)
+            self.send_announcement(f'{self.nick.split("-")[0]} joined', new_cid)
 
     def get_conversation_state(self, cid) -> ConversationState:
         return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
@@ -108,43 +109,42 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                  self.default_error_handler,
                                  exchange='proctor_ping')
 
-    def handle_proctor_ping(self, channel, method, _, body):
-        body_data = b64_to_dict(body)
-        if body_data.get('cid') in list(self.current_conversations):
+    @create_mq_callback()
+    def handle_proctor_ping(self, body: dict):
+        if body.get('cid') in list(self.current_conversations):
             with self.create_mq_connection(self.vhost) as mq_connection:
-                proctor_nick = body_data.get('nick', '')
+                proctor_nick = body.get('nick', '')
                 self.log.info(f'Sending pong to {proctor_nick}')
                 self.publish_message(mq_connection, request_data=dict(nick=self.nick,
-                                                                      cid=body_data.get('cid')),
+                                                                      cid=body.get('cid')),
                                      exchange=f'{proctor_nick}_pong',
                                      expiration=3000)
-                self.set_conversation_state(body_data.get('cid'), ConversationState.WAIT)
+                self.set_conversation_state(body.get('cid'), ConversationState.WAIT)
                 self.send_shout(shout='I am ready for the next prompt',
-                                cid=body_data.get('cid'))
- 
-    def _on_mentioned_user_message(self, channel, method, _, body):
+                                cid=body.get('cid'))
+
+    @create_mq_callback()
+    def _on_mentioned_user_message(self, body: dict):
         """
             MQ handler for requesting message for current bot
         """
-        body_data = b64_to_dict(body)
-        if body_data.get('cid', None) in list(self.current_conversations) \
-                and not body_data.get('omit_reply', False):
-            self.handle_incoming_shout(body_data)
+        if body.get('cid', None) in list(self.current_conversations) and not body.get('omit_reply', False):
+            self.handle_incoming_shout(body)
         else:
-            self.log.warning(f'Skipping processing of mentioned user message with data: {body_data} '
+            self.log.warning(f'Skipping processing of mentioned user message with data: {body} '
                         f'as it is not in current conversations')
 
-    def _on_user_message(self, channel, method, _, body):
+    @create_mq_callback()
+    def _on_user_message(self, body: dict):
         """
             MQ handler for requesting message, gets processed in case its addressed to given instance or is a broadcast call
         """
-        body_data = b64_to_dict(body)
         # Processing message in case its either broadcast or its received is this instance,
         # forbids recursive calls
-        if body_data.get('broadcast', False) or \
-                body_data.get('receiver', None) == self.nick and \
-                self.nick != body_data.get('user', None):
-            self._on_mentioned_user_message(channel, method, _, body)
+        if body.get('broadcast', False) or \
+                body.get('receiver', None) == self.nick and \
+                self.nick != body.get('user', None):
+            self._on_mentioned_user_message('', '', '', body)
 
     def handle_incoming_shout(self, message_data: dict):
         """
@@ -363,6 +363,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 'prompt_id': prompt_id,
                 'time': str(int(time.time())),
                 **kwargs})
+
+    def send_announcement(self, shout, cid, **kwargs):
+        return self.send_shout(shout=shout,
+                               cid=cid,
+                               is_announcement='1',
+                               **kwargs)
 
     def vote_response(self, response_user: str, cid: str = None):
         """
