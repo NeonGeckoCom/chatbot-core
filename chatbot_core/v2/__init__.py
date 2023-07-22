@@ -153,6 +153,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         self.shout_queue.put(message_data)
 
+    @property
+    def contextual_api_supported(self) -> bool:
+        """ This is a backward compatibility property to ensure gradual migration of V2 subminds API to enable handling of the context """
+        # TODO: make it defaulting to True once all the related subminds are migrated (Kirill)
+        return False
+
     def get_chatbot_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
                              conversation_state) -> dict:
         """
@@ -173,10 +179,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         response = {'shout': '', 'context': {}, 'queue': ''}
         self.log.info(f'Received incoming shout: {shout}')
+        if self.contextual_api_supported:
+            context_kwargs = {'context': self._build_submind_request_context(message_data=message_data,
+                                                                             message_sender=message_sender,
+                                                                             is_message_from_proctor=is_message_from_proctor,
+                                                                             conversation_state=conversation_state)}
+        else:
+            context_kwargs = {}
         if not is_message_from_proctor:
             response['shout'] = self.ask_chatbot(user=message_sender,
                                                  shout=shout,
-                                                 timestamp=str(message_data.get('timeCreated', int(time.time()))))
+                                                 timestamp=str(message_data.get('timeCreated', int(time.time()))),
+                                                 **context_kwargs)
         else:
             response['to_discussion'] = '1'
             response['conversation_state'] = conversation_state
@@ -186,12 +200,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if conversation_state == ConversationState.RESP:
                 response['shout'] = self.ask_chatbot(user=message_sender,
                                                      shout=shout,
-                                                     timestamp=str(message_data.get('timeCreated', int(time.time()))))
+                                                     timestamp=str(message_data.get('timeCreated', int(time.time()))),
+                                                     **context_kwargs)
             elif conversation_state == ConversationState.DISC:
                 options: dict = message_data.get('proposed_responses', {})
-                response['shout'] = self.ask_discusser(options)
+                response['shout'] = self.ask_discusser(options, **context_kwargs)
             elif conversation_state == ConversationState.VOTE:
-                selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}))
+                selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}), **context_kwargs)
                 response['shout'] = self.vote_response(selected)
                 if 'abstain' in response['shout'].lower():
                     selected = "abstain"
@@ -200,6 +215,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 response['shout'] = 'I am ready for the next prompt'
             response['context']['prompt_id'] = message_data.get('prompt_id', '')
         return response
+
+    @staticmethod
+    def _build_submind_request_context(message_data: dict,
+                                       message_sender: str,
+                                       is_message_from_proctor: bool,
+                                       conversation_state: ConversationState) -> dict:
+        return {
+            'prompt_id': message_data.get('prompt_id', ''),
+            'message_sender': message_sender,
+            'is_message_from_proctor': is_message_from_proctor,
+            'conversation_state': conversation_state,
+        }
 
     def handle_shout(self, message_data: dict, skip_callback: bool = False):
         """
@@ -294,16 +321,16 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
         pass
 
-    def ask_chatbot(self, user: str, shout: str, timestamp: str) -> str:
+    def ask_chatbot(self, user: str, shout: str, timestamp: str, context: dict = None) -> str:
         pass
 
     def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
         pass
 
-    def ask_appraiser(self, options: dict) -> str:
+    def ask_appraiser(self, options: dict, context: dict = None) -> str:
         pass
 
-    def ask_discusser(self, options: dict) -> str:
+    def ask_discusser(self, options: dict, context: dict = None) -> str:
         pass
 
     def _send_first_prompt(self):
