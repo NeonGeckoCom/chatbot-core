@@ -16,6 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import os
 import time
 
 from neon_mq_connector.utils import RepeatingTimer
@@ -268,6 +269,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _on_connect(self):
         """Emits fanout message to connection exchange once connecting"""
         self.send_shout(shout='hello',
+                        context={'version': os.environ.get('SERVICE_VERSION', 'undefined'),
+                                 'bot_type': self.bot_type},
                         exchange='connection')
 
     def _on_disconnect(self):
