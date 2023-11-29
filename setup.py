@@ -54,8 +54,8 @@ with open("./version.py", "r", encoding="utf-8") as v:
 setuptools.setup(
     name="chatbot-core",
     version=version,
-    author="NeonDaniel",
-    author_email="daniel@neon.ai",
+    author="Neongecko",
+    author_email="developers@neon.ai",
     description="Core utilities for Klat chatbots",
     long_description=long_description,
     long_description_content_type="text/markdown",
