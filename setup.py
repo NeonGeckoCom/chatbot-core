@@ -70,5 +70,6 @@ setuptools.setup(
                                       "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
                                       "debug-klat-bots=chatbot_core.utils:debug_bots",
                                       "start-klat-prompter=chatbot_core.utils:cli_start_prompter"]},
-    install_requires=get_requirements("requirements.txt")
+    install_requires=get_requirements("requirements.txt"),
+    extras_requires={"extra-lgpl": get_requirements("extra-lgpl.txt")}
 )
