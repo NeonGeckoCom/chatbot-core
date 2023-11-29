@@ -9,4 +9,4 @@ jobs:
   license_tests:
     uses: neongeckocom/.github/.github/workflows/license_tests.yml@master
     with:
-      packages-exclude: '^(bs4|nvidia|bitstruct|audioread|klat-connector|chatbot-core|tqdm|dnspython).*'
+      packages-exclude: '^(bs4|nvidia|bitstruct|audioread|klat-connector|neon-chatbot-core|tqdm|dnspython).*'
