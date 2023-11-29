@@ -35,12 +35,22 @@ from klat_connector import start_socket
 from chatbot_core.utils import init_message_bus, make_logger, ConversationState,ConversationControls,\
     remove_prefix, generate_random_response, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
+from chatbot_core.utils.logger import LOG
 from mycroft_bus_client import Message, MessageBusClient
-from autocorrect import Speller
 from nltk.translate.bleu_score import sentence_bleu
 from nltk import word_tokenize
 import jellyfish
 import spacy
+
+try:
+    from autocorrect import Speller
+
+    spell = Speller()
+except ImportError:
+    LOG.error("autocorrect module not available. Install "
+              "`chatbot-core[extra-lgpl]` to use autocorrect.")
+    spell = None
+
 
 class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):

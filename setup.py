@@ -54,8 +54,8 @@ with open("./version.py", "r", encoding="utf-8") as v:
 setuptools.setup(
     name="chatbot-core",
     version=version,
-    author="NeonDaniel",
-    author_email="daniel@neon.ai",
+    author="Neongecko",
+    author_email="developers@neon.ai",
     description="Core utilities for Klat chatbots",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -70,5 +70,6 @@ setuptools.setup(
                                       "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
                                       "debug-klat-bots=chatbot_core.utils:debug_bots",
                                       "start-klat-prompter=chatbot_core.utils:cli_start_prompter"]},
-    install_requires=get_requirements("requirements.txt")
+    install_requires=get_requirements("requirements.txt"),
+    extras_requires={"extra-lgpl": get_requirements("extra-lgpl.txt")}
 )

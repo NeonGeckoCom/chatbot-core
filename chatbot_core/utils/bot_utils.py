@@ -31,7 +31,6 @@ from multiprocessing import Process, Event, synchronize
 from threading import Thread, current_thread
 from mycroft_bus_client import Message, MessageBusClient
 
-from autocorrect import Speller
 from nltk.translate.bleu_score import sentence_bleu
 from nltk import word_tokenize
 
@@ -605,12 +604,18 @@ def grammar_check(func):
     Checks grammar for output of passed function
     :param func: function to consider
     """
-    spell = Speller()
+    try:
+        from autocorrect import Speller
+        spell = Speller()
+    except ImportError:
+        LOG.error("autocorrect module not available. Install "
+                  "`chatbot-core[extra-lgpl]` to use autocorrect.")
+        spell = None
 
     def wrapper(*args, **kwargs):
         LOG.debug("Entered decorator")
         output = func(*args, **kwargs)
-        if output:
+        if output and spell:
             LOG.debug(f"Received output: {output}")
             output = spell(output)
             LOG.debug(f"Processed output: {output}")
