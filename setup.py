@@ -71,7 +71,8 @@ setuptools.setup(
     entry_points={'console_scripts': ["start-klat-bots=chatbot_core.utils:cli_start_bots",
                                       "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
                                       "debug-klat-bots=chatbot_core.utils:debug_bots",
-                                      "start-klat-prompter=chatbot_core.utils:cli_start_prompter"]},
+                                      "start-klat-prompter=chatbot_core.utils:cli_start_prompter",
+                                      "start-mq-bot:chatbot_core.utils.cli_start_bot"]},
     install_requires=get_requirements("requirements.txt"),
     extras_requires={"extra-lgpl": get_requirements("extra-lgpl.txt")}
 )

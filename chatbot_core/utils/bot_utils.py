@@ -29,6 +29,8 @@ import time
 # from socketio import Client
 from multiprocessing import Process, Event, synchronize
 from threading import Thread, current_thread
+
+import pkg_resources
 from mycroft_bus_client import Message, MessageBusClient
 
 from nltk.translate.bleu_score import sentence_bleu
@@ -45,7 +47,7 @@ from klat_connector import start_socket
 
 from chatbot_core.utils.logger import LOG
 # from chatbot_core import ChatBot
-
+from chatbot_core.v2 import ChatBot as ChatBotV2
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -316,6 +318,19 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.info("exiting")
         for p in processes:
             p.join()
+
+
+def cli_start_mq_bot():
+    """
+    Entrypoint to start an MQ chatbot
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Start a chatbot")
+    parser.add_argument("--bot", dest="bot_name",
+                        help="Chatbot entrypoint name", type=str)
+    args = parser.parse_args()
+    run_mq_bot(args.bot_name)
 
 
 def cli_start_bots():
@@ -622,6 +637,41 @@ def grammar_check(func):
         return output
 
     return wrapper
+
+
+def _find_bot_modules():
+    try:
+        from importlib_metadata import entry_points
+        bot_entrypoints = entry_points(group="neon.plugin.chatbot")
+    except ImportError:
+        bot_entrypoints = pkg_resources.iter_entry_points("neon.plugin.chatbot")
+
+    return {entry.name: entry.load() for entry in bot_entrypoints}
+
+
+def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
+               run_kwargs: dict = None, init_kwargs: dict = None) -> ChatBotV2:
+    """
+    Get an initialized MQ Chatbot instance
+    @param chatbot_name: chatbot entrypoint name and configuration key
+    @param vhost: MQ vhost to connect to (default /chatbots)
+    @param run_kwargs: kwargs to pass to chatbot `run` method
+    @param init_kwargs: extra kwargs to pass to chatbot `__init__` method
+    @returns: Started ChatBotV2 instance
+    """
+    os.environ['CHATBOT_VERSION'] = 'v2'
+    run_kwargs = run_kwargs or dict()
+    init_kwargs = init_kwargs or dict()
+    bots = _find_bot_modules()
+    clazz = bots.get(chatbot_name)
+    if init_kwargs.get('config'):
+        LOG.info(f"Config specified: {init_kwargs['config']}")
+    if not clazz:
+        raise RuntimeError(f"Requested bot `{chatbot_name}` not found in: "
+                           f"{list(bots.keys())}")
+    bot = clazz(service_name=chatbot_name, vhost=vhost, **init_kwargs)
+    bot.run(**run_kwargs)
+    return bot
 
 
 if __name__ == "__main__":
