@@ -46,8 +46,10 @@ import yaml
 from klat_connector import start_socket
 
 from chatbot_core.utils.logger import LOG
+
+# Causes circular imports
 # from chatbot_core import ChatBot
-from chatbot_core.v2 import ChatBot as ChatBotV2
+# from chatbot_core.v2 import ChatBot as ChatBotV2
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -650,7 +652,7 @@ def _find_bot_modules():
 
 
 def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
-               run_kwargs: dict = None, init_kwargs: dict = None) -> ChatBotV2:
+               run_kwargs: dict = None, init_kwargs: dict = None):
     """
     Get an initialized MQ Chatbot instance
     @param chatbot_name: chatbot entrypoint name and configuration key
