@@ -45,7 +45,7 @@ from datetime import datetime
 import yaml
 from klat_connector import start_socket
 
-from chatbot_core.utils.logger import LOG
+from ovos_utils.log import LOG
 
 # Causes circular imports
 # from chatbot_core import ChatBot
@@ -661,7 +661,7 @@ def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
     @param init_kwargs: extra kwargs to pass to chatbot `__init__` method
     @returns: Started ChatBotV2 instance
     """
-    from neon_utils.log_utils import LOG, init_log
+    from neon_utils.log_utils import init_log
     init_log({"level_overrides": {"error": ['pika'],
                                   "warning": ["filelock"]}})
     os.environ['CHATBOT_VERSION'] = 'v2'
