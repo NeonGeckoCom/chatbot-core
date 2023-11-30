@@ -661,6 +661,9 @@ def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
     @param init_kwargs: extra kwargs to pass to chatbot `__init__` method
     @returns: Started ChatBotV2 instance
     """
+    from neon_utils.log_utils import LOG, init_log
+    init_log({"level_overrides": {"error": ['pika'],
+                                  "warning": ["filelock"]}})
     os.environ['CHATBOT_VERSION'] = 'v2'
     run_kwargs = run_kwargs or dict()
     init_kwargs = init_kwargs or dict()
