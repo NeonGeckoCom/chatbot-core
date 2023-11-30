@@ -18,7 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from abc import abstractmethod
 from threading import Event, Thread
-from neon_utils.logger import LOG
+from ovos_utils.log import LOG
 
 import spacy
 
@@ -36,7 +36,7 @@ class ParlaiBot:
             :param done_string: string that signals about episode done
             :param exit_string: string that signals about the finish
         """
-        self.log = LOG.create_logger('parlai_logger')
+        self.log = LOG
         self.nlp_engine = spacy.load("en_core_web_sm")
 
         self.agent_id = 'local_agent'
