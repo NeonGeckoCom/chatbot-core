@@ -103,7 +103,9 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str,
     # TODO: Deprecate
     event = Event()
     event.set()
-    thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event, is_prompter))
+    thread = Process(target=_threaded_start_bot,
+                     args=(bot, addr, port, domain, user, password, event,
+                           is_prompter))
     thread.daemon = True
     thread.start()
     while event.is_set():
@@ -211,6 +213,9 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param handle_restart: If true, listens for a restart message from the server to restart chatbots
     :param is_prompter: If true, bot sends prompts to the Proctor and handles responses
     """
+    log_deprecation("This method is deprecated. Bots should be loaded by "
+                    "entrypoints.", "3.0.0")
+    # TODO: Method for loading v1 bots by entrypoints
     # global active_server
     global runner
     domain = domain or "chatbotsforum.org"

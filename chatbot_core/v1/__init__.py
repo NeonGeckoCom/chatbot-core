@@ -36,10 +36,9 @@ from chatbot_core.chatbot_abc import ChatBotABC
 
 class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):
-        socket, domain, username, password, on_server, is_prompter = self.parse_init(*args, **kwargs)
+        socket, domain, username, password, on_server, is_prompter = \
+            self.parse_init(*args, **kwargs)
         LOG.info(f"Starting {username}")
-        from ovos_utils.log import log_deprecation
-        log_deprecation("wrong class")
         socket = socket or start_socket()
         init_nick = "Prompter" if is_prompter else ""
         KlatApi.__init__(self, socket, domain, init_nick)
