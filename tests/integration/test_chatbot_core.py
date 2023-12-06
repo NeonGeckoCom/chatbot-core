@@ -194,7 +194,7 @@ class TestChatbotCore(unittest.TestCase):
     def test_messagebus_connection(self):
         from chatbot_core.utils.bot_utils import init_message_bus
         from threading import Thread
-        from mycroft_bus_client import MessageBusClient
+        from ovos_bus_client.client import MessageBusClient
 
         t, bus = init_message_bus()
         self.assertIsInstance(t, Thread)
