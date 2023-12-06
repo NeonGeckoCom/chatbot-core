@@ -25,6 +25,8 @@ import time
 import sys
 import yaml
 
+from typing import Optional, Callable, Dict
+
 from multiprocessing import Process, Event, synchronize
 from threading import Thread, current_thread
 from ovos_bus_client import Message, MessageBusClient
@@ -36,9 +38,8 @@ from klat_connector import start_socket
 from ovos_utils.log import LOG, log_deprecation
 from neon_utils.net_utils import get_ip_address
 
-# Causes circular imports
-# from chatbot_core import ChatBot
-# from chatbot_core.v2 import ChatBot as ChatBotV2
+from chatbot_core.chatbot_abc import ChatBotABC
+from chatbot_core.v2 import ChatBot as ChatBotV2
 
 
 ip = get_ip_address()
@@ -289,6 +290,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
 
     if handle_restart:
+        log_deprecation("Messagebus connections to Neon Core will be "
+                        "deprecated", "3.0.0")
         LOG.info(f"Setting restart listener for {server}")
         _listen_for_restart_chatbots(server)
     try:
@@ -323,18 +326,23 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             p.join()
 
 
-def debug_bots(bot_dir: str = os.getcwd()):
+def debug_bots(bot_dir: str = None):
     """
     Debug bots in the passed directory
     :param bot_dir: directory containing the bot to test
     """
-    # TODO: Generalize this to testing different modules? Leave one method for selecting a bot and then create an
-    #       options menu for this interactive testing, along with automated discusser and appraiser testing.
-    #       Automated testing could use pre-built response objects, or run n other bots and handle their outputs offline
+    # TODO: Generalize this to testing different modules? Leave one method for
+    #       selecting a bot and then create an options menu for this interactive
+    #       testing, along with automated discusser and appraiser testing.
+    #       Automated testing could use pre-built response objects, or run n
+    #       other bots and handle their outputs offline
     from klat_connector.mach_server import MachKlatServer
     server = MachKlatServer()
 
     if bot_dir:
+        log_deprecation("Bots should be installed so they may be accessed by "
+                        "entrypoint. Specifying a local directory will no "
+                        "longer be supported", "2.3.1")
         subminds = get_bots_in_dir(bot_dir)
     else:
         subminds = _find_bot_modules()
@@ -395,7 +403,7 @@ def _restart_chatbots(message: Message):
     Messagebus handler to restart chatbots on a server
     :param message: Message associated with request
     """
-    # TODO: Deprecate
+    # TODO: Deprecate in 3.0.0
     global runner
     LOG.debug(f"Restart received: {message.data} | {message.context}")
     runner.set()
@@ -406,7 +414,7 @@ def _listen_for_restart_chatbots(server: str):
     Registers a messagebus listener to restart chatbots for the given server
     :param server: base url of the klat server messagebus to listen to
     """
-    # TODO: Deprecate
+    # TODO: Deprecate in 3.0.0
     if server == "2222.us":
         host = "64.34.186.120"
     elif server == "5555.us":
@@ -428,7 +436,8 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
     :param bus_config: messagebus configuration to use
     :return: Thread, messagebus object
     """
-    # TODO: Deprecate
+    log_deprecation("Messagebus connections to Neon Core will be deprecated",
+                    "3.0.0")
     bus_config = bus_config or {"host": "167.172.112.7",
                                 "port": 8181,
                                 "ssl": False,
@@ -442,19 +451,22 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
 
 def generate_random_response(from_iterable: iter):
     """
-        Generates some random bot response from the given options or the default list
+    Generates some random bot response from the given options or the default list
 
-        :param from_iterable: source iterable to get random value from
+    :param from_iterable: source iterable to get random value from
     """
     return random.choice(from_iterable)
 
 
-def find_closest_answer(algorithm: str = 'random', sentence: str = None, options: dict = None):
+def find_closest_answer(algorithm: str = 'random', sentence: str = None,
+                        options: dict = None) -> Optional[str]:
     """
-        Handles an incoming shout into the current conversation
-        :param algorithm: algorithm considered
-        :param sentence: base sentence
-        :param options: options to pick best one from
+    Determines which option is most similar to an input sentence
+    :param algorithm: algorithm considered
+    :param sentence: base sentence
+    :param options: dict of option ID to response for comparison with `sentence`
+    :returns: `option` ID with a value closest to `sentence`, None if requested
+              algorithm fails
     """
     if not sentence:
         LOG.warning('Empty sentence supplied')
@@ -478,14 +490,19 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None, options
             opinion_tokenized = word_tokenize(options[option].lower())
             if len(opinion_tokenized) > 0:
                 if min(len(response_tokenized), len(opinion_tokenized)) < 4:
-                    weighting = 1.0 / min(len(response_tokenized), len(opinion_tokenized))
-                    weights = tuple([weighting] * min(len(response_tokenized), len(opinion_tokenized)))
+                    weighting = 1.0 / min(len(response_tokenized),
+                                          len(opinion_tokenized))
+                    weights = tuple([weighting] * min(len(response_tokenized),
+                                                      len(opinion_tokenized)))
                 else:
                     weights = (0.25, 0.25, 0.25, 0.25)
-                bleu_scores.append(
-                    (option, sentence_bleu([response_tokenized], opinion_tokenized, weights=weights)))
-        max_score = max([x[1] for x in bleu_scores]) if len(bleu_scores) > 0 else 0
-        closest_answer = random.choice(list(filter(lambda x: x[1] == max_score, bleu_scores)))[0]
+                bleu_scores.append((option, sentence_bleu([response_tokenized],
+                                                          opinion_tokenized,
+                                                          weights=weights)))
+        max_score = max([x[1] for x in
+                         bleu_scores]) if len(bleu_scores) > 0 else 0
+        closest_answer = random.choice(list(filter(lambda x: x[1] == max_score,
+                                                   bleu_scores)))[0]
         LOG.info(f'Closest answer is {closest_answer}')
     elif algorithm == 'damerau_levenshtein_distance':
         closest_distance = None
@@ -510,9 +527,9 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None, options
     return closest_answer
 
 
-def grammar_check(func):
+def grammar_check(func: Callable):
     """
-    Checks grammar for output of passed function
+    Decorator to add spelling/grammar checks to a function's output
     :param func: function to consider
     """
     try:
@@ -535,7 +552,10 @@ def grammar_check(func):
     return wrapper
 
 
-def _find_bot_modules():
+def _find_bot_modules() -> Dict[str, type(ChatBotABC)]:
+    """
+    Method for locating all installed chatbots by entrypoint.
+    """
     try:
         from importlib_metadata import entry_points
         bot_entrypoints = entry_points(group="neon.plugin.chatbot")
@@ -547,7 +567,7 @@ def _find_bot_modules():
 
 
 def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
-               run_kwargs: dict = None, init_kwargs: dict = None):
+               run_kwargs: dict = None, init_kwargs: dict = None) -> ChatBotV2:
     """
     Get an initialized MQ Chatbot instance
     @param chatbot_name: chatbot entrypoint name and configuration key

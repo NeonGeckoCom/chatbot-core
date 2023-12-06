@@ -37,36 +37,6 @@ def chatbot_core_cli(version: bool = False):
         click.echo(f"chatbot-core version {__version__}")
 
 
-@chatbot_core_cli.command(help="Start Klat v1 Connection")
-@click.option("--domain", default="chatbotsforum.org",
-              help="Domain to connect to")
-@click.option("--bot-dir", default="./", help="Path to legacy chatbots directory")
-@click.option("--bot", help="Optional name of single bot to start")
-@click.option("--credentials", help="Optional path to legacy credentials file")
-@click.option("--username", help="Klat username for bot to login as")
-@click.option("--password", help="Password to login with")
-@click.option("--server", help="Klat server address/URL")
-def start_klat_bots(domain, bot_dir, bot, credentials, username, password, server):
-    from chatbot_core.utils.bot_utils import start_bots
-    bot_dir = expanduser(relpath(bot_dir))
-    if credentials:
-        credentials = expanduser(relpath(credentials))
-    start_bots(domain, bot_dir, username, password, server, credentials, bot)
-
-
-@chatbot_core_cli.command(help="Start a chatbot prompter")
-@click.option("--bot-dir", default="./", help="Path to legacy chatbots directory")
-@click.option("--bot", help="Name of prompter bot to start")
-@click.option("--username", help="Klat username for bot to login as")
-@click.option("--password", help="Password to login with")
-@click.option("--server", help="Klat server address/URL")
-def start_klat_prompter(bot_dir, bot, username, password, server):
-    from chatbot_core.utils.bot_utils import start_bots
-    bot_dir = expanduser(relpath(bot_dir))
-    start_bots("chatbotsforum.org", bot_dir, username, password,
-               server, None, bot, None, False, True)
-
-
 @chatbot_core_cli.command(help="Start an MQ chatbot")
 @click.argument("bot_entrypoint")
 def start_mq_bot(bot_entrypoint):
@@ -103,7 +73,7 @@ def cli_start_bots():
     Entry Point to start bots from a Console Script
     """
     from chatbot_core.utils.bot_utils import SERVER, start_bots
-    log_deprecation("Use `chatbots start-klat-bots`", "3.0.0")
+    log_deprecation("This CLI command is deprecated", "3.0.0")
 
     parser = argparse.ArgumentParser(description="Start some chatbots")
     parser.add_argument("--domain", dest="domain", default="chatbotsforum.org",
@@ -182,7 +152,7 @@ def cli_start_prompter():
     """
     Entry Point to start a prompter bot
     """
-    log_deprecation("Use `chatbots start-klat-prompter`", "3.0.0")
+    log_deprecation("This CLI command is deprecated", "3.0.0")
 
     from chatbot_core.utils.bot_utils import SERVER, start_bots
     parser = argparse.ArgumentParser(description="Start a prompter chatbot")
