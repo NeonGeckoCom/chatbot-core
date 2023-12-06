@@ -19,14 +19,13 @@
 
 import unittest
 import pytest
-import time
 
 from datetime import datetime
 from klat_connector import start_socket
 from klat_connector.mach_server import MachKlatServer
 
 from chatbot_core.utils.enum import ConversationControls, ConversationState
-from chatbot_core.utils import clean_up_bot
+from chatbot_core.utils.bot_utils import clean_up_bot
 from ..chatbot_objects import *
 
 

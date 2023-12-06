@@ -1,5 +1,5 @@
 ovos-bus-client~=0.0.5
 klat-connector>=0.6.2a15
 psutil~=5.7
-neon_utils~=1.0
+neon_utils[network]~=1.0
 click~=8.0
