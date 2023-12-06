@@ -9,6 +9,33 @@ jobs:
   unit_tests:
     strategy:
       matrix:
+        python-version: [ 3.7, 3.8, 3.9, '3.10', '3.11']
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install . -r requirements/test_requirements.txt
+        env:
+          GITHUB_TOKEN: ${{secrets.neon_token}}
+      - name: Test with pytest
+        run: |
+          pip install pytest pytest-timeout pytest-cov
+          pytest tests/units --doctest-modules --junitxml=tests/unit-test-results.xml
+      - name: Upload pytest unit test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: unit-test-results
+          path: tests/unit-test-results.xml
+  integration_tests:
+    strategy:
+      matrix:
         python-version: [ 3.7, 3.8, 3.9 ]
         # TODO: 3.10 and 3.11 need support in klat-connector
       max-parallel: 1
@@ -30,9 +57,9 @@ jobs:
       - name: Test with pytest
         run: |
           pip install pytest pytest-timeout pytest-cov
-          pytest tests/chatbot_core_tests.py --doctest-modules --junitxml=tests/test-results.xml
-      - name: Upload pytest test results
+          pytest tests/integration --doctest-modules --junitxml=tests/integration-test-results.xml
+      - name: Upload integration test results
         uses: actions/upload-artifact@v2
         with:
-          name: test-results
-          path: tests/test-results.xml
+          name: integration-test-results
+          path: tests/integration-test-results.xml

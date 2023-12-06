@@ -45,7 +45,7 @@ def get_requirements(requirements_filename: str):
 with open(path.join(BASE_PATH, "README.md"), "r") as f:
     long_description = f.read()
 
-with open(path.join(BASE_PATH, "version.py"), "r", encoding="utf-8") as v:
+with open(path.join(BASE_PATH, "chatbot_core", "version.py"), "r", encoding="utf-8") as v:
     for line in v.readlines():
         if line.startswith("__version__"):
             if '"' in line:
@@ -68,11 +68,13 @@ setuptools.setup(
         "Operating System :: OS Independent"
     ],
     python_requires='>=3.6',
-    entry_points={'console_scripts': ["start-klat-bots=chatbot_core.utils:cli_start_bots",
-                                      "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
-                                      "debug-klat-bots=chatbot_core.utils:debug_bots",
-                                      "start-klat-prompter=chatbot_core.utils:cli_start_prompter",
-                                      "start-mq-bot=chatbot_core.utils.bot_utils:cli_start_mq_bot"]},
+    entry_points={'console_scripts': ["chatbots=chatbot_core.cli:chatbot_core_cli",
+                                      "start-klat-bots=chatbot_core.cli:cli_start_bots",
+                                      "stop-klat-bots=chatbot_core.cli:cli_stop_bots",
+                                      "debug-klat-bots=chatbot_core.cli:cli_debug_bots",
+                                      "start-klat-prompter=chatbot_core.cli:cli_start_prompter",
+                                      "start-mq-bot=chatbot_core.cli:cli_start_mq_bot"]},
     install_requires=get_requirements("requirements.txt"),
-    extras_requires={"extra-lgpl": get_requirements("extra-lgpl.txt")}
+    extras_requires={"lgpl": get_requirements("extra-lgpl.txt"),
+                     "lang": get_requirements("extra-lang.txt")}
 )

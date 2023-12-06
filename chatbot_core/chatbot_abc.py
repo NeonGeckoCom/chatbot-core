@@ -18,14 +18,14 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import random
+import time
 
 from abc import ABC, abstractmethod
 from queue import Queue
 from typing import Optional
+from ovos_utils.log import LOG
 
-from chatbot_core.utils import *
-
-LOG = make_logger("chatbot")
+from chatbot_core.utils.logger import make_logger
 
 
 class ChatBotABC(ABC):
@@ -38,10 +38,7 @@ class ChatBotABC(ABC):
     @property
     def log(self):
         if not self.__log:
-            global LOG
             self.__log = make_logger(self.__class__.__name__)
-            self.__log.setLevel(LOG.level)
-            LOG = self.__log
         return self.__log
 
     @abstractmethod

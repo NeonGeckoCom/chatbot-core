@@ -19,14 +19,10 @@
 
 import random
 import copy
-# import jellyfish
-import sys
-import os
 
-# Required for pytest on GitHub
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ChatBot
-from chatbot_core.utils import LOG
+from ovos_utils.log import LOG
+
+from chatbot_core.v1 import ChatBot
 
 
 class V2Bot(ChatBot):

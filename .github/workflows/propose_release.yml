@@ -16,6 +16,7 @@ jobs:
       branch: dev
       release_type: ${{ inputs.release_type }}
       update_changelog: True
+      version_file: "chatbot_core/version.py"
   pull_changes:
     uses: neongeckocom/.github/.github/workflows/pull_master.yml@master
     needs: update_version

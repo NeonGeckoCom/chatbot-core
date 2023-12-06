@@ -16,10 +16,10 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
 from abc import abstractmethod
 from threading import Event, Thread
-
-import spacy
+from ovos_utils.log import LOG
 
 
 class ParlaiBot:
@@ -35,6 +35,7 @@ class ParlaiBot:
             :param done_string: string that signals about episode done
             :param exit_string: string that signals about the finish
         """
+        import spacy
         self.nlp_engine = spacy.load("en_core_web_sm")
 
         self.agent_id = 'local_agent'
@@ -58,7 +59,7 @@ class ParlaiBot:
         if msg['id'] != 'context':
             self.event.set()
             self.current_response = msg["text"]
-        self.log.debug(f'[OUT]: {self.current_response}')
+        LOG.debug(f'[OUT]: {self.current_response}')
 
     def act(self):
         """
@@ -68,7 +69,7 @@ class ParlaiBot:
         # save the current shout locally and clear the attribute to prevent parley() without incoming shout
         reply_text = self.current_shout
         self.current_shout = ''
-        self.log.debug(f'CURRENT SHOUT {reply_text}')
+        LOG.debug(f'CURRENT SHOUT {reply_text}')
         # check for episode done
         if self.done_string in reply_text:
             raise StopIteration

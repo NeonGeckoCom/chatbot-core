@@ -20,44 +20,25 @@
 import inspect
 import logging
 import os
-import pkgutil
-import socket
 import random
-import jellyfish
-# import psutil
 import time
+import sys
+import yaml
 
-# from socketio import Client
 from multiprocessing import Process, Event, synchronize
 from threading import Thread, current_thread
-
-import pkg_resources
-from mycroft_bus_client import Message, MessageBusClient
-
-from nltk.translate.bleu_score import sentence_bleu
-from nltk import word_tokenize
-
-import sys
-
-# import chatbots.bots
-
+from ovos_bus_client import Message, MessageBusClient
 from datetime import datetime
 
-import yaml
-from klat_connector import start_socket
+from ovos_utils.xdg_utils import xdg_config_home
 
-from ovos_utils.log import LOG
+from klat_connector import start_socket
+from ovos_utils.log import LOG, log_deprecation
+from neon_utils.net_utils import get_ip_address
 
 # Causes circular imports
 # from chatbot_core import ChatBot
 # from chatbot_core.v2 import ChatBot as ChatBotV2
-
-def get_ip_address():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    ip_addr = s.getsockname()[0]
-    s.close()
-    return ip_addr
 
 
 ip = get_ip_address()
@@ -75,11 +56,17 @@ else:
 runner = Event()
 
 
+def get_ip_address():
+    log_deprecation('Import from `neon_utils.net_utils` directly', "2.3.0")
+    return get_ip_address()
+
+
 def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str,
                         event: synchronize.Event, is_prompter: bool):
     """
     Helper function for _start_bot
     """
+    # TODO: Deprecate
     if len(inspect.signature(bot).parameters) == 6:
         instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
     elif len(inspect.signature(bot).parameters) == 5:
@@ -99,7 +86,8 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, passw
     event.clear()
 
 
-def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str, is_prompter: bool = False)\
+def _start_bot(bot, addr: str, port: int, domain: str, user: str,
+               password: str, is_prompter: bool = False)\
         -> (Process, synchronize.Event):
     """
     Creates a thread and starts the passed bot with passed parameters
@@ -112,6 +100,7 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str, password: str,
     :param is_prompter: True if bot is to generate prompts for the Proctor
     :returns: Process bot instance is attached to
     """
+    # TODO: Deprecate
     event = Event()
     event.set()
     thread = Process(target=_threaded_start_bot, args=(bot, addr, port, domain, user, password, event, is_prompter))
@@ -129,8 +118,10 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
     :param names_to_consider: limit imported instances to certain list
     :return: dict of bot name:ChatBot object
     """
+    import pkgutil
     from chatbot_core import ChatBot
-
+    log_deprecation("This functionality is deprecated. Bots should specify a "
+                    "`neon.plugin.chatbot` entrypoint", "3.0.0")
     bots = {}
 
     try:
@@ -163,6 +154,9 @@ def load_credentials_yml(cred_file: str) -> dict:
     :param cred_file: Input yml file containing credentials for bot modules
     :return: dict of bot modules to usernames and passwords
     """
+    log_deprecation(f"This functionality is deprecated. Configuration should "
+                    f"be specified in `{xdg_config_home()}/neon/chatbots.yaml`",
+                    "3.0.0")
     with open(cred_file, 'r') as f:
         credentials_dict = yaml.safe_load(f)
     return credentials_dict
@@ -170,6 +164,7 @@ def load_credentials_yml(cred_file: str) -> dict:
 
 def _start_bot_processes(bots_to_start: dict, username: str, password: str,
                          credentials: dict, server: str, domain: str) -> list:
+    # TODO: Deprecate
     processes = []
 
     # Start Proctor first if in the list of bots to start
@@ -323,128 +318,6 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
             p.join()
 
 
-def cli_start_mq_bot():
-    """
-    Entrypoint to start an MQ chatbot
-    """
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Start a chatbot")
-    parser.add_argument("--bot", dest="bot_name",
-                        help="Chatbot entrypoint name", type=str)
-    args = parser.parse_args()
-    run_mq_bot(args.bot_name)
-
-
-def cli_start_bots():
-    """
-    Entry Point to start bots from a Console Script
-    """
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Start some chatbots")
-    parser.add_argument("--domain", dest="domain", default="chatbotsforum.org",
-                        help="Domain to connect to (default: chatbotsforum.org)", type=str)
-    parser.add_argument("--dir", dest="bot_dir",
-                        help="Path to chatbots (default: ./)", type=str)
-    parser.add_argument("--bot", dest="bot_name",
-                        help="Optional bot name to run a single bot only", type=str)
-    parser.add_argument("--credentials", dest="cred_file",
-                        help="Optional path to YAML credentials", type=str)
-    parser.add_argument("--username", dest="username",
-                        help="Klat username for a single bot", type=str)
-    parser.add_argument("--password", dest="password",
-                        help="Klat password for a single bot", type=str)
-    parser.add_argument("--server", dest="server", default=SERVER,
-                        help=f"Klat server (default: {SERVER})", type=str)
-    parser.add_argument("--debug", dest="debug", action='store_true',
-                        help="Enable more verbose log output")
-    parser.add_argument("--bot-names", dest="bot-names",
-                        help="comma separated list of bots to include in running", type=str)
-    parser.add_argument("--exclude", dest="exclude",
-                        help="comma separated list of bots to exclude from running", type=str)
-    parser.add_argument("--handle-restart", dest="handle_restart", default=False,
-                        help="True to handle server emit to restart bots", type=bool)
-    args = parser.parse_args()
-
-    if args.debug:
-        logging.getLogger("chatbots").setLevel(logging.DEBUG)
-        logging.getLogger("chatbot").setLevel(logging.DEBUG)
-    else:
-        logging.getLogger("chatbots").setLevel(logging.INFO)
-        logging.getLogger("chatbot").setLevel(logging.INFO)
-
-    if args.exclude:
-        excluded_bots = [name.strip() for name in args.exclude.split(",")]
-    else:
-        excluded_bots = None
-    LOG.debug(args)
-    start_bots(args.domain, args.bot_dir, args.username, args.password, args.server, args.cred_file, args.bot_name,
-               excluded_bots, args.handle_restart)
-
-
-def cli_stop_bots():
-    """
-    Stops all start-klat-bot instances
-    """
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Stop some chatbots")
-    parser.add_argument("--server", dest="server", default="",
-                        help=f"Klat server (default: None)", type=str)
-    args = parser.parse_args()
-    if args.server:
-        server_to_stop = args.server
-    else:
-        server_to_stop = None
-    import psutil
-
-    procs = {p.pid: p.info for p in psutil.process_iter(['name'])}
-    for pid, name in procs.items():
-        if name.get("name") == "start-klat-bots" and \
-                (not server_to_stop or f"--server={server_to_stop}" in psutil.Process(pid).cmdline()):
-            LOG.info(f"Terminating {pid}")
-            psutil.Process(pid).terminate()
-            time.sleep(1)
-            if psutil.pid_exists(pid) and psutil.Process(pid).is_running():
-                LOG.error(f"Process {pid} not terminated!!")
-                psutil.Process(pid).kill()
-
-
-def cli_start_prompter():
-    """
-    Entry Point to start a prompter bot
-    """
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Start a prompter chatbot")
-    parser.add_argument("--bot", dest="bot_name",
-                        help="Optional bot name to run a single bot only", type=str)
-    parser.add_argument("--dir", dest="bot_dir",
-                        help="Path to chatbots (default: ./)", type=str)
-    parser.add_argument("--username", dest="username",
-                        help="Klat username for a single bot", type=str)
-    parser.add_argument("--password", dest="password",
-                        help="Klat password for a single bot", type=str)
-    parser.add_argument("--server", dest="server", default=SERVER,
-                        help=f"Klat server (default: {SERVER})", type=str)
-    parser.add_argument("--debug", dest="debug", action='store_true',
-                        help="Enable more verbose log output")
-    parser.add_argument("--handle-restart", dest="handle_restart", default=False,
-                        help="True to handle server emit to restart bots", type=bool)
-    args = parser.parse_args()
-
-    if args.debug:
-        logging.getLogger("chatbots").setLevel(logging.DEBUG)
-        logging.getLogger("chatbot").setLevel(logging.DEBUG)
-    else:
-        logging.getLogger("chatbots").setLevel(logging.INFO)
-        logging.getLogger("chatbot").setLevel(logging.INFO)
-    LOG.debug(args)
-    start_bots("chatbotsforum.org", args.bot_dir, args.username, args.password, args.server, None, args.bot_name,
-               None, args.handle_restart, True)
-
-
 def debug_bots(bot_dir: str = os.getcwd()):
     """
     Debug bots in the passed directory
@@ -517,6 +390,7 @@ def _restart_chatbots(message: Message):
     Messagebus handler to restart chatbots on a server
     :param message: Message associated with request
     """
+    # TODO: Deprecate
     global runner
     LOG.debug(f"Restart received: {message.data} | {message.context}")
     runner.set()
@@ -527,6 +401,7 @@ def _listen_for_restart_chatbots(server: str):
     Registers a messagebus listener to restart chatbots for the given server
     :param server: base url of the klat server messagebus to listen to
     """
+    # TODO: Deprecate
     if server == "2222.us":
         host = "64.34.186.120"
     elif server == "5555.us":
@@ -548,6 +423,7 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
     :param bus_config: messagebus configuration to use
     :return: Thread, messagebus object
     """
+    # TODO: Deprecate
     bus_config = bus_config or {"host": "167.172.112.7",
                                 "port": 8181,
                                 "ssl": False,
@@ -584,6 +460,13 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None, options
     if algorithm == 'random':
         closest_answer = random.choice(options)
     elif algorithm == 'bleu_score':
+        try:
+            from nltk import word_tokenize
+            from nltk.translate.bleu_score import sentence_bleu
+        except ImportError:
+            LOG.warning("`nltk` not installed. install "
+                        "`chatbot-core[lang]` to install NLU packages.")
+            return None
         bleu_scores = []
         response_tokenized = word_tokenize(sentence.lower())
         for option in options.keys():
@@ -603,12 +486,17 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None, options
         closest_distance = None
         closest_answer = None
         try:
+            import jellyfish
             for option in options.items():
-                distance = jellyfish.damerau_levenshtein_distance(option[1], sentence)
+                distance = jellyfish.damerau_levenshtein_distance(option[1],
+                                                                  sentence)
                 if not closest_distance or closest_distance > distance:
                     closest_distance = distance
                     closest_answer = option[0]
             LOG.info(f'Closest answer is {closest_answer}')
+        except ImportError:
+            LOG.warning("`jellyfish` not installed. install "
+                        "`chatbot-core[lang]` to install NLU packages.")
         except Exception as e:
             LOG.error(e)
     else:
@@ -647,6 +535,7 @@ def _find_bot_modules():
         from importlib_metadata import entry_points
         bot_entrypoints = entry_points(group="neon.plugin.chatbot")
     except ImportError:
+        import pkg_resources
         bot_entrypoints = pkg_resources.iter_entry_points("neon.plugin.chatbot")
 
     return {entry.name: entry.load() for entry in bot_entrypoints}
@@ -676,10 +565,7 @@ def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
         raise RuntimeError(f"Requested bot `{chatbot_name}` not found in: "
                            f"{list(bots.keys())}")
     bot = clazz(service_name=chatbot_name, vhost=vhost, **init_kwargs)
+    LOG.info(f"Starting {chatbot_name}")
     bot.run(**run_kwargs)
+    LOG.info(f"Started {chatbot_name}")
     return bot
-
-
-if __name__ == "__main__":
-    start_bots("chatbotsforum.org", "~/PycharmProjects/chatbots", "Prompter", "n30nn30n", "2222.us", None, "BLENDER",
-               None, True, True)
