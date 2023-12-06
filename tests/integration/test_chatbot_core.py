@@ -26,14 +26,14 @@ from klat_connector.mach_server import MachKlatServer
 
 from chatbot_core.utils.enum import ConversationControls, ConversationState
 from chatbot_core.utils.bot_utils import clean_up_bot
-from ..chatbot_objects import *
+from .chatbot_objects import *
 
 
 SERVER = "0.0.0.0"
 
 
 @pytest.mark.timeout(timeout=300, method='signal')
-class ChatbotCoreTests(unittest.TestCase):
+class TestChatbotCore(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -192,7 +192,7 @@ class ChatbotCoreTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_messagebus_connection(self):
-        from chatbot_core.utils import init_message_bus
+        from chatbot_core.utils.bot_utils import init_message_bus
         from threading import Thread
         from mycroft_bus_client import MessageBusClient
 
