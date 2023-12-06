@@ -18,7 +18,6 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import os
-import sys
 import unittest
 from unittest.mock import patch
 

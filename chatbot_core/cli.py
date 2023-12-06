@@ -19,6 +19,8 @@
 import logging
 import os
 import argparse
+from os.path import expanduser, relpath
+
 import click
 
 from ovos_utils.log import LOG, log_deprecation
@@ -37,18 +39,33 @@ def chatbot_core_cli(version: bool = False):
 
 
 @chatbot_core_cli.command(help="Start Klat v1 Connection")
-def start_klat_bots():
-    pass
-
-
-@chatbot_core_cli.command(help="Stop Klat v1 Connection")
-def stop_klat_bots():
-    pass
+@click.option("--domain", default="chatbotsforum.org",
+              help="Domain to connect to")
+@click.option("--bot-dir", default="./", help="Path to legacy chatbots directory")
+@click.option("--bot", help="Optional name of single bot to start")
+@click.option("--credentials", help="Optional path to legacy credentials file")
+@click.option("--username", help="Klat username for bot to login as")
+@click.option("--password", help="Password to login with")
+@click.option("--server", help="Klat server address/URL")
+def start_klat_bots(domain, bot_dir, bot, credentials, username, password, server):
+    from chatbot_core.utils.bot_utils import start_bots
+    bot_dir = expanduser(relpath(bot_dir))
+    if credentials:
+        credentials = expanduser(relpath(credentials))
+    start_bots(domain, bot_dir, username, password, server, credentials, bot)
 
 
 @chatbot_core_cli.command(help="Start a chatbot prompter")
-def start_klat_prompter():
-    pass
+@click.option("--bot-dir", default="./", help="Path to legacy chatbots directory")
+@click.option("--bot", help="Name of prompter bot to start")
+@click.option("--username", help="Klat username for bot to login as")
+@click.option("--password", help="Password to login with")
+@click.option("--server", help="Klat server address/URL")
+def start_klat_prompter(bot_dir, bot, username, password, server):
+    from chatbot_core.utils.bot_utils import start_bots
+    bot_dir = expanduser(relpath(bot_dir))
+    start_bots("chatbotsforum.org", bot_dir, username, password,
+               server, None, bot, None, False, True)
 
 
 @chatbot_core_cli.command(help="Start an MQ chatbot")
@@ -60,8 +77,11 @@ def start_mq_bot(bot_entrypoint):
 
 
 @chatbot_core_cli.command(help="Start a local debug session")
-def debug_bots():
-    pass
+@click.option("--bot-dir", default=None, help="Path to legacy chatbots directory")
+def debug_bots(bot_dir):
+    from chatbot_core.utils.bot_utils import debug_bots
+    bot_dir = expanduser(relpath(bot_dir)) if bot_dir else None
+    debug_bots(bot_dir)
 
 
 # Below are deprecated entrypoints
@@ -83,7 +103,6 @@ def cli_start_bots():
     """
     Entry Point to start bots from a Console Script
     """
-    import logging
     from chatbot_core.utils.bot_utils import SERVER, start_bots
     log_deprecation("Use `chatbots start-klat-bots`", "3.0.0")
 
@@ -118,7 +137,7 @@ def cli_start_bots():
     args = parser.parse_args()
 
     if args.debug:
-        LOG.set_level(logging.DEBUG)
+        LOG.set_level("DEBUG")
 
     if args.exclude:
         excluded_bots = [name.strip() for name in args.exclude.split(",")]
@@ -135,7 +154,7 @@ def cli_stop_bots():
     Stops all start-klat-bot instances
     """
     from time import sleep
-    log_deprecation("Use `chatbots stop-klat-bots`", "3.0.0")
+    log_deprecation("This CLI command is deprecated", "3.0.0")
 
     parser = argparse.ArgumentParser(description="Stop some chatbots")
     parser.add_argument("--server", dest="server", default="",
@@ -185,11 +204,7 @@ def cli_start_prompter():
     args = parser.parse_args()
 
     if args.debug:
-        logging.getLogger("chatbots").setLevel(logging.DEBUG)
-        logging.getLogger("chatbot").setLevel(logging.DEBUG)
-    else:
-        logging.getLogger("chatbots").setLevel(logging.INFO)
-        logging.getLogger("chatbot").setLevel(logging.INFO)
+        LOG.level = "DEBUG"
     LOG.debug(args)
     start_bots("chatbotsforum.org", args.bot_dir, args.username, args.password,
                args.server, None, args.bot_name, None, args.handle_restart,

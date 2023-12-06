@@ -326,19 +326,16 @@ def debug_bots(bot_dir: str = os.getcwd()):
     # TODO: Generalize this to testing different modules? Leave one method for selecting a bot and then create an
     #       options menu for this interactive testing, along with automated discusser and appraiser testing.
     #       Automated testing could use pre-built response objects, or run n other bots and handle their outputs offline
+    from klat_connector.mach_server import MachKlatServer
+    server = MachKlatServer()
 
-    # Try handling passed directory
-    if len(sys.argv) > 1:
-        arg_dir = os.path.expanduser(sys.argv[1])
-        bot_dir = arg_dir if os.path.exists(arg_dir) else bot_dir
-
-    logging.getLogger("chatbots").setLevel(logging.WARNING)
-    logging.getLogger("klat_connector").setLevel(logging.WARNING)
-
-    subminds = get_bots_in_dir(bot_dir)
-
+    if bot_dir:
+        subminds = get_bots_in_dir(bot_dir)
+    else:
+        subminds = _find_bot_modules()
     # Options to exit the interactive shell
-    stop_triggers = ["bye", "see you later", "until next time", "have a great day", "goodbye"]
+    stop_triggers = ["bye", "see you later", "until next time",
+                     "have a great day", "goodbye"]
     running = True
     while running:
         try:
@@ -346,14 +343,17 @@ def debug_bots(bot_dir: str = os.getcwd()):
                   f'Please choose a bot to talk to')
             bot_name = input('[In]: ')
             if bot_name in subminds:
-                bot = subminds[bot_name](start_socket("2222.us", 8888), None, None, None, on_server=False)
+                bot = subminds[bot_name](start_socket("0.0.0.0", 8888), None,
+                                         None, None, on_server=False)
                 while running:
                     utterance = input('[In]: ')
-                    response = bot.ask_chatbot('Tester', utterance, datetime.now().strftime("%I:%M:%S %p"))
+                    response = bot.ask_chatbot('Tester', utterance,
+                                               datetime.now().strftime(
+                                                   "%I:%M:%S %p"))
                     print(f'[Out]: {response}')
                     if utterance.lower() in stop_triggers:
                         running = False
-                        LOG.warning("STOP RUNNING")
+                        LOG.debug("STOP RUNNING")
             else:
                 print(f'BOTS: {subminds.keys()}.\n'
                       f'This bot does not exist. Please choose a valid bot to talk to')
@@ -362,8 +362,8 @@ def debug_bots(bot_dir: str = os.getcwd()):
             LOG.warning("STOP RUNNING")
         except EOFError:
             running = False
-        LOG.warning("Still Running")
-    LOG.warning("Done Running")
+    server.shutdown_server()
+    LOG.info("Done Running")
 
 
 def clean_up_bot(bot):
