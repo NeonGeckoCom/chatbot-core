@@ -17,10 +17,39 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
+from ovos_utils.log import log_deprecation
 
-from chatbot_core.utils.cache import FIFOCache
-from chatbot_core.utils.logger import make_logger
-from chatbot_core.utils.enum import ConversationState, ConversationControls, BotTypes
-from chatbot_core.utils.bot_utils import *
-from chatbot_core.utils.string_utils import remove_prefix
-from chatbot_core.utils.conversation_utils import create_conversation_cycle
+
+def create_conversation_cycle():
+    from chatbot_core.utils.conversation_utils import create_conversation_cycle
+    log_deprecation("import from `chatbot_core.utils.conversation_utils`",
+                    "2.3.1")
+    return create_conversation_cycle()
+
+
+def find_closest_answer(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import find_closest_answer
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "2.3.1")
+    return find_closest_answer(*args, **kwargs)
+
+
+def clean_up_bot(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import clean_up_bot
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "2.3.1")
+    return clean_up_bot(*args, **kwargs)
+
+
+def get_bots_in_dir(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import get_bots_in_dir
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "2.3.1")
+    return get_bots_in_dir(*args, **kwargs)
+
+
+def start_bots(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import start_bots
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "2.3.1")
+    return start_bots(*args, **kwargs)

@@ -16,9 +16,51 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-from chatbot_core.utils import generate_random_response, clean_up_bot,\
-    grammar_check, ConversationControls, ConversationState
-from chatbot_core.utils.version_utils import get_class
-from chatbot_core.version_mapping import CHATBOT_VERSIONS
 
-ChatBot = get_class(CHATBOT_VERSIONS)
+from ovos_utils.log import LOG, log_deprecation
+from os import environ
+from neon_utils.decorators import module_property
+
+
+@module_property
+def _ChatBot():
+    LOG.debug(f"Getting class for {environ.get('CHATBOT_VERSION')}")
+    from chatbot_core.utils.version_utils import get_class
+    return get_class()
+
+
+@module_property
+def _ConversationControls():
+    log_deprecation("import from `chatbot_core.utils.enum` directly",
+                    "3.0.0")
+    from chatbot_core.utils.enum import ConversationControls
+    return ConversationControls
+
+
+@module_property
+def _ConversationState():
+    log_deprecation("import from `chatbot_core.utils.enum` directly",
+                    "3.0.0")
+    from chatbot_core.utils.enum import ConversationState
+    return ConversationState
+
+
+def generate_random_response(*args, **kwargs):
+    log_deprecation("import from `chatbot_core.utils.bot_utils` directly",
+                    "3.0.0")
+    from chatbot_core.utils.bot_utils import generate_random_response
+    return generate_random_response(*args, **kwargs)
+
+
+def clean_up_bot(*args, **kwargs):
+    log_deprecation("import from `chatbot_core.utils.bot_utils` directly",
+                    "3.0.0")
+    from chatbot_core.utils.bot_utils import clean_up_bot
+    return clean_up_bot(*args, **kwargs)
+
+
+def grammar_check(*args, **kwargs):
+    log_deprecation("import from `chatbot_core.utils.bot_utils` directly",
+                    "3.0.0")
+    from chatbot_core.utils.bot_utils import grammar_check
+    return grammar_check(*args, **kwargs)

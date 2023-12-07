@@ -19,42 +19,25 @@
 
 import random
 import re
-from abc import abstractmethod
-from queue import Queue
-from typing import Optional
 import time
-# import sys
+
 from copy import deepcopy
-
 from engineio.socket import Socket
-# import threading
-from threading import Thread, Event
-
+from threading import Thread
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
-from chatbot_core.utils import init_message_bus, make_logger, ConversationState,ConversationControls,\
-    remove_prefix, generate_random_response, BotTypes
+from ovos_utils.log import LOG
+
+from chatbot_core.utils.enum import ConversationState, ConversationControls, BotTypes
+from chatbot_core.utils.string_utils import remove_prefix
 from chatbot_core.chatbot_abc import ChatBotABC
-from chatbot_core.utils.logger import LOG
-from mycroft_bus_client import Message, MessageBusClient
-from nltk.translate.bleu_score import sentence_bleu
-from nltk import word_tokenize
-import jellyfish
-import spacy
-
-try:
-    from autocorrect import Speller
-
-    spell = Speller()
-except ImportError:
-    LOG.error("autocorrect module not available. Install "
-              "`chatbot-core[extra-lgpl]` to use autocorrect.")
-    spell = None
 
 
 class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):
-        socket, domain, username, password, on_server, is_prompter = self.parse_init(*args, **kwargs)
+        socket, domain, username, password, on_server, is_prompter = \
+            self.parse_init(*args, **kwargs)
+        LOG.info(f"Starting {username}")
         socket = socket or start_socket()
         init_nick = "Prompter" if is_prompter else ""
         KlatApi.__init__(self, socket, domain, init_nick)
@@ -427,7 +410,7 @@ class ChatBot(KlatApi, ChatBotABC):
         # Generate a random response if none is provided
         if shout == self.active_prompt:
             self.log.info(f"Pick random response for {self.nick}")
-            shout = generate_random_response(self.fallback_responses)
+            shout = random.choice(self.fallback_responses)
 
         if not shout:
             if self.bot_type == BotTypes.SUBMIND:
@@ -642,10 +625,11 @@ class ChatBot(KlatApi, ChatBotABC):
         Sends an initial prompt to the proctor for a prompter bot
         """
         self.log.debug(f"{self.nick} sending initial prompt!")
-        self.send_shout("@Proctor hello!", self.get_private_conversation(["Proctor"]), "Private")
+        self.send_shout("@Proctor hello!",
+                        self.get_private_conversation(["Proctor"]), "Private")
 
     def exit(self):
-        from chatbot_core.utils import clean_up_bot
+        from chatbot_core.utils.bot_utils import clean_up_bot
         # import sys
         # self.socket.disconnect()
         while not self.shout_queue.empty():

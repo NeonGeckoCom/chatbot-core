@@ -17,23 +17,19 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from ovos_utils.log import LOG
+from ovos_utils.log import LOG, log_deprecation
 LOG.name = "chatbots"
 
-# fmt = '%(asctime)s - %(levelname)-8s - %(name)s:%(filename)s:%(module)s:%(funcName)s:%(lineno)d - %(message)s'
-# logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt='%Y-%m-%d:%H:%M:%S')
-# LOG = logging.getLogger("chatbots")
-# logging.getLogger("socketio.client").setLevel(logging.WARNING)
-# logging.getLogger("engineio.client").setLevel(logging.WARNING)
-# logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-
-def make_logger(name, level=None):
+def make_logger(name, level: str = None):
     """
     Create a logger with the specified name (used to create bot loggers)
     """
-    import logging
-    level = level or logging.DEBUG
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    return logging.getLogger(name)
+    log_deprecation("Call `neon_utils.log_utils.init_log` directly", "3.0.0")
+    from neon_utils.log_utils import init_log
+    init_log(log_name=name)
+    if level:
+        LOG.set_level(level)
+        LOG.warning(f"Log level should be set in configuration")
+    return LOG
+

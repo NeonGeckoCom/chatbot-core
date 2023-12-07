@@ -16,18 +16,17 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
 import os
 import time
 
 from neon_mq_connector.utils import RepeatingTimer
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
-
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
 
-from chatbot_core import ConversationState
+from chatbot_core.utils.enum import ConversationState, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
-from chatbot_core.utils import BotTypes
 
 
 class ChatBot(KlatAPIMQ, ChatBotABC):

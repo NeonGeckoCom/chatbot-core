@@ -13,5 +13,5 @@ jobs:
     uses: neongeckocom/.github/.github/workflows/publish_alpha_release.yml@master
     secrets: inherit
     with:
-      version_file: "version.py"
+      version_file: "chatbot_core/version.py"
       publish_prerelease: true
