@@ -545,7 +545,8 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None,
                     closest_distance = distance
                     closest_answer = option[0]
             LOG.info(f'Closest answer is {closest_answer}')
-        except ImportError:
+        except ImportError as e:
+            LOG.error(e)
             LOG.warning("`jellyfish` not installed. install "
                         "`chatbot-core[lang]` to install NLU packages.")
         except Exception as e:
