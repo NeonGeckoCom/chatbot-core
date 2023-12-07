@@ -25,7 +25,7 @@ import time
 import sys
 import yaml
 
-from typing import Optional, Callable, Dict
+from typing import Optional, Callable, Dict, List
 from multiprocessing import Process, Event, synchronize
 from threading import Thread, current_thread
 from ovos_bus_client import Message, MessageBusClient
@@ -37,6 +37,7 @@ from neon_utils.net_utils import get_ip_address
 
 from chatbot_core.chatbot_abc import ChatBotABC
 from chatbot_core.v2 import ChatBot as ChatBotV2
+from chatbot_core.v1 import ChatBot as ChatBotV1
 
 
 ip = get_ip_address()
@@ -357,7 +358,7 @@ def debug_bots(bot_dir: str = None):
     #       other bots and handle their outputs offline
     from klat_connector.mach_server import MachKlatServer
     server = MachKlatServer()
-
+    # TODO: Define alternate `ChatBot` base class with no server dependency
     if bot_dir:
         log_deprecation("Bots should be installed so they may be accessed by "
                         "entrypoint. Specifying a local directory will no "
@@ -375,8 +376,7 @@ def debug_bots(bot_dir: str = None):
                   f'Please choose a bot to talk to')
             bot_name = input('[In]: ')
             if bot_name in subminds:
-                bot = subminds[bot_name](start_socket("0.0.0.0", 8888), None,
-                                         None, None, on_server=False)
+                bot = run_sio_bot(bot_name, "0.0.0.0", 8888)
                 while running:
                     utterance = input('[In]: ')
                     response = bot.ask_chatbot('Tester', utterance,
@@ -619,3 +619,82 @@ def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
     bot.run(**run_kwargs)
     LOG.info(f"Started {chatbot_name}")
     return bot
+
+
+def run_sio_bot(chatbot_name: str, sio_address: str = "0.0.0.0",
+                sio_port: int = 8888, domain: str = None,
+                is_prompter: bool = False) -> ChatBotV1:
+    """
+    Get an initialized SIO Chatbot instance
+    @param chatbot_name: chatbot entrypoint name and configuration key
+    @param sio_address: SocketIO address to connect to
+    @param sio_port: SocketIO port to connect to
+    @param domain: Initial domain to enter
+    @param is_prompter: If true, submit prompts rather than contribute responses
+    @returns: Started ChatBotV2 instance
+    """
+    # TODO: SIO connection from config
+    os.environ['CHATBOT_VERSION'] = 'v1'
+    domain = domain or "chatbotsforum.org"
+    bots = _find_bot_modules()
+    clazz = bots.get(chatbot_name)
+    if not clazz:
+        raise RuntimeError(f"Requested bot `{chatbot_name}` not found in: "
+                           f"{list(bots.keys())}")
+    sock = start_socket(sio_address, sio_port)
+    bot = clazz(socket=sock, domain=domain, is_prompter=is_prompter)
+    LOG.info(f"Started {chatbot_name}")
+    return bot
+
+
+def run_all_bots(domain: str = None) -> List[ChatBotABC]:
+    """
+    Run all installed chatbots, connecting to the configured server, considering
+    the value of the `CHATBOT_VERSION` envvar
+    """
+    bots = _find_bot_modules()
+    from chatbot_core.utils.version_utils import get_current_version
+    chatbot_version = get_current_version()
+    chatbots = list()
+    for bot in bots.keys():
+        if chatbot_version == 1:
+            chatbots.append(run_sio_bot(bot, domain=domain))
+        elif chatbot_version == 2:
+            chatbots.append(run_mq_bot(bot))
+        else:
+            from chatbot_core.utils.version_utils import InvalidVersionError
+            raise InvalidVersionError(f"Unable to start chatbot with version: "
+                                      f"{chatbot_version}")
+    return chatbots
+
+
+def run_local_discussion(prompter_bot: str):
+    """
+    Run all installed bots locally with a prompter to submit prompts for
+    discussion.
+    @param prompter_bot: name/entrypoint of bot to be used as a proctor
+    """
+    # Start local server
+    from klat_connector.mach_server import MachKlatServer
+    server = MachKlatServer()
+
+    # Load all installed subminds and facilitators
+    os.environ['CHATBOT_VERSION'] = 'v1'
+    bots = _find_bot_modules()
+    chatbots = list()
+    for name, clazz in bots.items():
+        chatbots.append(clazz(socket=start_socket("0.0.0.0"), domain="local",
+                              username=name, password=name))
+
+    prompter_clazz = bots.get(prompter_bot)
+    prompter = prompter_clazz(socket=start_socket("0.0.0.0"), domain="local",
+                              is_prompter=True, username=prompter_bot,
+                              password=prompter_bot)
+    chatbots.append(prompter)
+    prompter.send_shout("!PROMPT:hello")
+    # TODO: Format conversation and remove logging to stdout
+    from ovos_utils import wait_for_exit_signal
+    wait_for_exit_signal()
+    for bot in chatbots:
+        bot.exit()
+    server.shutdown_server()

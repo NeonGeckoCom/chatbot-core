@@ -51,7 +51,9 @@ class ChatBot(KlatApi, ChatBotABC):
         self.is_prompter = is_prompter
         self.start_domain = domain
         self.enable_responses = False
-        self.bot_type = None
+        self.bot_type = BotTypes.OBSERVER if is_prompter else (
+            BotTypes.PROCTOR) if init_nick.lower() == "proctor" else (
+            BotTypes.SUBMIND)
         self.proposed_responses = dict()
         self.selected_history = list()
 
@@ -63,9 +65,7 @@ class ChatBot(KlatApi, ChatBotABC):
 
         # Do klat initialization
         klat_timeout = time.time() + 30
-        while not self.ready and time.time() < klat_timeout:
-            time.sleep(1)
-        if not self.ready:
+        if not self.klat_ready.wait(30):
             self.log.error("Klat connection timed out!")
         elif username and password:
             self.login_klat(username, password)
@@ -619,7 +619,8 @@ class ChatBot(KlatApi, ChatBotABC):
         next_shout = self.shout_queue.get()
         while next_shout:
             # (user, shout, cid, dom, timestamp)
-            self.handle_shout(next_shout[0], next_shout[1], next_shout[2], next_shout[3], next_shout[4])
+            self.handle_shout(next_shout[0], next_shout[1], next_shout[2],
+                              next_shout[3], next_shout[4])
             next_shout = self.shout_queue.get()
         self.log.warning(f"No next shout to handle! No more shouts will be processed by {self.nick}")
         self.exit()
