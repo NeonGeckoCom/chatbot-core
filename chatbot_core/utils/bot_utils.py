@@ -26,14 +26,11 @@ import sys
 import yaml
 
 from typing import Optional, Callable, Dict
-
 from multiprocessing import Process, Event, synchronize
 from threading import Thread, current_thread
 from ovos_bus_client import Message, MessageBusClient
 from datetime import datetime
-
 from ovos_utils.xdg_utils import xdg_config_home
-
 from klat_connector import start_socket
 from ovos_utils.log import LOG, log_deprecation
 from neon_utils.net_utils import get_ip_address
@@ -128,7 +125,6 @@ def get_bots_in_dir(bot_path: str,
     """
     names_to_consider = names_to_consider or os.environ.get("bot-names")
     import pkgutil
-    from chatbot_core import ChatBot
     log_deprecation("This functionality is deprecated. Bots should specify a "
                     "`neon.plugin.chatbot` entrypoint", "3.0.0")
     bots = {}
@@ -148,7 +144,7 @@ def get_bots_in_dir(bot_path: str,
             for mod in bot_names:
                 module = __import__(mod)
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if name != "ChatBot" and (issubclass(obj, ChatBot) or
+                    if name != "ChatBot" and (issubclass(obj, ChatBotABC) or
                                               (mod in name and
                                                isinstance(obj, type))):
                         bots[mod] = obj
@@ -403,16 +399,15 @@ def debug_bots(bot_dir: str = None):
     LOG.info("Done Running")
 
 
-def clean_up_bot(bot):
+def clean_up_bot(bot: ChatBotABC):
     """
     Performs any standard cleanup for a bot on destroy
     :param bot: ChatBot instance to clean up
     """
-    from chatbot_core.chatbot_abc import ChatBotABC
     from chatbot_core.v1 import ChatBot as V1
 
     if not isinstance(bot, ChatBotABC):
-        raise TypeError
+        raise TypeError(f"Expected ChatBot, got: {type(bot)}")
     if isinstance(bot, V1):
         bot.socket.disconnect()
     if hasattr(bot, "shout_queue"):
@@ -545,8 +540,8 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None,
                     closest_distance = distance
                     closest_answer = option[0]
             LOG.info(f'Closest answer is {closest_answer}')
-        except ImportError as e:
-            LOG.error(e)
+        except ImportError:
+            jellyfish = None
             LOG.warning("`jellyfish` not installed. install "
                         "`chatbot-core[lang]` to install NLU packages.")
         except Exception as e:
@@ -566,6 +561,7 @@ def grammar_check(func: Callable):
         from autocorrect import Speller
         spell = Speller()
     except ImportError:
+        Speller = None
         LOG.error("autocorrect module not available. Install "
                   "`chatbot-core[extra-lgpl]` to use autocorrect.")
         spell = None
@@ -590,6 +586,7 @@ def _find_bot_modules() -> Dict[str, type(ChatBotABC)]:
         from importlib_metadata import entry_points
         bot_entrypoints = entry_points(group="neon.plugin.chatbot")
     except ImportError:
+        entry_points = None
         import pkg_resources
         bot_entrypoints = pkg_resources.iter_entry_points("neon.plugin.chatbot")
 
