@@ -62,17 +62,20 @@ def get_ip_address():
     return get_ip_address()
 
 
-def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str, password: str,
-                        event: synchronize.Event, is_prompter: bool):
+def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str,
+                        password: str, event: synchronize.Event,
+                        is_prompter: bool):
     """
     Helper function for _start_bot
     """
     # TODO: Deprecate
     if len(inspect.signature(bot).parameters) == 6:
-        instance = bot(start_socket(addr, port), domain, user, password, True, is_prompter)
+        instance = bot(start_socket(addr, port), domain, user, password, True,
+                       is_prompter)
     elif len(inspect.signature(bot).parameters) == 5:
         if is_prompter:
-            LOG.error(f"v2 Bot found, prompter functionality will not be enabled! {bot}")
+            LOG.error(f"v2 Bot found, prompter functionality will "
+                      f"not be enabled! {bot}")
         instance = bot(start_socket(addr, port), domain, user, password, True)
     else:
         LOG.error(f"Bot params unknown: {inspect.signature(bot).parameters}")
@@ -114,13 +117,16 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str,
     return thread, event
 
 
-def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-names", False)) -> dict:
+def get_bots_in_dir(bot_path: str,
+                    names_to_consider: str = None) -> dict:
     """
-    Gets all ChatBots in the given directory, imports them, and returns a dict of their names to modules.
+    Gets all ChatBots in the given directory, imports them, and returns a
+        dict of their names to modules.
     :param bot_path: absolute file path containing bots
     :param names_to_consider: limit imported instances to certain list
     :return: dict of bot name:ChatBot object
     """
+    names_to_consider = names_to_consider or os.environ.get("bot-names")
     import pkgutil
     from chatbot_core import ChatBot
     log_deprecation("This functionality is deprecated. Bots should specify a "
@@ -129,10 +135,10 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
 
     try:
         # Make sure we have a path and not a filename
-        bot_path = bot_path if os.path.isdir(bot_path) else os.path.dirname(bot_path)
+        bot_path = bot_path if os.path.isdir(bot_path) else \
+            os.path.dirname(bot_path)
         # Get all bots in the requested directory
         bot_names = [name for _, name, _ in pkgutil.iter_modules([bot_path])]
-        # TODO: Above fails to import more bots if one fails (bad dependencies, etc) DM
         # only specified bot names
         if names_to_consider:
             bot_names = list(set(bot_names) & set(names_to_consider.split(',')))
@@ -142,8 +148,9 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
             for mod in bot_names:
                 module = __import__(mod)
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # TODO: Why are facilitators not subclassed ChatBots? DM
-                    if name != "ChatBot" and (issubclass(obj, ChatBot) or (mod in name and isinstance(obj, type))):
+                    if name != "ChatBot" and (issubclass(obj, ChatBot) or
+                                              (mod in name and
+                                               isinstance(obj, type))):
                         bots[mod] = obj
             LOG.debug(bots)
     except Exception as e:
@@ -153,7 +160,8 @@ def get_bots_in_dir(bot_path: str, names_to_consider: str = os.environ.get("bot-
 
 def load_credentials_yml(cred_file: str) -> dict:
     """
-    Loads a credentials yml file and returns a dictionary of parsed credentials per-module
+    Loads a credentials yml file and returns a dictionary of parsed credentials
+    per-module.
     :param cred_file: Input yml file containing credentials for bot modules
     :return: dict of bot modules to usernames and passwords
     """
@@ -175,8 +183,10 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
         bot = bots_to_start.get("Proctor")
         try:
             user = username or credentials.get("Proctor", {}).get("username")
-            password = password or credentials.get("Proctor", {}).get("password")
-            process, event = _start_bot(bot, server, 8888, domain, user, password, False)
+            password = password or credentials.get("Proctor",
+                                                   {}).get("password")
+            process, event = _start_bot(bot, server, 8888, domain, user,
+                                        password, False)
             processes.append(process)
         except Exception as e:
             LOG.error(e)
@@ -189,7 +199,8 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
             try:
                 user = username or credentials.get(name, {}).get("username")
                 password = password or credentials.get(name, {}).get("password")
-                process, event = _start_bot(bot, server, 8888, domain, user, password, False)
+                process, event = _start_bot(bot, server, 8888, domain, user,
+                                            password, False)
                 processes.append(process)
             except Exception as e:
                 LOG.error(name)
@@ -198,11 +209,12 @@ def _start_bot_processes(bots_to_start: dict, username: str, password: str,
     return processes
 
 
-def start_bots(domain: str = None, bot_dir: str = None, username: str = None, password: str = None, server: str = None,
-               cred_file: str = None, bot_name: str = None, excluded_bots: list = None, handle_restart: bool = False,
-               is_prompter: bool = False):
+def start_bots(domain: str = None, bot_dir: str = None, username: str = None,
+               password: str = None, server: str = None, cred_file: str = None,
+               bot_name: str = None, excluded_bots: list = None,
+               handle_restart: bool = False, is_prompter: bool = False):
     """
-    Start all of the bots in the given bot_dir and connect them to the given domain
+    Start all the bots in the given bot_dir and connect them to the given domain
     :param domain: Domain to put bots in
     :param bot_dir: Path containing bots to start
     :param username: Username to login with (or bot name if not defined)
@@ -211,8 +223,10 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     :param cred_file: Path to a credentials yml file
     :param bot_name: Optional name of the bot to start (None for all bots)
     :param excluded_bots: Optional list of bots to exclude from launching
-    :param handle_restart: If true, listens for a restart message from the server to restart chatbots
-    :param is_prompter: If true, bot sends prompts to the Proctor and handles responses
+    :param handle_restart: If true, listens for a restart message from the
+        server to restart chatbots
+    :param is_prompter: If true, bot sends prompts to the Proctor and handles
+        responses
     """
     log_deprecation("This method is deprecated. Bots should be loaded by "
                     "entrypoints.", "3.0.0")
@@ -232,10 +246,13 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         LOG.info(f"No bots in: {bot_dir}")
         for d in os.listdir(bot_dir):
             try:
-                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji", "ParlAI") and not d.startswith(".") \
+                if str(d) not in ("__pycache__", "tests", "venv", "torchmoji",
+                                  "ParlAI") and not d.startswith(".") \
                         and os.path.isdir(os.path.join(bot_dir, d)):
                     LOG.info(f"Found bots dir {d}")
-                    bots_to_start = {**get_bots_in_dir(os.path.join(bot_dir, d)), **bots_to_start}
+                    bots_to_start = {**get_bots_in_dir(os.path.join(bot_dir,
+                                                                    d)),
+                                     **bots_to_start}
             except Exception as e:
                 LOG.error(e)
 
@@ -247,7 +264,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
     # Load credentials
     if cred_file:
         cred_file = os.path.expanduser(cred_file)
-        if not os.path.isfile(cred_file) and os.path.isfile(os.path.join(os.getcwd(), cred_file)):
+        if not os.path.isfile(cred_file) and \
+                os.path.isfile(os.path.join(os.getcwd(), cred_file)):
             cred_file = os.path.join(os.getcwd(), cred_file)
         elif not os.path.isfile(cred_file):
             cred_file = None
@@ -269,9 +287,12 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
         if bot:
             bots_to_start = {bot_name: bot}
             try:
-                user = username or credentials.get(bot_name, {}).get("username")
-                password = password or credentials.get(bot_name, {}).get("password")
-                p, _ = _start_bot(bot, server, 8888, domain, user, password, is_prompter)
+                user = username or credentials.get(bot_name,
+                                                   {}).get("username")
+                password = password or credentials.get(bot_name,
+                                                       {}).get("password")
+                p, _ = _start_bot(bot, server, 8888, domain, user, password,
+                                  is_prompter)
                 processes.append(p)
                 # bot(start_socket(server, 8888), domain, user, password, True)
             except Exception as e:
@@ -287,7 +308,8 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                 if name in bots_to_start.keys():
                     bots_to_start.pop(name)
 
-        processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
+        processes = _start_bot_processes(bots_to_start, username, password,
+                                         credentials, server, domain)
 
     if handle_restart:
         log_deprecation("Messagebus connections to Neon Core will be "
@@ -310,16 +332,18 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None, pa
                     p.terminate()
                     time.sleep(1)
                     if p.is_alive():
-                        LOG.warning(f"Process {p.pid} not terminated!! Killing..")
+                        LOG.warning(f"Process {p.pid} not terminated! "
+                                    f"Killing..")
                         p.kill()
                         time.sleep(1)
                         if p.is_alive():
-                            LOG.error(f"Process {p.pid} still alive!!")
+                            LOG.error(f"Process {p.pid} still alive!")
                 except Exception as e:
                     LOG.error(e)
                     p.kill()
             LOG.debug(f"Processes ended")
-            processes = _start_bot_processes(bots_to_start, username, password, credentials, server, domain)
+            processes = _start_bot_processes(bots_to_start, username, password,
+                                             credentials, server, domain)
     except KeyboardInterrupt:
         LOG.info("exiting")
         for p in processes:
@@ -368,8 +392,8 @@ def debug_bots(bot_dir: str = None):
                         running = False
                         LOG.debug("STOP RUNNING")
             else:
-                print(f'BOTS: {subminds.keys()}.\n'
-                      f'This bot does not exist. Please choose a valid bot to talk to')
+                print(f'BOTS: {subminds.keys()}.\nThis bot does not exist.'
+                      f' Please choose a valid bot to talk to')
         except KeyboardInterrupt:
             running = False
             LOG.warning("STOP RUNNING")
@@ -384,11 +408,13 @@ def clean_up_bot(bot):
     Performs any standard cleanup for a bot on destroy
     :param bot: ChatBot instance to clean up
     """
-    from chatbot_core import ChatBot
+    from chatbot_core.chatbot_abc import ChatBotABC
+    from chatbot_core.v1 import ChatBot as V1
 
-    if not isinstance(bot, ChatBot):
+    if not isinstance(bot, ChatBotABC):
         raise TypeError
-    bot.socket.disconnect()
+    if isinstance(bot, V1):
+        bot.socket.disconnect()
     if hasattr(bot, "shout_queue"):
         bot.shout_queue.put(None)
     if hasattr(bot, "shout_thread"):
@@ -442,7 +468,8 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
                                 "port": 8181,
                                 "ssl": False,
                                 "route": "/core"}
-    bus = MessageBusClient(bus_config["host"], bus_config["port"], bus_config["route"], bus_config["ssl"])
+    bus = MessageBusClient(bus_config["host"], bus_config["port"],
+                           bus_config["route"], bus_config["ssl"])
     t = bus.run_in_thread()
     bus.connected_event.wait(10)
     LOG.info(f"Connected to Messagebus at: {bus_config['host']}")
@@ -451,10 +478,10 @@ def init_message_bus(bus_config: dict = None) -> (Thread, MessageBusClient):
 
 def generate_random_response(from_iterable: iter):
     """
-    Generates some random bot response from the given options or the default list
-
+    Generates some random bot response from the given options
     :param from_iterable: source iterable to get random value from
     """
+    log_deprecation("Use `random.choice` directly", "3.0.0")
     return random.choice(from_iterable)
 
 
@@ -470,14 +497,16 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None,
     """
     if not sentence:
         LOG.warning('Empty sentence supplied')
-        return sentence
+        return None
     if not options or len(options.keys()) == 0:
         LOG.warning('No options provided')
-        return sentence
+        return None
     if algorithm == 'random':
-        closest_answer = random.choice(options)
+        closest_answer = random.choice(list(options.keys()))
     elif algorithm == 'bleu_score':
         try:
+            import nltk
+            nltk.download('punkt')
             from nltk import word_tokenize
             from nltk.translate.bleu_score import sentence_bleu
         except ImportError:
@@ -523,7 +552,7 @@ def find_closest_answer(algorithm: str = 'random', sentence: str = None,
             LOG.error(e)
     else:
         LOG.error(f'Unknown algorithm supplied:{algorithm}')
-        return sentence
+        return None
     return closest_answer
 
 

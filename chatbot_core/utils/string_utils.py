@@ -25,5 +25,5 @@ def remove_prefix(prefixed_string: str, prefix: str):
     :return: string with prefix removed
     """
     if prefixed_string.startswith(prefix):
-        return prefixed_string[len(prefix):]
+        return prefixed_string[len(prefix):].lstrip()
     return prefixed_string

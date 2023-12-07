@@ -28,7 +28,6 @@ from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
 from ovos_utils.log import LOG
 
-from chatbot_core.utils.bot_utils import generate_random_response
 from chatbot_core.utils.enum import ConversationState, ConversationControls, BotTypes
 from chatbot_core.utils.string_utils import remove_prefix
 from chatbot_core.chatbot_abc import ChatBotABC
@@ -411,7 +410,7 @@ class ChatBot(KlatApi, ChatBotABC):
         # Generate a random response if none is provided
         if shout == self.active_prompt:
             self.log.info(f"Pick random response for {self.nick}")
-            shout = generate_random_response(self.fallback_responses)
+            shout = random.choice(self.fallback_responses)
 
         if not shout:
             if self.bot_type == BotTypes.SUBMIND:

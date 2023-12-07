@@ -23,7 +23,11 @@ import unittest
 class BotUtilsTests(unittest.TestCase):
     def test_start_bots(self):
         from chatbot_core.utils.bot_utils import start_bots
-        # TODO
+        # Deprecated method
+
+    def test_generate_random_response(self):
+        from chatbot_core.utils.bot_utils import generate_random_response
+        # Deprecated method
 
     def test_debug_bots(self):
         from chatbot_core.utils.bot_utils import debug_bots
@@ -33,13 +37,29 @@ class BotUtilsTests(unittest.TestCase):
         from chatbot_core.utils.bot_utils import clean_up_bot
         # TODO
 
-    def test_generate_random_response(self):
-        from chatbot_core.utils.bot_utils import generate_random_response
-        # TODO
-
     def test_find_closest_answer(self):
         from chatbot_core.utils.bot_utils import find_closest_answer
-        # TODO
+        test_sentence = "This is a statement about testing your code."
+        options = {'1': "testing is good",
+                   '2': "This is a statement about your code",
+                   '3': "This is a statement about testing nothing"}
+
+        random_resp = find_closest_answer('random', test_sentence, options)
+        self.assertIn(random_resp, options.keys())
+
+        bleu_response = find_closest_answer('bleu_score', test_sentence,
+                                            options)
+        self.assertEqual(bleu_response, '3', bleu_response)
+
+        damerau_resp = find_closest_answer('damerau_levenshtein_distance',
+                                           test_sentence, options)
+        self.assertEqual(damerau_resp, '2', damerau_resp)
+
+        self.assertIsNone(find_closest_answer(options=options))
+        self.assertIsNone(find_closest_answer(sentence=test_sentence))
+        self.assertIsNone(find_closest_answer("", test_sentence, options))
+        self.assertIsNone(find_closest_answer("invalid", test_sentence,
+                                              options))
 
     def test_grammar_check(self):
         from chatbot_core.utils.bot_utils import grammar_check
@@ -137,7 +157,13 @@ class LoggerTests(unittest.TestCase):
 class StringUtilsTests(unittest.TestCase):
     def test_remove_prefix(self):
         from chatbot_core.utils.string_utils import remove_prefix
-        # TODO
+        test_string = "This is a test..."
+        self.assertEqual(remove_prefix(f"@bot {test_string}", "@bot"),
+                         test_string)
+        self.assertEqual(remove_prefix(f" {test_string}", '@'),
+                         f" {test_string}")
+        self.assertEqual(remove_prefix(f"{test_string}{test_string}",
+                                       test_string), test_string)
 
 
 class VersionUtilsTests(unittest.TestCase):
@@ -159,6 +185,7 @@ class VersionUtilsTests(unittest.TestCase):
         # Invalid config returns None
         os.environ["CHATBOT_VERSION"] = "0"
         self.assertIsNone(get_class())
+
 
 if __name__ == '__main__':
     unittest.main()
