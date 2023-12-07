@@ -75,6 +75,6 @@ setuptools.setup(
                                       "start-klat-prompter=chatbot_core.cli:cli_start_prompter",
                                       "start-mq-bot=chatbot_core.cli:cli_start_mq_bot"]},
     install_requires=get_requirements("requirements.txt"),
-    extras_requires={"lgpl": get_requirements("extra-lgpl.txt"),
-                     "lang": get_requirements("extra-lang.txt")}
+    extras_require={"lgpl": get_requirements("extra-lgpl.txt"),
+                    "lang": get_requirements("extra-lang.txt")}
 )
