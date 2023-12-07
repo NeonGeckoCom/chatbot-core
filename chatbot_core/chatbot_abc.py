@@ -23,9 +23,9 @@ import time
 from abc import ABC, abstractmethod
 from queue import Queue
 from typing import Optional
-from ovos_utils.log import LOG
 
-from chatbot_core.utils.logger import make_logger
+from neon_utils.log_utils import init_log
+from ovos_utils.log import LOG
 
 
 class ChatBotABC(ABC):
@@ -38,7 +38,7 @@ class ChatBotABC(ABC):
     @property
     def log(self):
         if not self.__log:
-            self.__log = make_logger(self.__class__.__name__)
+            self.__log = init_log(log_name=self.__class__.__name__)
         return self.__log
 
     @abstractmethod
