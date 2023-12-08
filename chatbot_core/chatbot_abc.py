@@ -38,6 +38,7 @@ class ChatBotABC(ABC):
         @param bot_id: ID of this chatbot, used to read configuration
         @param config: Dict configuration for this chatbot
         """
+        self._bot_id = bot_id
         self.bot_config = config or Configuration().get("chatbots",
                                                         {}).get(bot_id) or {}
         self.shout_queue = Queue(maxsize=256)
@@ -46,7 +47,7 @@ class ChatBotABC(ABC):
     @property
     def log(self):
         if not self.__log:
-            self.__log = init_log(log_name=self.__class__.__name__)
+            self.__log = init_log(log_name=self._bot_id)
         return self.__log
 
     @abstractmethod
