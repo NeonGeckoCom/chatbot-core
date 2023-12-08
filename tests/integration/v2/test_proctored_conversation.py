@@ -8,18 +8,18 @@ from .mocks import ChatBotObserverMock
 
 @unittest.skip(reason="Testing requires MQ server configuration")
 class TestV2ProctoredConversation(unittest.TestCase):
-    os.environ['CHATBOT_VERSION'] = 'v2'
-    test_cid = 'test_conversation'
-    test_vhost = '/test_chatbots'
-    participating_bots = ("hodor", "wiz", "pard")
-    facilitators = ("proctor",)
-    for bot in participating_bots + facilitators:
-        run_mq_bot(bot, test_vhost, run_kwargs={"run_sync": True,
-                                                "run_consumers": True})
-    time.sleep(3)
-    observer = ChatBotObserverMock(config={},  # TODO: Define this config
-                                   service_name='mock_chatbot_observer')
-    observer.run(run_consumers=True, run_sync=False)
+    # os.environ['CHATBOT_VERSION'] = 'v2'
+    # test_cid = 'test_conversation'
+    # test_vhost = '/test_chatbots'
+    # participating_bots = ("hodor", "wiz", "pard")
+    # facilitators = ("proctor",)
+    # for bot in participating_bots + facilitators:
+    #     run_mq_bot(bot, test_vhost, run_kwargs={"run_sync": True,
+    #                                             "run_consumers": True})
+    # time.sleep(3)
+    # observer = ChatBotObserverMock(config={},  # TODO: Define this config
+    #                                service_name='mock_chatbot_observer')
+    # observer.run(run_consumers=True, run_sync=False)
 
     def setUp(self) -> None:
         for bot in self.participating_bots.values():
