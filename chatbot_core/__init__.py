@@ -26,8 +26,6 @@ from neon_utils.decorators import module_property
 
 @module_property
 def _ChatBot():
-    from ovos_utils.log import LOG
-    LOG.debug(f"Getting class for {environ.get('CHATBOT_VERSION')}")
     from chatbot_core.utils.version_utils import get_class
     return get_class()
 
