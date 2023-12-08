@@ -1,41 +1,26 @@
-import json
 import os
 import time
 import unittest
+import pytest
 
-os.environ['CHATBOT_VERSION'] = 'v2'
-
-# from bots.HODOR import BotHodor
-# from bots.PARD import PardBot
-# from bots.WIZ import WizBot
-# from facilitators.Proctor.v2 import ProctorBot
-# from util.v2_utils import run_mq_service
+from chatbot_core.utils.bot_utils import run_mq_bot
 from .mocks import ChatBotObserverMock
 
 
+@pytest.mark.skip(reason="Testing requires MQ server configuration")
 class TestV2ProctoredConversation(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.test_cid = 'test_conversation'
-        test_vhost = '/test_chatbots'
-        config_path = os.path.expanduser(os.environ.get('CONFIG_PATH', 'config.json'))
-        with open(config_path) as f:
-            config = json.load(f)
-        cls.participating_bots = dict(hodor=BotHodor, wiz=WizBot, pard=PardBot)
-        cls.facilitators = dict(proctor=ProctorBot)
-        for bot_group in [cls.participating_bots, cls.facilitators]:
-            for bot_name, bot_class in bot_group.items():
-                run_mq_service(service_class=bot_class,
-                               service_name=bot_name,
-                               run_kwargs=dict(run_sync=True,
-                                               run_consumers=True),
-                               config_path=config_path,
-                               vhost=test_vhost)
-        time.sleep(3)
-        cls.observer = ChatBotObserverMock(config=config,
-                                           service_name='mock_chatbot_observer')
-        cls.observer.run(run_consumers=True, run_sync=False)
+    os.environ['CHATBOT_VERSION'] = 'v2'
+    test_cid = 'test_conversation'
+    test_vhost = '/test_chatbots'
+    participating_bots = ("hodor", "wiz", "pard")
+    facilitators = ("proctor",)
+    for bot in participating_bots + facilitators:
+        run_mq_bot(bot, test_vhost, run_kwargs={"run_sync": True,
+                                                "run_consumers": True})
+    time.sleep(3)
+    observer = ChatBotObserverMock(config={},  # TODO: Define this config
+                                   service_name='mock_chatbot_observer')
+    observer.run(run_consumers=True, run_sync=False)
 
     def setUp(self) -> None:
         for bot in self.participating_bots.values():

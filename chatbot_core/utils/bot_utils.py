@@ -687,11 +687,15 @@ def run_local_discussion(prompter_bot: str):
                               username=name, password=name))
 
     prompter_clazz = bots.get(prompter_bot)
-    prompter = prompter_clazz(socket=start_socket("0.0.0.0"), domain="local",
-                              is_prompter=True, username=prompter_bot,
+    prompter = prompter_clazz(socket=start_socket("0.0.0.0"), domain="private",
+                              is_prompter=True, username="Prompter",
                               password=prompter_bot)
     chatbots.append(prompter)
-    prompter.send_shout("!PROMPT:hello")
+
+    # Make conversation output readable
+    LOG.level = "ERROR"
+    # TODO: Add some listener to handle incoming shouts and log them
+    prompter.send_shout("@proctor hello")
     # TODO: Format conversation and remove logging to stdout
     from ovos_utils import wait_for_exit_signal
     wait_for_exit_signal()
