@@ -4,7 +4,7 @@ import time
 from typing import Optional
 
 import pika
-from neon_utils import LOG
+from ovos_utils.log import LOG
 from neon_mq_connector import MQConnector
 from neon_utils.socket_utils import b64_to_dict
 

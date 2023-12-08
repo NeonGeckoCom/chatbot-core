@@ -73,6 +73,18 @@ class BotUtilsTests(unittest.TestCase):
         from chatbot_core.utils.bot_utils import run_mq_bot
         # TODO
 
+    def test_run_sio_bot(self):
+        from chatbot_core.utils.bot_utils import run_sio_bot
+        # TODO
+
+    def test_run_all_bots(self):
+        from chatbot_core.utils.bot_utils import run_all_bots
+        # TODO
+
+    def test_run_local_discussion(self):
+        from chatbot_core.utils.bot_utils import run_local_discussion
+        # TODO
+
 
 class CacheTests(unittest.TestCase):
     from chatbot_core.utils.cache import FIFOCache

@@ -152,7 +152,7 @@ class ChatBot(KlatApi, ChatBotABC):
         :param timestamp: formatted timestamp of shout
         """
         if not shout:
-            self.log.error(f"No shout (user={user}")
+            self.log.error(f"No shout (user={user})")
             return
         if not self.nick:
             self.log.error(f"No nick! user is {self.username}")

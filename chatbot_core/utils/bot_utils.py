@@ -674,6 +674,8 @@ def run_local_discussion(prompter_bot: str):
     discussion.
     @param prompter_bot: name/entrypoint of bot to be used as a proctor
     """
+    import click
+
     # Start local server
     from klat_connector.mach_server import MachKlatServer
     server = MachKlatServer()
@@ -691,12 +693,17 @@ def run_local_discussion(prompter_bot: str):
                               is_prompter=True, username="Prompter",
                               password=prompter_bot)
     chatbots.append(prompter)
-
+    LOG.info("Local Conversation started")
     # Make conversation output readable
-    LOG.level = "ERROR"
-    # TODO: Add some listener to handle incoming shouts and log them
+    # TODO: prevent log output going to terminal
+
+    def handle_shout(user, shout, cid, dom, timestamp):
+        click.echo(f"{user}: {shout}")
+
+    observer = ChatBotV1(socket=start_socket("0.0.0.0"), domain="local")
+    observer.handle_shout = handle_shout
+
     prompter.send_shout("@proctor hello")
-    # TODO: Format conversation and remove logging to stdout
     from ovos_utils import wait_for_exit_signal
     wait_for_exit_signal()
     for bot in chatbots:
