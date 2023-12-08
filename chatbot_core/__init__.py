@@ -17,20 +17,22 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from ovos_utils.log import LOG, log_deprecation
 from os import environ
+environ.setdefault("OVOS_CONFIG_BASE_FOLDER", "neon")
+environ.setdefault("OVOS_CONFIG_FILENAME", "chatbots.yaml")
+
 from neon_utils.decorators import module_property
 
 
 @module_property
 def _ChatBot():
-    LOG.debug(f"Getting class for {environ.get('CHATBOT_VERSION')}")
     from chatbot_core.utils.version_utils import get_class
     return get_class()
 
 
 @module_property
 def _ConversationControls():
+    from ovos_utils.log import log_deprecation
     log_deprecation("import from `chatbot_core.utils.enum` directly",
                     "3.0.0")
     from chatbot_core.utils.enum import ConversationControls
@@ -39,6 +41,7 @@ def _ConversationControls():
 
 @module_property
 def _ConversationState():
+    from ovos_utils.log import log_deprecation
     log_deprecation("import from `chatbot_core.utils.enum` directly",
                     "3.0.0")
     from chatbot_core.utils.enum import ConversationState
@@ -46,6 +49,7 @@ def _ConversationState():
 
 
 def generate_random_response(*args, **kwargs):
+    from ovos_utils.log import log_deprecation
     log_deprecation("import from `chatbot_core.utils.bot_utils` directly",
                     "3.0.0")
     from chatbot_core.utils.bot_utils import generate_random_response
@@ -53,6 +57,7 @@ def generate_random_response(*args, **kwargs):
 
 
 def clean_up_bot(*args, **kwargs):
+    from ovos_utils.log import log_deprecation
     log_deprecation("import from `chatbot_core.utils.bot_utils` directly",
                     "3.0.0")
     from chatbot_core.utils.bot_utils import clean_up_bot
@@ -60,6 +65,7 @@ def clean_up_bot(*args, **kwargs):
 
 
 def grammar_check(*args, **kwargs):
+    from ovos_utils.log import log_deprecation
     log_deprecation("import from `chatbot_core.utils.bot_utils` directly",
                     "3.0.0")
     from chatbot_core.utils.bot_utils import grammar_check

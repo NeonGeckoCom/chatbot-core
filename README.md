@@ -15,10 +15,48 @@ To utilize this repository for creating your own chat bots, install this package
 
 You can install this package with the following command:
 
-`pip install git+https://github.com/neongeckocom/chatbot-core`
+`pip install neon-chatbot-core`
 
 *Note*: It is recommended to install this to a virtual environment to avoid conflicts with package versions and commandline 
 entry points. Most IDE's (i.e. [PyCharm](https://www.jetbrains.com/pycharm/)) handle this for individual projects.
+
+### Configuration
+
+#### Bot-specific configuration
+Configuration for chatbots should be defined in `~/.config/neon/chatbots.yaml`
+by default. Chatbots may be configured as:
+```yaml
+chatbots:
+  <bot_id>: {}
+```
+> For Klat v1, `bot_id` is the `username` the bot connects as, for MQ connected
+> bots, `bot_id` is the MQ `service_name`.
+
+Any bot-specific configuration will be accessible as `self.bot_config`. For Klat
+v1 connections, `password` should be specified in the `chatbots`
+config section.
+
+#### MQ Connection configuration
+For v2 bots, MQ connections must also be configured. This should be completed in
+the same `~/.config/neon/chatbots.yaml` file as the bot-specific config.
+
+```yaml
+MQ:
+  server: mq.neonaiservices.com
+  port: 5672
+  users:
+    <bot_id>:
+      user: neon_bot_submind
+      password: <MQ user `neon_bot_submind`'s password>
+```
+
+#### SocketIO Connection configuration
+For v1 bots, SIO connections may be configured in `~/.config/neon/chatbots.yaml`:
+```yaml
+socket_io:
+  server: 2222.us
+  port: 8888
+```
 
 ### Organizing your bots
 It is recommended to create a module for each of your bots. You should use subdirectories, each containing `__init__.py`
@@ -47,7 +85,7 @@ my_bots
 └--my_bot.py
 ```
 
-### Klat.com Credentials
+### Legacy Klat.com Credentials
 Bots should be able to login to [klat.com](https://klat.com); a YAML file containing credentials for each bot can be used
 to save usernames and passwords for each bot. Each bot module should have a key matching the module name, a `username`,
 and a `password`.

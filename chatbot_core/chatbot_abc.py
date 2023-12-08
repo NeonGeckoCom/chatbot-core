@@ -23,6 +23,7 @@ import time
 from abc import ABC, abstractmethod
 from queue import Queue
 from typing import Optional
+from ovos_config.config import Configuration
 
 from neon_utils.log_utils import init_log
 from ovos_utils.log import LOG
@@ -31,14 +32,22 @@ from ovos_utils.log import LOG
 class ChatBotABC(ABC):
     """Abstract class gathering all the chatbot-related methods children should implement"""
 
-    def __init__(self):
+    def __init__(self, bot_id: str, config: dict = None):
+        """
+        Common chatbot initialization
+        @param bot_id: ID of this chatbot, used to read configuration
+        @param config: Dict configuration for this chatbot
+        """
+        self._bot_id = bot_id
+        self.bot_config = config or Configuration().get("chatbots",
+                                                        {}).get(bot_id) or {}
         self.shout_queue = Queue(maxsize=256)
         self.__log = None
 
     @property
     def log(self):
         if not self.__log:
-            self.__log = init_log(log_name=self.__class__.__name__)
+            self.__log = init_log(log_name=self._bot_id)
         return self.__log
 
     @abstractmethod

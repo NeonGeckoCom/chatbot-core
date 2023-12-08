@@ -21,6 +21,7 @@ import os
 
 from typing import Optional
 from chatbot_core.chatbot_abc import ChatBotABC
+from ovos_utils.log import LOG
 
 
 def get_class() -> Optional[type(ChatBotABC)]:
@@ -33,7 +34,7 @@ def get_class() -> Optional[type(ChatBotABC)]:
     from chatbot_core.v2 import ChatBot as ChatBot_v2
 
     version = os.environ.get('CHATBOT_VERSION', 'v1').lower()
-
+    LOG.debug(f"version={version}")
     chatbot_versions = {
         'v1': ChatBot_v1,
         'v2': ChatBot_v2
