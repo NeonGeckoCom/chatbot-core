@@ -1,13 +1,12 @@
 import os
 import time
 import unittest
-import pytest
 
 from chatbot_core.utils.bot_utils import run_mq_bot
 from .mocks import ChatBotObserverMock
 
 
-@pytest.mark.skip(reason="Testing requires MQ server configuration")
+@unittest.skip(reason="Testing requires MQ server configuration")
 class TestV2ProctoredConversation(unittest.TestCase):
     os.environ['CHATBOT_VERSION'] = 'v2'
     test_cid = 'test_conversation'
