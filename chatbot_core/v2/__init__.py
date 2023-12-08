@@ -36,7 +36,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         config, service_name, vhost, bot_type = self.parse_init(*args, **kwargs)
         mq_config = config.get("MQ") or config
         bot_config = config.get("chatbots", {}).get(service_name)
-        # TODO: Parse config here for MQ config section vs chatbot config
         KlatAPIMQ.__init__(self, mq_config, service_name, vhost)
         ChatBotABC.__init__(self, service_name, bot_config)
         self.bot_type = bot_type

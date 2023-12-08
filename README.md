@@ -33,7 +33,7 @@ chatbots:
 > bots, `bot_id` is the MQ `service_name`.
 
 Any bot-specific configuration will be accessible as `self.bot_config`. For Klat
-v1 connections, `username` and `password` should be specified in the `chatbots`
+v1 connections, `password` should be specified in the `chatbots`
 config section.
 
 #### MQ Connection configuration
@@ -48,6 +48,14 @@ MQ:
     <bot_id>:
       user: neon_bot_submind
       password: <MQ user `neon_bot_submind`'s password>
+```
+
+#### SocketIO Connection configuration
+For v1 bots, SIO connections may be configured in `~/.config/neon/chatbots.yaml`:
+```yaml
+socket_io:
+  server: 2222.us
+  port: 8888
 ```
 
 ### Organizing your bots

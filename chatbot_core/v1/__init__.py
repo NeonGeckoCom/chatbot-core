@@ -38,10 +38,14 @@ class ChatBot(KlatApi, ChatBotABC):
         socket, domain, username, password, on_server, is_prompter = \
             self.parse_init(*args, **kwargs)
         LOG.info(f"Starting {username}")
-        socket = socket or start_socket()
+        ChatBotABC.__init__(self, username)
+        if not socket:
+            from ovos_config.config import Configuration
+            sio_config = Configuration().get("socket_io", {})
+            socket = start_socket(addr=sio_config.get("server"),
+                                  port=sio_config.get("port"))
         init_nick = "Prompter" if is_prompter else ""
         KlatApi.__init__(self, socket, domain, init_nick)
-        ChatBotABC.__init__(self, username)
         # self.log.debug("Connector started")
         self.on_server = on_server
         self.is_prompter = is_prompter
@@ -52,7 +56,7 @@ class ChatBot(KlatApi, ChatBotABC):
         self.selected_history = list()
 
         self.username = username
-        self.password = password
+        self.password = password or self.bot_config.get("password")
 
         self.facilitator_nicks = ["proctor", "scorekeeper", "stenographer"]
         self.response_probability = 75  # % probability for a bot to respond to an input in non-proctored conversation
