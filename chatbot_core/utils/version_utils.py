@@ -33,10 +33,28 @@ def get_class() -> Optional[type(ChatBotABC)]:
     from chatbot_core.v1 import ChatBot as ChatBot_v1
     from chatbot_core.v2 import ChatBot as ChatBot_v2
 
-    version = os.environ.get('CHATBOT_VERSION', 'v1').lower()
+    version = get_current_version()
     LOG.debug(f"version={version}")
     chatbot_versions = {
-        'v1': ChatBot_v1,
-        'v2': ChatBot_v2
+        1: ChatBot_v1,
+        2: ChatBot_v2
     }
-    return chatbot_versions.get(version, None)
+
+    if version not in chatbot_versions:
+        raise InvalidVersionError(f"{version} is not a valid version "
+                                  f"({set(chatbot_versions.keys())}")
+    return chatbot_versions.get(version)
+
+
+def get_current_version() -> int:
+    """
+    Get an int representation of the configured Chatbot version to run
+    """
+    return 2 if os.environ.get('CHATBOT_VERSION',
+                               'v1').lower() in ('v2', '2', 'version2') else 1
+
+
+class InvalidVersionError(Exception):
+    """
+    Exception raised when invalid chatbots version is specified
+    """

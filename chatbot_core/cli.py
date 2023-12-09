@@ -45,12 +45,20 @@ def start_mq_bot(bot_entrypoint):
     run_mq_bot(bot_entrypoint)
 
 
-@chatbot_core_cli.command(help="Start a local debug session")
-@click.option("--bot-dir", default=None, help="Path to legacy chatbots directory")
+@chatbot_core_cli.command(help="Start a local single-bot session")
+@click.option("--bot-dir", default=None,
+              help="Path to legacy chatbots directory")
 def debug_bots(bot_dir):
     from chatbot_core.utils.bot_utils import debug_bots
     bot_dir = expanduser(relpath(bot_dir)) if bot_dir else None
     debug_bots(bot_dir)
+
+
+@chatbot_core_cli.command(help="Start a local CBF-style conversation")
+@click.option("--prompter", "-p", help="ID of Chatbot to submit prompts")
+def run_local_discussion(prompter):
+    from chatbot_core.utils.bot_utils import run_local_discussion
+    run_local_discussion(prompter)
 
 
 # Below are deprecated entrypoints

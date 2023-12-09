@@ -16,35 +16,3 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
-from copy import copy
-
-
-def remove_prefix(prefixed_string: str, prefix: str):
-    """
-    Removes the specified prefix from the string
-    :param prefixed_string: raw string to clean
-    :param prefix: prefix to remove
-    :return: string with prefix removed
-    """
-    if prefixed_string.startswith(prefix):
-        return prefixed_string[len(prefix):].lstrip()
-    return prefixed_string
-
-
-def enumerate_subminds(subminds: list) -> str:
-    """
-    Enumerates bots in format of type "submind1(,submind2... and submindN)"
-    where N is the number of subminds provided
-
-    :param subminds: list of names to format
-    :returns formatted string reflecting list of subminds provided
-    """
-    if len(subminds) == 0:
-        return 'No one'
-    if len(subminds) == 1:
-        return subminds[0]
-    subminds_copy = copy(subminds)
-    last_submind = subminds_copy.pop()
-    and_str = ", and " if len(subminds_copy) > 1 else " and "
-    return f"{', '.join(subminds_copy)}{and_str}{last_submind}"

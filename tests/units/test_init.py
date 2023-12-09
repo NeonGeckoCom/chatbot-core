@@ -47,7 +47,7 @@ class ChatbotCoreTests(unittest.TestCase):
         # Test invalid
         os.environ["CHATBOT_VERSION"] = '3'
         from chatbot_core import ChatBot
-        self.assertIsNone(ChatBot)
+        self.assertEqual(ChatBot, V1, "Expected v1")
 
     @patch("chatbot_core.utils.bot_utils.grammar_check")
     @patch("chatbot_core.utils.bot_utils.clean_up_bot")

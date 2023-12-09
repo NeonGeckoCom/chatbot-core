@@ -73,6 +73,18 @@ class BotUtilsTests(unittest.TestCase):
         from chatbot_core.utils.bot_utils import run_mq_bot
         # TODO
 
+    def test_run_sio_bot(self):
+        from chatbot_core.utils.bot_utils import run_sio_bot
+        # TODO
+
+    def test_run_all_bots(self):
+        from chatbot_core.utils.bot_utils import run_all_bots
+        # TODO
+
+    def test_run_local_discussion(self):
+        from chatbot_core.utils.bot_utils import run_local_discussion
+        # TODO
+
 
 class CacheTests(unittest.TestCase):
     from chatbot_core.utils.cache import FIFOCache
@@ -165,6 +177,17 @@ class StringUtilsTests(unittest.TestCase):
         self.assertEqual(remove_prefix(f"{test_string}{test_string}",
                                        test_string), test_string)
 
+    def test_enumerate_subminds(self):
+        from chatbot_core.utils.string_utils import enumerate_subminds
+        subminds = list()
+        self.assertEqual(enumerate_subminds(subminds), "No one")
+        subminds.append("user")
+        self.assertEqual(enumerate_subminds(subminds), "user")
+        subminds.append("user2")
+        self.assertEqual(enumerate_subminds(subminds), "user and user2")
+        subminds.append("user3")
+        self.assertEqual(enumerate_subminds(subminds), "user, user2, and user3")
+
 
 class VersionUtilsTests(unittest.TestCase):
     def test_get_class(self):
@@ -182,9 +205,27 @@ class VersionUtilsTests(unittest.TestCase):
         os.environ.pop("CHATBOT_VERSION")
         self.assertEqual(get_class(), V1)
 
-        # Invalid config returns None
+        # Invalid config returns v1
         os.environ["CHATBOT_VERSION"] = "0"
-        self.assertIsNone(get_class())
+        self.assertEqual(get_class(), V1)
+
+    def test_get_current_version(self):
+        from chatbot_core.utils.version_utils import get_current_version
+        # Explicit valid option
+        os.environ["CHATBOT_VERSION"] = "v1"
+        self.assertEqual(get_current_version(), 1)
+        os.environ["CHATBOT_VERSION"] = "v2"
+        self.assertEqual(get_current_version(), 2)
+        os.environ["CHATBOT_VERSION"] = "2"
+        self.assertEqual(get_current_version(), 2)
+
+        # Default returns v1
+        os.environ.pop("CHATBOT_VERSION")
+        self.assertEqual(get_current_version(), 1)
+
+        # Invalid config returns v1
+        os.environ["CHATBOT_VERSION"] = "0"
+        self.assertEqual(get_current_version(), 1)
 
 
 if __name__ == '__main__':
