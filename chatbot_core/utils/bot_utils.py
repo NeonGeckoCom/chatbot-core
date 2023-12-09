@@ -31,7 +31,6 @@ from threading import Thread, current_thread
 from ovos_bus_client import Message, MessageBusClient
 from datetime import datetime
 from ovos_utils.xdg_utils import xdg_config_home
-from klat_connector import start_socket
 from ovos_utils.log import LOG, log_deprecation
 from neon_utils.net_utils import get_ip_address
 
@@ -66,6 +65,7 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str,
     """
     Helper function for _start_bot
     """
+    from klat_connector import start_socket
     # TODO: Deprecate
     if len(inspect.signature(bot).parameters) == 6:
         instance = bot(start_socket(addr, port), domain, user, password, True,
@@ -357,7 +357,10 @@ def debug_bots(bot_dir: str = None):
     #       Automated testing could use pre-built response objects, or run n
     #       other bots and handle their outputs offline
     from klat_connector.mach_server import MachKlatServer
+    from ovos_config.config import Configuration
     server = MachKlatServer()
+    Configuration()['socket_io'] = {"server": "0.0.0.0",
+                                    "port": 8888}
     # TODO: Define alternate `ChatBot` base class with no server dependency
     if bot_dir:
         log_deprecation("Bots should be installed so they may be accessed by "
@@ -376,7 +379,7 @@ def debug_bots(bot_dir: str = None):
                   f'Please choose a bot to talk to')
             bot_name = input('[In]: ')
             if bot_name in subminds:
-                bot = run_sio_bot(bot_name, "0.0.0.0", 8888)
+                bot = run_sio_bot(bot_name)
                 while running:
                     utterance = input('[In]: ')
                     response = bot.ask_chatbot('Tester', utterance,
@@ -621,19 +624,18 @@ def run_mq_bot(chatbot_name: str, vhost: str = '/chatbots',
     return bot
 
 
-def run_sio_bot(chatbot_name: str, sio_address: str = "0.0.0.0",
-                sio_port: int = 8888, domain: str = None,
+def run_sio_bot(chatbot_name: str, domain: str = None,
                 is_prompter: bool = False) -> ChatBotV1:
     """
     Get an initialized SIO Chatbot instance
     @param chatbot_name: chatbot entrypoint name and configuration key
-    @param sio_address: SocketIO address to connect to
-    @param sio_port: SocketIO port to connect to
     @param domain: Initial domain to enter
     @param is_prompter: If true, submit prompts rather than contribute responses
     @returns: Started ChatBotV2 instance
     """
-    # TODO: SIO connection from config
+    from ovos_config.config import Configuration
+    from klat_connector import start_socket
+    sio_config = Configuration().get("socket_io", {})
     os.environ['CHATBOT_VERSION'] = 'v1'
     domain = domain or "chatbotsforum.org"
     bots = _find_bot_modules()
@@ -641,7 +643,7 @@ def run_sio_bot(chatbot_name: str, sio_address: str = "0.0.0.0",
     if not clazz:
         raise RuntimeError(f"Requested bot `{chatbot_name}` not found in: "
                            f"{list(bots.keys())}")
-    sock = start_socket(sio_address, sio_port)
+    sock = start_socket(sio_config.get("server"), sio_config.get("port"))
     bot = clazz(socket=sock, domain=domain, is_prompter=is_prompter)
     LOG.info(f"Started {chatbot_name}")
     return bot
@@ -675,8 +677,12 @@ def run_local_discussion(prompter_bot: str):
     @param prompter_bot: name/entrypoint of bot to be used as a proctor
     """
     import click
+    from ovos_config.config import Configuration
+    # Override logging
+    Configuration()['log_level'] = "ERROR"
 
     # Start local server
+    from klat_connector import start_socket
     from klat_connector.mach_server import MachKlatServer
     server = MachKlatServer()
 
@@ -698,7 +704,7 @@ def run_local_discussion(prompter_bot: str):
     # TODO: prevent log output going to terminal
 
     def handle_shout(user, shout, cid, dom, timestamp):
-        click.echo(f"{user}: {shout}")
+        click.echo(f"{user.rjust(max((len(name) for name in bots)))} : {shout}")
 
     observer = ChatBotV1(socket=start_socket("0.0.0.0"), domain="local")
     observer.handle_shout = handle_shout
