@@ -209,7 +209,7 @@ class ChatBot(KlatApi, ChatBotABC):
             if self.is_prompter:
                 self.log.info(f"Prompter bot got reply: {shout}")
                 # private_cid = self.get_private_conversation([user])
-                self.send_shout(resp)
+                self.send_shout(f"@proctor {resp}")
                 return
         # Subminds ignore facilitators
         elif not self._user_is_proctor(user) and user.lower() in self.facilitator_nicks \
