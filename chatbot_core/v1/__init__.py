@@ -37,8 +37,8 @@ class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):
         socket, domain, username, password, on_server, is_prompter = \
             self.parse_init(*args, **kwargs)
-        LOG.info(f"Starting {username}")
         ChatBotABC.__init__(self, username)
+        self.log.info(f"Starting {username}")
         if not socket:
             from ovos_config.config import Configuration
             sio_config = Configuration().get("socket_io", {})
