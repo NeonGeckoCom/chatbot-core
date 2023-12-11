@@ -290,7 +290,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param request_data: data to publish in sync
         """
         curr_time = int(time.time())
-        self.log.info(f'{curr_time} Emitting sync message from {self.nick}')
+        self.log.debug(f'{curr_time} Emitting sync message from {self.nick}')
         self._on_connect()
 
     def discuss_response(self, shout: str, cid: str = None):
