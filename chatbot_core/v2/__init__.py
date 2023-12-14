@@ -130,11 +130,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
             MQ handler for requesting message for current bot
         """
-        if body.get('cid', None) in list(self.current_conversations) and not body.get('omit_reply', False):
-            self.handle_incoming_shout(body)
-        else:
-            self.log.warning(f'Skipping processing of mentioned user message with data: {body} '
-                        f'as it is not in current conversations')
+        if body.get('omit_reply'):
+            self.log.debug(f"Explicitly requested no response: messageID="
+                           f"{body.get('messageID')}")
+            return
+        if body.get('cid') not in list(self.current_conversations):
+            self.log.info(f"Ignoring message "
+                          f"(messageID={body.get('messageID')}) outside of "
+                          f"current conversations "
+                          f"({self.current_conversations}")
+            self.log.debug(f"{body}")
+            return
+        self.handle_incoming_shout(body)
 
     @create_mq_callback()
     def _on_user_message(self, body: dict):
@@ -432,3 +439,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def pre_run(self, **kwargs):
         self._setup_listeners()
+
+    def shutdown(self):
+        self.shout_thread.cancel()
+        self.shout_thread.join()
