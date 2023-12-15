@@ -21,7 +21,6 @@ import random
 import time
 
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from queue import Queue
 from typing import Optional
 from ovos_config.config import Configuration
@@ -49,7 +48,7 @@ class ChatBotABC(ABC):
     def log(self):
         if not self.__log:
             # Copy log to support multiple bots in thread with different names
-            self.__log = deepcopy(init_log(log_name=self._bot_id))
+            self.__log = init_log().create_logger(self._bot_id)
         return self.__log
 
     @abstractmethod
