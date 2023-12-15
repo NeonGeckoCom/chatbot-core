@@ -116,9 +116,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if body.get('cid') in list(self.current_conversations):
             with self.create_mq_connection(self.vhost) as mq_connection:
                 proctor_nick = body.get('nick', '')
-                self.log.info(f'Sending pong to {proctor_nick}')
-                self.publish_message(mq_connection, request_data=dict(nick=self.nick,
-                                                                      cid=body.get('cid')),
+                self.log.debug(f'Sending pong to {proctor_nick}')
+                self.publish_message(mq_connection,
+                                     request_data=dict(nick=self.nick,
+                                                       cid=body.get('cid')),
                                      exchange=f'{proctor_nick}_pong',
                                      expiration=3000)
                 self.set_conversation_state(body.get('cid'), ConversationState.WAIT)
@@ -138,7 +139,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.info(f"Ignoring message "
                           f"(messageID={body.get('messageID')}) outside of "
                           f"current conversations "
-                          f"({self.current_conversations}")
+                          f"({self.current_conversations})")
             self.log.debug(f"{body}")
             return
         self.handle_incoming_shout(body)
