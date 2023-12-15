@@ -19,6 +19,7 @@
 
 import random
 import time
+import inspect
 
 from abc import ABC, abstractmethod
 from queue import Queue
@@ -47,7 +48,16 @@ class ChatBotABC(ABC):
     @property
     def log(self):
         if not self.__log:
-            self.__log = init_log(log_name=self._bot_id)
+            # Copy log to support multiple bots in thread with different names
+            self.__log = init_log(
+                log_name="chatbots").create_logger(self._bot_id)
+        name = f"{self._bot_id} - "
+        stack = inspect.stack()
+        record = stack[2]
+        mod = inspect.getmodule(record[0])
+        module_name = mod.__name__ if mod else ''
+        name += module_name + ':' + record[3] + ':' + str(record[2])
+        self.__log.name = name
         return self.__log
 
     @abstractmethod

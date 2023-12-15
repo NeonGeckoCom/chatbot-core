@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import unittest
+from logging import Logger
 
 from unittest.mock import patch
 from ovos_utils.log import LOG
@@ -121,8 +122,8 @@ class ChatBotABCTests(unittest.TestCase):
         self.assertEqual(bot._bot_id, bot_id)
         self.assertEqual(bot.bot_config, test_config)
         self.assertIsInstance(bot.shout_queue, Queue)
-        self.assertEqual(bot.log, LOG)
-        self.assertEqual(bot.log.name, bot_id)
+        self.assertIsInstance(bot.log, Logger)
+        self.assertTrue(bot.log.name.startswith(bot_id))
 
 
 class NeonTests(unittest.TestCase):
