@@ -17,29 +17,37 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import fileinput
-from os.path import join, dirname
+from enum import IntEnum
 
-with open(join(dirname(__file__), "version.py"), "r", encoding="utf-8") as v:
-    for line in v.readlines():
-        if line.startswith("__version__"):
-            if '"' in line:
-                version = line.split('"')[1]
-            else:
-                version = line.split("'")[1]
 
-if "a" not in version:
-    parts = version.split('.')
-    parts[-1] = str(int(parts[-1]) + 1)
-    version = '.'.join(parts)
-    version = f"{version}a0"
-else:
-    post = version.split("a")[1]
-    new_post = int(post) + 1
-    version = version.replace(f"a{post}", f"a{new_post}")
+class ConversationControls:
+    RESP = " asks us to consider:"
+    DISC = "Please Discuss"
+    VOTE = "Voting on the response to "
+    PICK = "Tallying the votes for the responses to "
+    NEXT = "I'm ready for the next prompt."
+    HIST = "history"
+    WAIT = " may respond to the next prompt."
 
-for line in fileinput.input(join(dirname(__file__), "version.py"), inplace=True):
-    if line.startswith("__version__"):
-        print(f"__version__ = \"{version}\"")
-    else:
-        print(line.rstrip('\n'))
+
+class ConversationState(IntEnum):
+    IDLE = 0  # No active prompt
+    RESP = 1  # Gathering responses to prompt
+    DISC = 2  # Discussing responses
+    VOTE = 3  # Voting on responses
+    PICK = 4  # Proctor will select response
+    WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
+
+
+class BotTypes:
+    PROCTOR = 'proctor'
+    SUBMIND = 'submind'
+    OBSERVER = 'observer'
+
+
+CONVERSATION_STATE_ANNOUNCEMENTS = {
+    ConversationState.RESP: 'Accepting responses from subminds ({interval} seconds)',
+    ConversationState.DISC: 'Discussing responses from subminds ({interval} seconds)',
+    ConversationState.VOTE: 'Voting for candidate responses ({interval} seconds)',
+    ConversationState.PICK: 'Selecting a winner among participants'
+}

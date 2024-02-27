@@ -1,6 +1,6 @@
 # This workflow will generate a distribution and upload it to PyPI
 
-name: Increment Alpha Version
+name: Publish Alpha Build
 on:
   push:
     branches:
@@ -9,21 +9,9 @@ on:
       - 'version.py'
 
 jobs:
-  build_and_publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.head_ref }}
-      - name: Setup Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.8
-      - name: Increment Version
-        run: |
-          VER=$(python setup.py --version)
-          python version_bump.py
-      - name: Push Version Change
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: Increment Version
+  publish_alpha_release:
+    uses: neongeckocom/.github/.github/workflows/publish_alpha_release.yml@master
+    secrets: inherit
+    with:
+      version_file: "chatbot_core/version.py"
+      publish_prerelease: true
