@@ -33,7 +33,7 @@ jobs:
       - name: Upload pytest unit test results
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results
+          name: unit-test-results-${{ matrix.python-version }}
           path: tests/unit-test-results.xml
   integration_tests:
     strategy:
@@ -62,5 +62,5 @@ jobs:
       - name: Upload integration test results
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-results
+          name: integration-test-results-${{ matrix.python-version }}
           path: tests/integration-test-results.xml
