@@ -9,7 +9,7 @@ jobs:
   unit_tests:
     strategy:
       matrix:
-        python-version: [ 3.7, 3.8, 3.9]
+        python-version: [ 3.8, 3.9]
         # TODO: 3.10 and 3.11 need support in klat-connector
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -37,7 +37,7 @@ jobs:
   integration_tests:
     strategy:
       matrix:
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ 3.8, 3.9 ]
         # TODO: 3.10 and 3.11 need support in klat-connector
       max-parallel: 1
     runs-on: ubuntu-latest
