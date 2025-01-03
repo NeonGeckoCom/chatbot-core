@@ -70,11 +70,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def handle_invite(self, body: dict):
         """Handles incoming request to chatbot"""
         new_cid = body.pop('cid', None)
+        skip_announcement = body.pop('skip_announcement', False)
         self.log.info(f'Received invitation to cid: {new_cid}')
         if new_cid and not self.current_conversations.get(new_cid, None):
             self.current_conversations[new_cid] = body
             self.set_conversation_state(new_cid, ConversationState.IDLE)
-            self.send_announcement(f'{self.nick.split("-")[0]} joined', new_cid)
+            if not skip_announcement:
+                self.send_announcement(f'{self.nick.split("-")[0]} joined', new_cid)
 
     def get_conversation_state(self, cid) -> ConversationState:
         return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
