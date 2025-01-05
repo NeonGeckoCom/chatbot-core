@@ -43,6 +43,7 @@ class BotTypes:
     PROCTOR = 'proctor'
     SUBMIND = 'submind'
     OBSERVER = 'observer'
+    FACILITATOR = 'facilitator'
 
 
 CONVERSATION_STATE_ANNOUNCEMENTS = {
