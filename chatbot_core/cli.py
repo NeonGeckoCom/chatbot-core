@@ -19,6 +19,8 @@
 
 import os
 import argparse
+from threading import Event
+
 import click
 
 from os.path import expanduser, relpath
@@ -74,6 +76,7 @@ def cli_start_mq_bot():
                         help="Chatbot entrypoint name", type=str)
     args = parser.parse_args()
     run_mq_bot(args.bot_name)
+    Event().wait()
 
 
 def cli_start_bots():
