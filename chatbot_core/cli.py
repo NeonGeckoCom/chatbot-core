@@ -75,8 +75,10 @@ def cli_start_mq_bot():
     parser.add_argument("--bot", dest="bot_name",
                         help="Chatbot entrypoint name", type=str)
     args = parser.parse_args()
-    run_mq_bot(args.bot_name)
+
+    bot = run_mq_bot(args.bot_name)
     wait_for_exit_signal()
+    bot.stop()
 
 
 def cli_start_bots():
