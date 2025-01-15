@@ -19,11 +19,11 @@
 
 import os
 import argparse
-from threading import Event
-
 import click
 
 from os.path import expanduser, relpath
+
+from ovos_utils import wait_for_exit_signal
 from ovos_utils.log import LOG, log_deprecation
 
 
@@ -76,7 +76,7 @@ def cli_start_mq_bot():
                         help="Chatbot entrypoint name", type=str)
     args = parser.parse_args()
     run_mq_bot(args.bot_name)
-    Event().wait()
+    wait_for_exit_signal()
 
 
 def cli_start_bots():
