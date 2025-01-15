@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 #
-# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
+# Copyright 2008-2025 Neongecko.com Inc. | All Rights Reserved
 #
 # Notice of License - Duplicating this Notice of License near the start of any file containing
 # a derivative of this software is a condition of license for this software.
@@ -44,7 +44,9 @@ def chatbot_core_cli(version: bool = False):
 def start_mq_bot(bot_entrypoint):
     os.environ['CHATBOT_VERSION'] = 'v2'
     from chatbot_core.utils.bot_utils import run_mq_bot
-    run_mq_bot(bot_entrypoint)
+    bot = run_mq_bot(bot_entrypoint)
+    wait_for_exit_signal()
+    bot.stop()
 
 
 @chatbot_core_cli.command(help="Start a local single-bot session")
