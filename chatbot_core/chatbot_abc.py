@@ -51,6 +51,8 @@ class ChatBotABC(ABC):
             # Copy log to support multiple bots in thread with different names
             self.__log = init_log(
                 log_name="chatbots").create_logger(self._bot_id)
+            self.__log.level = LOG.level
+            LOG.info(f"Initialized logger with level: {LOG.level}")
         name = f"{self._bot_id} - "
         stack = inspect.stack()
         record = stack[2]

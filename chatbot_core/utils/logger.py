@@ -17,8 +17,18 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from ovos_utils.log import LOG, log_deprecation
-LOG.name = "chatbots"
+
+from neon_utils.decorators import module_property
+from ovos_utils.log import log_deprecation, deprecated
+
+
+@deprecated(deprecation_version="3.0.0",
+            log_message="Import from `ovos_utils.log` directly")
+@module_property
+def LOG():
+    from ovos_utils.log import LOG
+    LOG.name = "chatbots"
+    return LOG
 
 
 def make_logger(name, level: str = None):
