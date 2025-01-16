@@ -22,6 +22,7 @@ import time
 import inspect
 
 from abc import ABC, abstractmethod
+from os import environ
 from queue import Queue
 from typing import Optional
 from ovos_config.config import Configuration
@@ -49,6 +50,8 @@ class ChatBotABC(ABC):
         if not self.__log:
             # Copy log to support multiple bots in thread with different names
             log = init_log(log_name="chatbots")
+            log.info(f"Log created with level: {log.level}")
+            log.info(f"default_config={environ.get('OVOS_DEFAULT_CONFIG')}")
             self.__log = log.create_logger(self._bot_id)
             log.info(f"Initialized logger {self.__log.name} with level: "
                      f"{self.__log.level}")
