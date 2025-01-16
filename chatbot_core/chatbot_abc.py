@@ -26,7 +26,7 @@ from queue import Queue
 from typing import Optional
 from ovos_config.config import Configuration
 
-from neon_utils.logger import LOG
+from neon_utils.log_utils import init_log
 
 
 class ChatBotABC(ABC):
@@ -48,8 +48,10 @@ class ChatBotABC(ABC):
     def log(self):
         if not self.__log:
             # Copy log to support multiple bots in thread with different names
-            self.__log = LOG.create_logger(self._bot_id)
-            LOG.info(f"Initialized logger with level: {self.__log.level}")
+            log = init_log(log_name="chatbots")
+            self.__log = log.create_logger(self._bot_id)
+            log.info(f"Initialized logger {self.__log.name} with level: "
+                     f"{self.__log.level}")
         name = f"{self._bot_id} - "
         stack = inspect.stack()
         record = stack[2]
