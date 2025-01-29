@@ -82,13 +82,16 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
 
     def set_conversation_state(self, cid, state):
-        self.log.debug(f'State was: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
+        old_state = self.current_conversations.setdefault(cid, {}).get(
+            "state", ConversationState.IDLE)
+        self.log.debug(f'State was: {old_state}')
         self.current_conversations.setdefault(cid, {})['state'] = state
-        self.log.debug(
-            f'State become: {self.current_conversations.setdefault(cid, {}).get("state", ConversationState.IDLE)}')
+        new_state = self.current_conversations.setdefault(cid, {}).get(
+            "state", ConversationState.IDLE)
+        self.log.debug(f'State become: {new_state}')
 
     def _setup_listeners(self):
-        super()._setup_listeners()
+        KlatAPIMQ._setup_listeners(self)
         self.register_consumer('invitation',
                                self.vhost,
                                f'{self.nick}_invite',
@@ -260,7 +263,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                  shout=shout, message_sender=message_sender,
                                                  is_message_from_proctor=is_message_from_proctor,
                                                  conversation_state=conversation_state)
-            shout = response.get('shout', None)
+            shout = response.get('shout', "")
             if shout and not skip_callback:
                 self.log.info(f'Sending response: {response}')
                 prompt_id = response.get('context', {}).get('prompt_id')
@@ -268,7 +271,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 responded_message=message_data.get('messageID', ''),
                                 cid=cid,
                                 to_discussion=response.get('to_discussion', '0'),
-                                queue_name=response.get('queue', None),
+                                queue_name=response.get('queue', ""),
                                 context=response.get('context', None),
                                 is_announcement=response.get('is_announcement', False),
                                 prompt_id=prompt_id,
@@ -441,9 +444,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def _pause_responses(self, duration: int = 5):
         pass
-
-    def pre_run(self, **kwargs):
-        self._setup_listeners()
 
     def shutdown(self):
         self.shout_thread.cancel()

@@ -1,6 +1,6 @@
 click~=8.0
-klat-connector~=0.6,>=0.6.2a15
+klat-connector~=0.6,>=0.6.2a21
 neon-mq-connector>=0.7.2a9
-neon_utils[network,sentry] >= 1.11.1a6
+neon-utils[network,sentry]~=1.12
 ovos-bus-client~=0.0,>=0.0.5
 psutil~=5.7
