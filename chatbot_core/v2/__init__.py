@@ -284,7 +284,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
     def _send_state(self):
-        self.send_shout(shout='heartbeat',
+        self.send_shout(shout='chatbot state',
                         context={
                             'version': os.environ.get('SERVICE_VERSION', package_version),
                             'bot_type': self.bot_type,
