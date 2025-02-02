@@ -27,6 +27,7 @@ from pika.exchange_type import ExchangeType
 
 from chatbot_core.utils.enum import ConversationState, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
+from chatbot_core.version import __version__ as package_version
 
 
 class ChatBot(KlatAPIMQ, ChatBotABC):
@@ -285,8 +286,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _on_connect(self):
         """Emits fanout message to connection exchange once connecting"""
         self.send_shout(shout='hello',
-                        context={'version': os.environ.get('SERVICE_VERSION', 'undefined'),
-                                 'bot_type': self.bot_type},
+                        context={
+                            'version': os.environ.get('SERVICE_VERSION', package_version),
+                            'bot_type': self.bot_type,
+                            'cids': list(self.current_conversations),
+                        },
                         exchange='connection')
 
     def _on_disconnect(self):
@@ -445,6 +449,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _pause_responses(self, duration: int = 5):
         pass
 
+    def stop_shout_thread(self):
+        if self.shout_thread:
+            self.shout_thread.cancel()
+            self.shout_thread = None
+
     def shutdown(self):
         self.shout_thread.cancel()
         self.shout_thread.join()
+
+    def stop(self):
+        self.stop_shout_thread()
+        super().stop()
