@@ -283,9 +283,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         else:
             self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
-    def _on_connect(self):
-        """Emits fanout message to connection exchange once connecting"""
-        self.send_shout(shout='hello',
+    def _send_state(self):
+        self.send_shout(shout='heartbeat',
                         context={
                             'version': os.environ.get('SERVICE_VERSION', package_version),
                             'bot_type': self.bot_type,
@@ -293,10 +292,16 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                         },
                         exchange='connection')
 
+    def _on_connect(self):
+        """Emits fanout message to connection exchange once connecting"""
+        self._send_state()
+        self._connected = True
+
     def _on_disconnect(self):
         """Emits fanout message to connection exchange once disconnecting"""
         self.send_shout(shout='bye',
                         exchange='disconnection')
+        self._connected = False
 
     def sync(self, vhost: str = None, exchange: str = None, queue: str = None, request_data: dict = None):
         """
@@ -310,7 +315,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         curr_time = int(time.time())
         self.log.debug(f'{curr_time} Emitting sync message from {self.nick}')
-        self._on_connect()
+        self._send_state()
 
     def discuss_response(self, shout: str, cid: str = None):
         """
