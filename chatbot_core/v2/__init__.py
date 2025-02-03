@@ -465,4 +465,4 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def stop(self):
         self.stop_shout_thread()
-        super().stop()
+        KlatAPIMQ.stop(self)
