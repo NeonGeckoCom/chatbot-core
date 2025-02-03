@@ -27,6 +27,7 @@ from pika.exchange_type import ExchangeType
 
 from chatbot_core.utils.enum import ConversationState, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
+from chatbot_core.version import __version__ as package_version
 
 
 class ChatBot(KlatAPIMQ, ChatBotABC):
@@ -282,17 +283,25 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         else:
             self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
+    def _send_state(self):
+        self.send_shout(shout='chatbot state',
+                        context={
+                            'version': os.environ.get('SERVICE_VERSION', package_version),
+                            'bot_type': self.bot_type,
+                            'cids': list(self.current_conversations),
+                        },
+                        exchange='connection')
+
     def _on_connect(self):
         """Emits fanout message to connection exchange once connecting"""
-        self.send_shout(shout='hello',
-                        context={'version': os.environ.get('SERVICE_VERSION', 'undefined'),
-                                 'bot_type': self.bot_type},
-                        exchange='connection')
+        self._send_state()
+        self._connected = True
 
     def _on_disconnect(self):
         """Emits fanout message to connection exchange once disconnecting"""
         self.send_shout(shout='bye',
                         exchange='disconnection')
+        self._connected = False
 
     def sync(self, vhost: str = None, exchange: str = None, queue: str = None, request_data: dict = None):
         """
@@ -306,7 +315,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         curr_time = int(time.time())
         self.log.debug(f'{curr_time} Emitting sync message from {self.nick}')
-        self._on_connect()
+        self._send_state()
 
     def discuss_response(self, shout: str, cid: str = None):
         """
@@ -445,6 +454,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _pause_responses(self, duration: int = 5):
         pass
 
+    def stop_shout_thread(self):
+        if self.shout_thread:
+            self.shout_thread.cancel()
+            self.shout_thread = None
+
     def shutdown(self):
         self.shout_thread.cancel()
         self.shout_thread.join()
+
+    def stop(self):
+        self.stop_shout_thread()
+        KlatAPIMQ.stop(self)
