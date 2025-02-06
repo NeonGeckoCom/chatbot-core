@@ -254,6 +254,9 @@ def start_bots(domain: str = None, bot_dir: str = None, username: str = None,
                 LOG.error(e)
 
     LOG.info(bots_to_start.keys())
+    LOG.warning("`klat_connector` and `tensorflow` logging will not be "
+                "overridden in the future. Please use logging configuration to "
+                "set these to non-default log levels.")
     logging.getLogger("klat_connector").setLevel(logging.WARNING)
     logging.getLogger("tensorflow").setLevel(logging.ERROR)
     # proctor = None
@@ -426,7 +429,8 @@ def _restart_chatbots(message: Message):
     Messagebus handler to restart chatbots on a server
     :param message: Message associated with request
     """
-    # TODO: Deprecate in 3.0.0
+    log_deprecation("Programmatic restart of chatbots will not be implemented "
+                    "in the future", "3.0.0")
     global runner
     LOG.debug(f"Restart received: {message.data} | {message.context}")
     runner.set()
@@ -437,7 +441,8 @@ def _listen_for_restart_chatbots(server: str):
     Registers a messagebus listener to restart chatbots for the given server
     :param server: base url of the klat server messagebus to listen to
     """
-    # TODO: Deprecate in 3.0.0
+    log_deprecation("Messagebus restart of chatbots will not be implemented "
+                    "in the future", "3.0.0")
     if server == "2222.us":
         host = "64.34.186.120"
     elif server == "5555.us":

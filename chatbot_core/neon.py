@@ -28,9 +28,6 @@ from chatbot_core.utils.enum import BotTypes
 from chatbot_core.utils.bot_utils import init_message_bus
 from chatbot_core import ChatBot
 
-if os.environ.get('CHATBOT_VERSION', 'v1') == 'v2':
-    LOG.warning('Version 2.0 is currently alpha')
-
 
 class NeonBot(ChatBot):
     """

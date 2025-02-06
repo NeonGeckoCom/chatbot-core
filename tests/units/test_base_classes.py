@@ -128,12 +128,12 @@ class ChatBotABCTests(unittest.TestCase):
 
 class NeonTests(unittest.TestCase):
     from chatbot_core.neon import NeonBot
-    # TODO Deprecate class
+    # TODO Implement tests or deprecate base class
 
 
 class ParlaiTests(unittest.TestCase):
     from chatbot_core.parlai import ParlaiBot
-    # TODO
+    # TODO Implement tests or deprecate base class
 
 
 if __name__ == '__main__':
