@@ -92,7 +92,7 @@ class BotUtilsTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_base_bot(self):
-        from .chatbot_objects import ChatBot
+        from ..chatbot_objects import ChatBot
         from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
@@ -113,7 +113,7 @@ class BotUtilsTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v2_bot(self):
-        from .chatbot_objects import V2Bot
+        from ..chatbot_objects import V2Bot
         from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
@@ -134,7 +134,7 @@ class BotUtilsTests(unittest.TestCase):
 
     @pytest.mark.timeout(30)
     def test_start_v3_bot(self):
-        from .chatbot_objects import V3Bot
+        from ..chatbot_objects import V3Bot
         from chatbot_core.utils.bot_utils import _start_bot
         from multiprocessing import Process, synchronize
 
