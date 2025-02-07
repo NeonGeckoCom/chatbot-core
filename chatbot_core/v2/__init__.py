@@ -251,7 +251,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             Handles shout for bot. If receives response - emits message into "bot_response" queue
 
             :param message_data: dict containing message data received
-            :param skip_callback: to skip callback after handling shoult (default to False)
+            :param skip_callback: to skip callback after handling shout (default to False)
         """
         self.log.info(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
@@ -278,8 +278,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                 prompt_id=prompt_id,
                                 **response.get('kwargs', {}))
             else:
-                self.log.warning(
-                    f'{self.nick}: No response was sent as no data was received from message data: {message_data}')
+                self.log.debug(
+                    f'{self.nick}: No response was sent as no data was '
+                    f'received from message data: {message_data}')
         else:
             self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 

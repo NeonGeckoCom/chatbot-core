@@ -17,7 +17,12 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
+import time
 import unittest
+
+import pytest
+
+SERVER = "0.0.0.0"
 
 
 class BotUtilsTests(unittest.TestCase):
@@ -84,6 +89,69 @@ class BotUtilsTests(unittest.TestCase):
     def test_run_local_discussion(self):
         from chatbot_core.utils.bot_utils import run_local_discussion
         # TODO
+
+    @pytest.mark.timeout(30)
+    def test_start_base_bot(self):
+        from ..chatbot_objects import ChatBot
+        from chatbot_core.utils.bot_utils import _start_bot
+        from multiprocessing import Process, synchronize
+
+        t, e = _start_bot(ChatBot, SERVER, 8888, "Private", "testrunner", "testpassword")
+        self.assertIsInstance(t, Process)
+        self.assertIsInstance(e, synchronize.Event)
+        # self.assertFalse(e.is_set())
+        e.set()
+        timeout = time.time() + 10
+        while e.is_set() and time.time() < timeout:
+            print("...")
+            time.sleep(2)
+        self.assertFalse(e.is_set())
+        t.terminate()
+        self.assertFalse(t.is_alive())
+        print("Joining...")
+        t.join()
+
+    @pytest.mark.timeout(30)
+    def test_start_v2_bot(self):
+        from ..chatbot_objects import V2Bot
+        from chatbot_core.utils.bot_utils import _start_bot
+        from multiprocessing import Process, synchronize
+
+        t, e = _start_bot(V2Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
+        self.assertIsInstance(t, Process)
+        self.assertIsInstance(e, synchronize.Event)
+        # self.assertFalse(e.is_set())
+        e.set()
+        timeout = time.time() + 10
+        while e.is_set() and time.time() < timeout:
+            print("...")
+            time.sleep(2)
+        self.assertFalse(e.is_set())
+        t.terminate()
+        self.assertFalse(t.is_alive())
+        print("Joining...")
+        t.join()
+
+    @pytest.mark.timeout(30)
+    def test_start_v3_bot(self):
+        from ..chatbot_objects import V3Bot
+        from chatbot_core.utils.bot_utils import _start_bot
+        from multiprocessing import Process, synchronize
+
+        t, e = _start_bot(V3Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
+        self.assertIsInstance(t, Process)
+        self.assertIsInstance(e, synchronize.Event)
+        # self.assertFalse(e.is_set())
+        e.set()
+        timeout = time.time() + 10
+        while e.is_set() and time.time() < timeout:
+            print("...")
+            time.sleep(2)
+        self.assertFalse(e.is_set())
+        t.terminate()
+        self.assertFalse(t.is_alive())
+        print("Joining...")
+        t.join()
 
 
 class CacheTests(unittest.TestCase):

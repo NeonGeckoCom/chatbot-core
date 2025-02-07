@@ -23,10 +23,11 @@ import pytest
 from datetime import datetime
 from klat_connector import start_socket
 from klat_connector.mach_server import MachKlatServer
+from ovos_utils.log import LOG
 
 from chatbot_core.utils.enum import ConversationControls, ConversationState
 from chatbot_core.utils.bot_utils import clean_up_bot
-from .chatbot_objects import *
+from ...chatbot_objects import ChatBot
 
 
 SERVER = "0.0.0.0"

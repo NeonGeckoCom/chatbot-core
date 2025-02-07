@@ -23,33 +23,75 @@ from ovos_utils.log import log_deprecation
 def create_conversation_cycle():
     from chatbot_core.utils.conversation_utils import create_conversation_cycle
     log_deprecation("import from `chatbot_core.utils.conversation_utils`",
-                    "2.3.1")
+                    "3.0.0")
     return create_conversation_cycle()
 
 
 def find_closest_answer(*args, **kwargs):
     from chatbot_core.utils.bot_utils import find_closest_answer
     log_deprecation("import from `chatbot_core.utils.bot_utils`",
-                    "2.3.1")
+                    "3.0.0")
     return find_closest_answer(*args, **kwargs)
 
 
 def clean_up_bot(*args, **kwargs):
     from chatbot_core.utils.bot_utils import clean_up_bot
     log_deprecation("import from `chatbot_core.utils.bot_utils`",
-                    "2.3.1")
+                    "3.0.0")
     return clean_up_bot(*args, **kwargs)
 
 
 def get_bots_in_dir(*args, **kwargs):
     from chatbot_core.utils.bot_utils import get_bots_in_dir
     log_deprecation("import from `chatbot_core.utils.bot_utils`",
-                    "2.3.1")
+                    "3.0.0")
     return get_bots_in_dir(*args, **kwargs)
 
 
 def start_bots(*args, **kwargs):
     from chatbot_core.utils.bot_utils import start_bots
     log_deprecation("import from `chatbot_core.utils.bot_utils`",
-                    "2.3.1")
+                    "3.0.0")
     return start_bots(*args, **kwargs)
+
+
+def load_credentials_yml(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import load_credentials_yml
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "3.0.0")
+    return load_credentials_yml(*args, **kwargs)
+
+
+def cli_start_bots():
+    from chatbot_core.cli import cli_start_bots
+    log_deprecation("import from `chatbot_core.cli`",
+                    "3.0.0")
+    return cli_start_bots()
+
+
+def cli_stop_bots():
+    from chatbot_core.cli import cli_stop_bots
+    log_deprecation("import from `chatbot_core.cli`",
+                    "3.0.0")
+    return cli_stop_bots()
+
+
+def cli_start_prompter():
+    from chatbot_core.cli import cli_start_prompter
+    log_deprecation("import from `chatbot_core.cli`",
+                    "3.0.0")
+    return cli_start_prompter()
+
+
+def debug_bots(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import debug_bots
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "3.0.0")
+    return debug_bots(*args, **kwargs)
+
+
+def init_message_bus(*args, **kwargs):
+    from chatbot_core.utils.bot_utils import init_message_bus
+    log_deprecation("import from `chatbot_core.utils.bot_utils`",
+                    "3.0.0")
+    return init_message_bus(*args, **kwargs)
