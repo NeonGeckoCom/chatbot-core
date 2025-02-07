@@ -55,7 +55,7 @@ runner = Event()
 
 
 def get_ip_address():
-    log_deprecation('Import from `neon_utils.net_utils` directly', "2.3.0")
+    log_deprecation('Import from `neon_utils.net_utils` directly', "3.0.0")
     return get_ip_address()
 
 
@@ -65,8 +65,9 @@ def _threaded_start_bot(bot, addr: str, port: int, domain: str, user: str,
     """
     Helper function for _start_bot
     """
+    log_deprecation("This method is deprecated. Bots should be loaded by "
+                    "entrypoints.", "3.0.0")
     from klat_connector import start_socket
-    # TODO: Deprecate
     if len(inspect.signature(bot).parameters) == 6:
         instance = bot(start_socket(addr, port), domain, user, password, True,
                        is_prompter)
@@ -102,7 +103,8 @@ def _start_bot(bot, addr: str, port: int, domain: str, user: str,
     :param is_prompter: True if bot is to generate prompts for the Proctor
     :returns: Process bot instance is attached to
     """
-    # TODO: Deprecate
+    log_deprecation("This method is deprecated. Bots should be loaded by "
+                    "entrypoints.", "3.0.0")
     event = Event()
     event.set()
     thread = Process(target=_threaded_start_bot,
@@ -172,7 +174,8 @@ def load_credentials_yml(cred_file: str) -> dict:
 
 def _start_bot_processes(bots_to_start: dict, username: str, password: str,
                          credentials: dict, server: str, domain: str) -> list:
-    # TODO: Deprecate
+    log_deprecation("This method is deprecated. Bots should be loaded by "
+                    "entrypoints.", "3.0.0")
     processes = []
 
     # Start Proctor first if in the list of bots to start
@@ -368,7 +371,7 @@ def debug_bots(bot_dir: str = None):
     if bot_dir:
         log_deprecation("Bots should be installed so they may be accessed by "
                         "entrypoint. Specifying a local directory will no "
-                        "longer be supported", "2.3.1")
+                        "longer be supported", "3.0.0")
         subminds = get_bots_in_dir(bot_dir)
     else:
         subminds = _find_bot_modules()
