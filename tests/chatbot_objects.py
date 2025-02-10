@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 #
-# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
+# Copyright 2008-2025 Neongecko.com Inc. | All Rights Reserved
 #
 # Notice of License - Duplicating this Notice of License near the start of any file containing
 # a derivative of this software is a condition of license for this software.
@@ -19,20 +19,17 @@
 
 import random
 import copy
-# import jellyfish
-import sys
-import os
 
-# Required for pytest on GitHub
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ChatBot, LOG
+from ovos_utils.log import LOG
+
+from chatbot_core.v1 import ChatBot
 
 
 class V2Bot(ChatBot):
     def __init__(self, socket, domain, user, password, on_server=True):
         # self.on_server = on_server
         # if self.on_server:
-        super(V2Bot, self).__init__(socket, domain, user, password, on_server)
+        super().__init__(socket, domain, user, password, on_server)
         # else:
         #     self.nick = 'Gruff'
         self.bot_type = "submind"
@@ -222,7 +219,7 @@ class V3Bot(ChatBot):
     def __init__(self, socket, domain, user, password, on_server=True, is_prompter=False):
         # self.on_server = on_server
         # if self.on_server:
-        super(V3Bot, self).__init__(socket, domain, user, password, on_server, is_prompter)
+        super().__init__(socket, domain, user, password, on_server, is_prompter)
         # else:
         #     self.nick = 'Gruff'
         self.bot_type = "submind"

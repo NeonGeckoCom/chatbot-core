@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 #
-# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
+# Copyright 2008-2025 Neongecko.com Inc. | All Rights Reserved
 #
 # Notice of License - Duplicating this Notice of License near the start of any file containing
 # a derivative of this software is a condition of license for this software.
@@ -21,9 +21,11 @@ import setuptools
 
 from os import path, getenv
 
+BASE_PATH = path.abspath(path.dirname(__file__))
+
 
 def get_requirements(requirements_filename: str):
-    requirements_file = path.join(path.abspath(path.dirname(__file__)), "requirements", requirements_filename)
+    requirements_file = path.join(BASE_PATH, "requirements", requirements_filename)
     with open(requirements_file, 'r', encoding='utf-8') as r:
         requirements = r.readlines()
     requirements = [r.strip() for r in requirements if r.strip() and not r.strip().startswith("#")]
@@ -40,10 +42,10 @@ def get_requirements(requirements_filename: str):
     return requirements
 
 
-with open("README.md", "r") as f:
+with open(path.join(BASE_PATH, "README.md"), "r") as f:
     long_description = f.read()
 
-with open("./version.py", "r", encoding="utf-8") as v:
+with open(path.join(BASE_PATH, "chatbot_core", "version.py"), "r", encoding="utf-8") as v:
     for line in v.readlines():
         if line.startswith("__version__"):
             if '"' in line:
@@ -52,10 +54,10 @@ with open("./version.py", "r", encoding="utf-8") as v:
                 version = line.split("'")[1]
 
 setuptools.setup(
-    name="chatbot-core",
+    name="neon-chatbot-core",
     version=version,
-    author="NeonDaniel",
-    author_email="daniel@neon.ai",
+    author="Neongecko",
+    author_email="developers@neon.ai",
     description="Core utilities for Klat chatbots",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -66,9 +68,13 @@ setuptools.setup(
         "Operating System :: OS Independent"
     ],
     python_requires='>=3.6',
-    entry_points={'console_scripts': ["start-klat-bots=chatbot_core.utils:cli_start_bots",
-                                      "stop-klat-bots=chatbot_core.utils:cli_stop_bots",
-                                      "debug-klat-bots=chatbot_core.utils:debug_bots",
-                                      "start-klat-prompter=chatbot_core.utils:cli_start_prompter"]},
-    install_requires=get_requirements("requirements.txt")
+    entry_points={'console_scripts': ["chatbots=chatbot_core.cli:chatbot_core_cli",
+                                      "start-klat-bots=chatbot_core.cli:cli_start_bots",
+                                      "stop-klat-bots=chatbot_core.cli:cli_stop_bots",
+                                      "debug-klat-bots=chatbot_core.cli:cli_debug_bots",
+                                      "start-klat-prompter=chatbot_core.cli:cli_start_prompter",
+                                      "start-mq-bot=chatbot_core.cli:cli_start_mq_bot"]},
+    install_requires=get_requirements("requirements.txt"),
+    extras_require={"lgpl": get_requirements("extra-lgpl.txt"),
+                    "lang": get_requirements("extra-lang.txt")}
 )

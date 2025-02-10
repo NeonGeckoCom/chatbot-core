@@ -16,3 +16,39 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
+from enum import IntEnum
+
+
+class ConversationControls:
+    RESP = " asks us to consider:"
+    DISC = "Please Discuss"
+    VOTE = "Voting on the response to "
+    PICK = "Tallying the votes for the responses to "
+    NEXT = "I'm ready for the next prompt."
+    HIST = "history"
+    WAIT = " may respond to the next prompt."
+
+
+class ConversationState(IntEnum):
+    IDLE = 0  # No active prompt
+    RESP = 1  # Gathering responses to prompt
+    DISC = 2  # Discussing responses
+    VOTE = 3  # Voting on responses
+    PICK = 4  # Proctor will select response
+    WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
+
+
+class BotTypes:
+    PROCTOR = 'proctor'
+    SUBMIND = 'submind'
+    OBSERVER = 'observer'
+    FACILITATOR = 'facilitator'
+
+
+CONVERSATION_STATE_ANNOUNCEMENTS = {
+    ConversationState.RESP: 'Accepting responses from subminds ({interval} seconds)',
+    ConversationState.DISC: 'Discussing responses from subminds ({interval} seconds)',
+    ConversationState.VOTE: 'Voting for candidate responses ({interval} seconds)',
+    ConversationState.PICK: 'Selecting a winner among participants'
+}

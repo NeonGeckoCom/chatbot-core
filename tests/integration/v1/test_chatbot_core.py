@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 #
-# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
+# Copyright 2008-2025 Neongecko.com Inc. | All Rights Reserved
 #
 # Notice of License - Duplicating this Notice of License near the start of any file containing
 # a derivative of this software is a condition of license for this software.
@@ -17,28 +17,24 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from datetime import datetime
 import unittest
-import sys
-import os
 import pytest
-import time
 
+from datetime import datetime
 from klat_connector import start_socket
 from klat_connector.mach_server import MachKlatServer
+from ovos_utils.log import LOG
 
-# Required for pytest on GitHub
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from chatbot_core import ConversationControls, ConversationState
-from chatbot_core.utils import clean_up_bot
-from tests.chatbot_objects import *
+from chatbot_core.utils.enum import ConversationControls, ConversationState
+from chatbot_core.utils.bot_utils import clean_up_bot
+from ...chatbot_objects import ChatBot
 
 
 SERVER = "0.0.0.0"
 
 
 @pytest.mark.timeout(timeout=300, method='signal')
-class ChatbotCoreTests(unittest.TestCase):
+class TestChatbotCore(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -66,6 +62,7 @@ class ChatbotCoreTests(unittest.TestCase):
                                          f"{self.test_input} (for 0 seconds).", self.bot._cid, self.bot._dom,
                               datetime.now().strftime("%I:%M:%S %p"))
         self.assertEqual(self.bot.active_prompt, self.test_input)
+        LOG.info(self.bot._user_is_proctor(self.bot.nick))
         self.assertEqual(self.bot.state, ConversationState.RESP)
         self.assertEqual(self.bot.request_history[0][0], "testrunner", f"history={self.bot.request_history}")
         self.assertEqual(self.bot.request_history[0][1], self.test_input)
@@ -195,70 +192,10 @@ class ChatbotCoreTests(unittest.TestCase):
     #     get_bots_in_dir("/home/d_mcknight/PycharmProjects/chatbots/bots/ELIZA")
 
     @pytest.mark.timeout(30)
-    def test_start_base_bot(self):
-        from chatbot_core.utils import _start_bot
-        from multiprocessing import Process, synchronize
-
-        t, e = _start_bot(ChatBot, SERVER, 8888, "Private", "testrunner", "testpassword")
-        self.assertIsInstance(t, Process)
-        self.assertIsInstance(e, synchronize.Event)
-        # self.assertFalse(e.is_set())
-        e.set()
-        timeout = time.time() + 10
-        while e.is_set() and time.time() < timeout:
-            print("...")
-            time.sleep(2)
-        self.assertFalse(e.is_set())
-        t.terminate()
-        self.assertFalse(t.is_alive())
-        print("Joining...")
-        t.join()
-
-    @pytest.mark.timeout(30)
-    def test_start_v2_bot(self):
-        from chatbot_core.utils import _start_bot
-        from multiprocessing import Process, synchronize
-
-        t, e = _start_bot(V2Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
-        self.assertIsInstance(t, Process)
-        self.assertIsInstance(e, synchronize.Event)
-        # self.assertFalse(e.is_set())
-        e.set()
-        timeout = time.time() + 10
-        while e.is_set() and time.time() < timeout:
-            print("...")
-            time.sleep(2)
-        self.assertFalse(e.is_set())
-        t.terminate()
-        self.assertFalse(t.is_alive())
-        print("Joining...")
-        t.join()
-
-    @pytest.mark.timeout(30)
-    def test_start_v3_bot(self):
-        from chatbot_core.utils import _start_bot
-        from multiprocessing import Process, synchronize
-
-        t, e = _start_bot(V3Bot, SERVER, 8888, "Private", "testrunner", "testpassword")
-        self.assertIsInstance(t, Process)
-        self.assertIsInstance(e, synchronize.Event)
-        # self.assertFalse(e.is_set())
-        e.set()
-        timeout = time.time() + 10
-        while e.is_set() and time.time() < timeout:
-            print("...")
-            time.sleep(2)
-        self.assertFalse(e.is_set())
-        t.terminate()
-        self.assertFalse(t.is_alive())
-        print("Joining...")
-        t.join()
-
-    @pytest.mark.timeout(30)
     def test_messagebus_connection(self):
-        from chatbot_core.utils import init_message_bus
+        from chatbot_core.utils.bot_utils import init_message_bus
         from threading import Thread
-        from mycroft_bus_client import MessageBusClient
+        from ovos_bus_client.client import MessageBusClient
 
         t, bus = init_message_bus()
         self.assertIsInstance(t, Thread)

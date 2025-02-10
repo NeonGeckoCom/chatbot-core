@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 #
-# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
+# Copyright 2008-2025 Neongecko.com Inc. | All Rights Reserved
 #
 # Notice of License - Duplicating this Notice of License near the start of any file containing
 # a derivative of this software is a condition of license for this software.
@@ -17,40 +17,44 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from collections import OrderedDict
+import os
+
 from typing import Optional
+from chatbot_core.chatbot_abc import ChatBotABC
+from ovos_utils.log import LOG
 
 
-class FIFOCache:
+def get_class() -> Optional[type(ChatBotABC)]:
+    """
+    Get class matching current CHATBOT_VERSION
 
-    def __init__(self, capacity: int = 10):
-        """
-        Initialize an instance of the first-in-first-out cache with a set capacity
-        :param capacity: a maximum number of entries to store in the cache at the same time
-        """
-        self.cache = OrderedDict()
-        self.capacity = capacity
+    :returns Class instance matching current version if any
+    """
+    from chatbot_core.v1 import ChatBot as ChatBot_v1
+    from chatbot_core.v2 import ChatBot as ChatBot_v2
 
-    def get(self, key: str) -> Optional[str]:
-        """
-        Lookup the cache using a string key
-        :param key: a key in the key-value pair
-        :return: a value associated with the provided key or None
-        """
-        if key not in self.cache:
-            return None
-        else:
-            return self.cache[key]
+    version = get_current_version()
+    LOG.debug(f"version={version}")
+    chatbot_versions = {
+        1: ChatBot_v1,
+        2: ChatBot_v2
+    }
 
-    def put(self, key: str, value: str) -> None:
-        """
-        Put the key-value into cache if key not in the cache already
-        :param key: a key to use in the cache dict
-        :param value: a value associated with the key
-        :return: None
-        """
-        if key not in self.cache:
-            self.cache[key] = value
-            self.cache.move_to_end(key)
-            if len(self.cache) > self.capacity:
-                self.cache.popitem(last=False)
+    if version not in chatbot_versions:
+        raise InvalidVersionError(f"{version} is not a valid version "
+                                  f"({set(chatbot_versions.keys())}")
+    return chatbot_versions.get(version)
+
+
+def get_current_version() -> int:
+    """
+    Get an int representation of the configured Chatbot version to run
+    """
+    return 2 if os.environ.get('CHATBOT_VERSION',
+                               'v1').lower() in ('v2', '2', 'version2') else 1
+
+
+class InvalidVersionError(Exception):
+    """
+    Exception raised when invalid chatbots version is specified
+    """
