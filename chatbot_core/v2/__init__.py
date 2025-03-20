@@ -19,6 +19,7 @@
 
 import os
 import time
+from typing import Dict
 
 from neon_mq_connector.utils import RepeatingTimer
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
@@ -42,7 +43,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         KlatAPIMQ.__init__(self, mq_config, service_name, vhost)
         ChatBotABC.__init__(self, service_name, bot_config)
         self.bot_type = bot_type
-        self.current_conversations = dict()
+
+        # Mapping of CID to context including `state` and `prompts`
+        self.current_conversations: Dict[str, dict] = dict()
         self.on_server = True
         self.default_response_queue = 'shout'
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
@@ -55,7 +58,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         config: dict = config or kwargs.get('config', {})
         service_name: str = service_name or kwargs.get('service_name', 'undefined_service')
         vhost: str = vhost or kwargs.get('vhost', '/')
-        bot_type: repr(BotTypes) = bot_type or kwargs.get('bot_type', BotTypes.SUBMIND)
+        bot_type: BotTypes = bot_type or kwargs.get('bot_type', BotTypes.SUBMIND)
         return config, service_name, vhost, bot_type
 
     @create_mq_callback()
@@ -177,26 +180,28 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # TODO: make it defaulting to True once all the related subminds are migrated (Kirill)
         return False
 
-    def get_chatbot_response(self, cid, message_data, shout, message_sender, is_message_from_proctor,
-                             conversation_state) -> dict:
+    def get_chatbot_response(self, cid: str, message_data: dict, shout: str,
+                             message_sender: str, is_message_from_proctor: bool,
+                             conversation_state: ConversationState) -> dict:
         """
-            Makes response based on incoming message data and its context
-            :param cid: current conversation id
-            :param message_data: message data received
-            :param shout: incoming shout data
-            :param message_sender: nick of message sender
-            :param is_message_from_proctor: is message sender a Proctor
-            :param conversation_state: state of the conversation from ConversationStates
+        Makes response based on incoming message data and its context
+        :param cid: current conversation id
+        :param message_data: message data received
+        :param shout: incoming shout data
+        :param message_sender: nick of message sender
+        :param is_message_from_proctor: is message sender a Proctor
+        :param conversation_state: state of the conversation
 
-            :returns response data as a dictionary, example:
-                {
-                 "shout": "I vote for Wolfram",
-                 "context": {"selected": "wolfram"},
-                 "queue": "pat_user_message"
-                }
+        :returns response data as a dictionary, example:
+            {
+                "shout": "I vote for Wolfram",
+                "context": {"selected": "wolfram"},
+                "queue": "pat_user_message"
+            }
         """
         response = {'shout': '', 'context': {}, 'queue': ''}
         self.log.info(f'Received incoming shout: {shout}')
+        self.log.info(f"message_data={message_data}")
         if self.contextual_api_supported:
             context_kwargs = {'context': self._build_submind_request_context(message_data=message_data,
                                                                              message_sender=message_sender,
@@ -220,16 +225,20 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                      shout=shout,
                                                      timestamp=str(message_data.get('timeCreated', int(time.time()))),
                                                      **context_kwargs)
+                # TODO: update `self.current_conversations['prompts']` with this new prompt ID and response
             elif conversation_state == ConversationState.DISC:
                 options: dict = message_data.get('proposed_responses', {})
                 response['shout'] = self.ask_discusser(options, **context_kwargs)
+                # TODO: update `self.current_conversations['prompts']` with these proposed responses
             elif conversation_state == ConversationState.VOTE:
+                # TODO: update `self.current_conversations['prompts']` with these votes
                 selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}), **context_kwargs)
                 response['shout'] = self.vote_response(selected)
                 if 'abstain' in response['shout'].lower():
                     selected = "abstain"
                 response['context']['selected'] = selected
             elif conversation_state == ConversationState.WAIT:
+                # TODO: update `self.current_conversations['prompts']` with the selected response
                 response['shout'] = 'I am ready for the next prompt'
             response['context']['prompt_id'] = message_data.get('prompt_id', '')
         return response
@@ -447,10 +456,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
             Called recursively to handle incoming shouts synchronously
         """
-        next_message_data = self.shout_queue.get()
-        while next_message_data:
+        while next_message_data := self.shout_queue.get():
             self.handle_shout(next_message_data)
-            next_message_data = self.shout_queue.get()
 
     def _pause_responses(self, duration: int = 5):
         pass
