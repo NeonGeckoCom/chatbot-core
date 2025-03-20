@@ -166,6 +166,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 body.get('receiver', None) == self.nick and \
                 self.nick != body.get('user', None):
             self._on_mentioned_user_message('', '', '', body)
+        else:
+            self.log.warning(f"Ignoring message: {body}")
 
     def handle_incoming_shout(self, message_data: dict):
         """
