@@ -295,11 +295,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
-        message_sender = message_data.get('nick', 'anonymous')
+        message_sender = message_data.get('nick') or \
+            message_data.get('userDisplayName', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
         if prompt_id := message_data.get("promptID") is not None and \
                 not is_message_from_proctor:
-            self.log.info("Handling non-proctor CCAI message")  # TODO: log.debug
+            self.log.debug("Handling non-proctor CCAI message")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
             elif conversation_state == ConversationState.DISC:
