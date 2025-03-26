@@ -278,20 +278,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     return {}
                 elif conversation_state == ConversationState.WAIT:
                     response['shout'] = 'I am ready for the next prompt'
-            elif is_message_from_proctor:
-                # Proctor cotrol message
-                # TODO: Better check here
-                if "accepting responses" in shout.lower():
-                    self.set_conversation_state(cid, ConversationState.RESP)
-                elif "discussing responses" in shout.lower():
-                    self.set_conversation_state(cid, ConversationState.DISC)
-                elif "voting for candidate responses" in shout.lower():
-                    self.set_conversation_state(cid, ConversationState.VOTE)
-                elif shout == CONVERSATION_STATE_ANNOUNCEMENTS[
-                        ConversationState.PICK]:
-                    self.set_conversation_state(cid, ConversationState.PICK)
-                self.log.info(f"Proctor set state to: "
-                              f"{self.get_conversation_state(cid)}")
             else:
                 self.log.warning(f"No prompt id found in message data: "
                                  f"{message_data}")
@@ -320,17 +306,26 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.log.debug(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
+        # TODO: Refactor to track this internally instead of from message context
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
 
         message_sender = message_data.get('nick') or \
             message_data.get('userDisplayName', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
 
-        # TODO: Patching Proctor message handling
-        if conversation_state == ConversationState.IDLE and \
-                is_message_from_proctor:
-            self.log.warning(f"Proctor specified idle state, but is a pick")
-            conversation_state = self.get_conversation_state(cid)
+        if is_message_from_proctor:
+            # Proctor cotrol message
+            # TODO: Better check here
+            if "accepting responses" in shout.lower():
+                self.set_conversation_state(cid, ConversationState.RESP)
+            elif "discussing responses" in shout.lower():
+                self.set_conversation_state(cid, ConversationState.DISC)
+            elif "voting for candidate responses" in shout.lower():
+                self.set_conversation_state(cid, ConversationState.VOTE)
+            elif "the selected response if from" in shout.lower():
+                self.set_conversation_state(cid, ConversationState.PICK)
+            self.log.info(f"Proctor set state to: "
+                            f"{self.get_conversation_state(cid)}")
 
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
         if prompt_id and not is_message_from_proctor:
