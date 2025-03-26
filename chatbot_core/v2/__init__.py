@@ -306,8 +306,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.log.debug(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
-        # TODO: Refactor to track this internally instead of from message context
-        conversation_state = ConversationState(message_data.get('conversation_state', 0))
+        # Refactored to track this internally instead of from message context
+        # conversation_state = ConversationState(message_data.get('conversation_state', 0))
 
         message_sender = message_data.get('nick') or \
             message_data.get('userDisplayName', 'anonymous')
@@ -327,9 +327,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.info(f"Proctor set state to: "
                             f"{self.get_conversation_state(cid)}")
 
+            conversation_state = self.get_conversation_state(cid)
+
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
         if prompt_id and not is_message_from_proctor:
-            conversation_state = self.get_conversation_state(cid)
             self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
