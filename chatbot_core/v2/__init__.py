@@ -26,7 +26,7 @@ from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
 
-from chatbot_core.utils.enum import ConversationState, BotTypes
+from chatbot_core.utils.enum import ConversationState, BotTypes, CONVERSATION_STATE_ANNOUNCEMENTS
 from chatbot_core.chatbot_abc import ChatBotABC
 from chatbot_core.version import __version__ as package_version
 
@@ -277,6 +277,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     return {}
                 elif conversation_state == ConversationState.WAIT:
                     response['shout'] = 'I am ready for the next prompt'
+            elif is_message_from_proctor:
+                # Proctor cotrol message
+                # TODO: Better check here
+                if "accepting responses" in response['shout'].lower():
+                    self.set_conversation_state(cid, ConversationState.RESP)
+                elif "discussing responses" in response['shout'].lower():
+                    self.set_conversation_state(cid, ConversationState.DISC)
+                elif "voting for candidate responses" in response['shout'].lower():
+                    self.set_conversation_state(cid, ConversationState.VOTE)
+                elif response['shout'] == CONVERSATION_STATE_ANNOUNCEMENTS[
+                        ConversationState.PICK]:
+                    self.set_conversation_state(cid, ConversationState.PICK)
             else:
                 self.log.warning(f"No prompt id found in message data: "
                                  f"{message_data}")
@@ -313,17 +325,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         # TODO: Patching Proctor message handling
         if conversation_state == ConversationState.IDLE and \
-            is_message_from_proctor and \
-                shout.startswith("The selected response"):
+                is_message_from_proctor:
             self.log.warning(f"Proctor specified idle state, but is a pick")
-            conversation_state = ConversationState.PICK
+            conversation_state = self.get_conversation_state(cid)
 
 
         if prompt_id := (message_data.get("promptID") or
                          message_data.get('prompt_id')) is not None and \
                 not is_message_from_proctor:
-            conversation_state = self.current_conversations.get(cid,
-                                                                 {}).get('state')
+            conversation_state = self.get_conversation_state(cid)
             self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
@@ -570,7 +580,4 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         pass
 
     def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
-        pass
-
-    def on_proposed_response(self):
         pass
