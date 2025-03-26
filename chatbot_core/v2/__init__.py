@@ -232,6 +232,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if not prompt_id and conversation_state != ConversationState.IDLE:
                 prompt_id = self.current_conversations[cid]['prompt_history'][-1]
                 self.log.info(f"Inferred prompt_id from history: {prompt_id}")
+
             if prompt_id:
                 # Initialize prompt data structure if it doesn't exist
                 if prompt_id not in self.current_conversations[cid]['prompts']:
@@ -280,15 +281,17 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif is_message_from_proctor:
                 # Proctor cotrol message
                 # TODO: Better check here
-                if "accepting responses" in response['shout'].lower():
+                if "accepting responses" in shout.lower():
                     self.set_conversation_state(cid, ConversationState.RESP)
-                elif "discussing responses" in response['shout'].lower():
+                elif "discussing responses" in shout.lower():
                     self.set_conversation_state(cid, ConversationState.DISC)
-                elif "voting for candidate responses" in response['shout'].lower():
+                elif "voting for candidate responses" in shout.lower():
                     self.set_conversation_state(cid, ConversationState.VOTE)
-                elif response['shout'] == CONVERSATION_STATE_ANNOUNCEMENTS[
+                elif shout == CONVERSATION_STATE_ANNOUNCEMENTS[
                         ConversationState.PICK]:
                     self.set_conversation_state(cid, ConversationState.PICK)
+                self.log.info(f"Proctor set state to: "
+                              f"{self.get_conversation_state(cid)}")
             else:
                 self.log.warning(f"No prompt id found in message data: "
                                  f"{message_data}")
