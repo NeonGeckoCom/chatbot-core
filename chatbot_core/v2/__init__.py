@@ -318,18 +318,26 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.set_conversation_state(cid, message_data['conversation_state'])
             self.log.info(f"Conversation state from message data: {conversation_state}")
         elif is_message_from_proctor:
+            changed = False
             # Proctor cotrol message
             # TODO: Better check here
             if "accepting responses" in shout.lower():
+                changed = True
                 self.set_conversation_state(cid, ConversationState.RESP)
             elif "discussing responses" in shout.lower():
+                changed = True
                 self.set_conversation_state(cid, ConversationState.DISC)
             elif "voting for candidate responses" in shout.lower():
+                changed = True
                 self.set_conversation_state(cid, ConversationState.VOTE)
-            elif "the selected response is from" in shout.lower():
+            elif "selecting a winner among participants" in shout.lower():
+                changed = True
                 self.set_conversation_state(cid, ConversationState.PICK)
-            self.log.info(f"Conversation state from proctor shout: "
-                          f"{self.get_conversation_state(cid)}")
+            if changed:
+                self.log.info(f"Conversation state set from proctor shout: "
+                            f"{self.get_conversation_state(cid)}")
+            # Proctor messages without a state context should be ignored
+            return
 
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
