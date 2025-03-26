@@ -327,9 +327,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.info(f"Proctor set state to: "
                             f"{self.get_conversation_state(cid)}")
 
-            conversation_state = self.get_conversation_state(cid)
-
+        conversation_state = self.get_conversation_state(cid)
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
+        
         if prompt_id and not is_message_from_proctor:
             self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
