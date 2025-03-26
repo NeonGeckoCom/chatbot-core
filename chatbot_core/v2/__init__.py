@@ -329,10 +329,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.warning(f"Proctor specified idle state, but is a pick")
             conversation_state = self.get_conversation_state(cid)
 
-
-        if prompt_id := (message_data.get("promptID") or
-                         message_data.get('prompt_id')) is not None and \
-                not is_message_from_proctor:
+        prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
+        if prompt_id and not is_message_from_proctor:
             conversation_state = self.get_conversation_state(cid)
             self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
