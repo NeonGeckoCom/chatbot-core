@@ -265,9 +265,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                         selected = "abstain"
                     response['context']['selected'] = selected
                     current_prompt['selected'] = selected
-                elif conversation_state == ConversationState.WAIT:
-                    current_prompt["response"] = shout
+                elif conversation_state == ConversationState.PICK:
+                    preamble, response = shout.split(":", 1)
+                    current_prompt["response"] = response.strip()
+                    current_prompt["winner"] = preamble.split(" ")[-1]
                     self.log.info(f"Completed prompt: {current_prompt}")
+                elif conversation_state == ConversationState.WAIT:
                     response['shout'] = 'I am ready for the next prompt'
             response['context']['prompt_id'] = message_data.get('prompt_id', '')
         return response
@@ -295,9 +298,19 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
+
         message_sender = message_data.get('nick') or \
             message_data.get('userDisplayName', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
+
+        # TODO: Patching Proctor message handling
+        if conversation_state == ConversationState.IDLE and \
+            is_message_from_proctor and \
+                shout.startswith("The selected resposne"):
+            self.log.warning(f"Proctor specified idle state, but is a pick")
+            conversation_state = ConversationState.PICK
+
+
         if prompt_id := message_data.get("promptID") is not None and \
                 not is_message_from_proctor:
             self.log.debug("Handling non-proctor CCAI message")
