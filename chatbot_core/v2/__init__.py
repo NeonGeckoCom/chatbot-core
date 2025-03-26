@@ -226,7 +226,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations.setdefault(cid, {})
             self.current_conversations[cid].setdefault("prompts", {})
             self.current_conversations[cid].setdefault("prompt_history", [])
-            prompt_id = message_data.get('prompt_id', '')
+            prompt_id = message_data.get('prompt_id') or \
+                message_data.get('promptID') or ''
             self.set_conversation_state(cid, conversation_state)
             if not prompt_id and conversation_state != ConversationState.IDLE:
                 prompt_id = self.current_conversations[cid]['prompt_history'][-1]
@@ -270,9 +271,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     current_prompt['selected'] = selected
                 elif conversation_state == ConversationState.PICK:
                     preamble, response = shout.split(":", 1)
-                    current_prompt["response"] = response.strip()
+                    current_prompt["response"] = response.strip().strip('"')
                     current_prompt["winner"] = preamble.split(" ")[-1]
                     self.log.info(f"Completed prompt: {current_prompt}")
+                    return {}
                 elif conversation_state == ConversationState.WAIT:
                     response['shout'] = 'I am ready for the next prompt'
             else:
@@ -317,7 +319,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             conversation_state = ConversationState.PICK
 
 
-        if prompt_id := message_data.get("promptID") is not None and \
+        if prompt_id := (message_data.get("promptID") or
+                         message_data.get('prompt_id')) is not None and \
                 not is_message_from_proctor:
             self.log.debug("Handling non-proctor CCAI message")
             if conversation_state == ConversationState.RESP:
