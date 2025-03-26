@@ -272,6 +272,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.info(f"Completed prompt: {current_prompt}")
                 elif conversation_state == ConversationState.WAIT:
                     response['shout'] = 'I am ready for the next prompt'
+            else:
+                self.log.warning(f"No prompt id found in message data: "
+                                 f"{message_data}")
             response['context']['prompt_id'] = message_data.get('prompt_id', '')
         return response
 
