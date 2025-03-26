@@ -47,7 +47,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # Mapping of CID to context including `state` and `prompts`
         self.current_conversations: Dict[str, dict] = dict()
         # Mapping of prompt_id to associated CID
-        self.prompt_to_cid = Dict[str, str] = dict()
+        self.prompt_to_cid: Dict[str, str] = dict()
         self.on_server = True
         self.default_response_queue = 'shout'
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
