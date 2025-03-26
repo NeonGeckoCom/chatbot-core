@@ -46,6 +46,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         # Mapping of CID to context including `state` and `prompts`
         self.current_conversations: Dict[str, dict] = dict()
+        # Mapping of prompt_id to associated CID
+        self.prompt_to_cid = Dict[str, str] = dict()
         self.on_server = True
         self.default_response_queue = 'shout'
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
@@ -202,8 +204,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             }
         """
         response = {'shout': '', 'context': {}, 'queue': ''}
-        self.log.info(f'Received incoming shout: {shout}')
-        self.log.info(f"message_data={message_data}")
+        self.log.info(f'Received incoming shout: {shout} '
+                      f'FROM: {message_sender}')
         if self.contextual_api_supported:
             context_kwargs = {'context': self._build_submind_request_context(message_data=message_data,
                                                                              message_sender=message_sender,
@@ -221,27 +223,52 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             response['conversation_state'] = conversation_state
             message_sender = BotTypes.PROCTOR
 
+            self.current_conversations.setdefault(cid, {})
+            self.current_conversations[cid].setdefault("prompts", {})
+            self.current_conversations[cid].setdefault("prompt_history", [])
+            prompt_id = message_data.get('prompt_id', '')
             self.set_conversation_state(cid, conversation_state)
-            if conversation_state == ConversationState.RESP:
-                response['shout'] = self.ask_chatbot(user=message_sender,
-                                                     shout=shout,
-                                                     timestamp=str(message_data.get('timeCreated', int(time.time()))),
-                                                     **context_kwargs)
-                # TODO: update `self.current_conversations['prompts']` with this new prompt ID and response
-            elif conversation_state == ConversationState.DISC:
-                options: dict = message_data.get('proposed_responses', {})
-                response['shout'] = self.ask_discusser(options, **context_kwargs)
-                # TODO: update `self.current_conversations['prompts']` with these proposed responses
-            elif conversation_state == ConversationState.VOTE:
-                # TODO: update `self.current_conversations['prompts']` with these votes
-                selected = self.ask_appraiser(options=message_data.get('proposed_responses', {}), **context_kwargs)
-                response['shout'] = self.vote_response(selected)
-                if 'abstain' in response['shout'].lower():
-                    selected = "abstain"
-                response['context']['selected'] = selected
-            elif conversation_state == ConversationState.WAIT:
-                # TODO: update `self.current_conversations['prompts']` with the selected response
-                response['shout'] = 'I am ready for the next prompt'
+            if prompt_id:
+                # Initialize prompt data structure if it doesn't exist
+                if prompt_id not in self.current_conversations[cid]['prompts']:
+                    self.current_conversations[cid]['prompts'][prompt_id] = {
+                        "proposed_responses": {},
+                        "discussion": [{}],
+                        "votes": {}
+                    }
+                current_prompt = self.current_conversations[cid]['prompts'][prompt_id]
+                self.current_conversations[cid]['prompt_history'].append(prompt_id)
+                self.prompt_to_cid[prompt_id] = cid
+
+                # TODO: Include prompt history in context
+                if conversation_state == ConversationState.RESP:
+                    response['shout'] = self.ask_chatbot(user=message_sender,
+                                                         shout=shout,
+                                                         timestamp=str(message_data.get('timeCreated', int(time.time()))),
+                                                         **context_kwargs)
+                    current_prompt["prompt"] = message_data.get('shout', '')
+                    current_prompt["proposal"] = response['shout']
+                    current_prompt["participating_subminds"] = message_data.get(
+                        'participating_subminds', [])
+                elif conversation_state == ConversationState.DISC:
+                    current_prompt.setdefault("discussion", [{}])
+                    # TODO: Get `proposed_responses` from internal reference
+                    options: dict = message_data.get('proposed_responses', {})
+                    current_prompt['proposed_responses'] = options
+                    response['shout'] = self.ask_discusser(options, **context_kwargs)
+                elif conversation_state == ConversationState.VOTE:
+                    # TODO: Get `proposed_responses` from internal reference
+                    options = message_data.get('proposed_responses', {})
+                    selected = self.ask_appraiser(options=options, **context_kwargs)
+                    response['shout'] = self.vote_response(selected)
+                    if 'abstain' in response['shout'].lower():
+                        selected = "abstain"
+                    response['context']['selected'] = selected
+                    current_prompt['selected'] = selected
+                elif conversation_state == ConversationState.WAIT:
+                    current_prompt["response"] = shout
+                    self.log.info(f"Completed prompt: {current_prompt}")
+                    response['shout'] = 'I am ready for the next prompt'
             response['context']['prompt_id'] = message_data.get('prompt_id', '')
         return response
 
@@ -270,7 +297,17 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
         message_sender = message_data.get('nick', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
-        if shout:
+        if prompt_id := message_data.get("prompt_id") is not None and \
+                not is_message_from_proctor:
+            self.log.info("Handling non-proctor CCAI message")  # TODO: log.debug
+            if conversation_state == ConversationState.RESP:
+                self.on_proposed_response(prompt_id, shout, message_sender)
+            elif conversation_state == ConversationState.DISC:
+                self.on_discussion(message_sender, shout, prompt_id)
+            elif conversation_state == ConversationState.VOTE:
+                self.on_vote(prompt_id, shout, message_sender)
+
+        elif shout:
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
                                                  is_message_from_proctor=is_message_from_proctor,
@@ -300,6 +337,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                         context={
                             'version': os.environ.get('SERVICE_VERSION', package_version),
                             'bot_type': self.bot_type,
+                            'supports_raw_shouts': True,  # TODO: infer from version OR make this optional per-submind
                             'cids': list(self.current_conversations),
                         },
                         exchange='connection')
@@ -340,14 +378,45 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         elif not shout:
             self.log.warning(f"Empty discussion provided! ({self.nick})")
 
+    def on_proposed_response(self, prompt_id: str, response: str, user: str):
+        if prompt_id not in self.prompt_to_cid:
+            self.log.warning(f"Unknown prompt id: {prompt_id}")
+            return
+        prompt_data = self.current_conversations[self.prompt_to_cid[prompt_id]]\
+            .get('prompts', {}).get(prompt_id, {})
+        if not prompt_data:
+            self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
+            return
+        prompt_data['proposed_responses'][user] = response
+        self.log.info(f"Received proposed response from {user}: {response}")  # TODO debug
+
+    def on_discussion(self, user: str, shout: str, prompt_id: str):
+        if prompt_id not in self.prompt_to_cid:
+            self.log.warning(f"Unknown prompt id: {prompt_id}")
+            return
+        prompt_data = self.current_conversations[self.prompt_to_cid[prompt_id]]\
+            .get('prompts', {}).get(prompt_id, {})
+        if not prompt_data:
+            self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
+            return
+        if user in prompt_data['discussion'][-1]:
+            # Users can only send one discussion message per round. Use this
+            # repeated user as a signal that a new round of discussion started
+            self.log.debug(f"{user} has started a new round of discussion")
+            prompt_data['discussion'].append({})
+        prompt_data['discussion'][-1][user] = shout
+
     def on_vote(self, prompt_id: str, selected: str, voter: str):
-        pass
-
-    def on_discussion(self, user: str, shout: str):
-        pass
-
-    def on_proposed_response(self):
-        pass
+        if prompt_id not in self.prompt_to_cid:
+            self.log.warning(f"Unknown prompt id: {prompt_id}")
+            return
+        prompt_data = self.current_conversations[self.prompt_to_cid[prompt_id]]\
+            .get('prompts', {}).get(prompt_id, {})
+        if not prompt_data:
+            self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
+            return
+        prompt_data['votes'][voter] = selected
+        self.log.info(f"Received vote from {voter}: {selected}")  # TODO debug
 
     def on_selection(self, prompt: str, user: str, response: str):
         pass
@@ -358,22 +427,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def at_chatbot(self, user: str, shout: str, timestamp: str) -> str:
         pass
 
-    def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
-        pass
-
     def ask_chatbot(self, user: str, shout: str, timestamp: str, context: dict = None) -> str:
-        pass
-
-    def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
         pass
 
     def ask_appraiser(self, options: dict, context: dict = None) -> str:
         pass
 
     def ask_discusser(self, options: dict, context: dict = None) -> str:
-        pass
-
-    def _send_first_prompt(self):
         pass
 
     def send_shout(self, shout, responded_message=None, cid: str = '', dom: str = '',
@@ -476,3 +536,16 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def stop(self):
         self.stop_shout_thread()
         KlatAPIMQ.stop(self)
+
+# Unimplemented Abstract Methods
+    def _send_first_prompt(self):
+        pass
+
+    def ask_history(self, user: str, shout: str, dom: str, cid: str) -> str:
+        pass
+
+    def ask_proctor(self, prompt: str, user: str, cid: str, dom: str):
+        pass
+
+    def on_proposed_response(self):
+        pass
