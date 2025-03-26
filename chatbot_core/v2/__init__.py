@@ -313,7 +313,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             message_data.get('userDisplayName', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
 
-        if is_message_from_proctor:
+
+        if conversation_state in message_data:
+            self.set_conversation_state(cid, message_data['conversation_state'])
+            self.log.info(f"Conversation state from message data: {conversation_state}")
+        elif is_message_from_proctor:
             # Proctor cotrol message
             # TODO: Better check here
             if "accepting responses" in shout.lower():
@@ -322,14 +326,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self.set_conversation_state(cid, ConversationState.DISC)
             elif "voting for candidate responses" in shout.lower():
                 self.set_conversation_state(cid, ConversationState.VOTE)
-            elif "the selected response if from" in shout.lower():
+            elif "the selected response is from" in shout.lower():
                 self.set_conversation_state(cid, ConversationState.PICK)
-            self.log.info(f"Proctor set state to: "
-                            f"{self.get_conversation_state(cid)}")
+            self.log.info(f"Conversation state from proctor shout: "
+                          f"{self.get_conversation_state(cid)}")
 
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
-        
+
         if prompt_id and not is_message_from_proctor:
             self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
