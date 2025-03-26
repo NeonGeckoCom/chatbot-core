@@ -270,8 +270,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     response['context']['selected'] = selected
                     current_prompt['selected'] = selected
                 elif conversation_state == ConversationState.PICK:
-                    preamble, response = shout.split(":", 1)
-                    current_prompt["response"] = response.strip().strip('"')
+                    preamble, choice = shout.split(":", 1)
+                    current_prompt["response"] = choice.strip().strip('"')
                     current_prompt["winner"] = preamble.split(" ")[-1]
                     self.log.info(f"Completed prompt: {current_prompt}")
                     return {}
@@ -322,7 +322,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if prompt_id := (message_data.get("promptID") or
                          message_data.get('prompt_id')) is not None and \
                 not is_message_from_proctor:
-            self.log.debug("Handling non-proctor CCAI message")
+            conversation_state = self.current_conversations.get(cid,
+                                                                 {}).get('state')
+            self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
             elif conversation_state == ConversationState.DISC:
