@@ -297,7 +297,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
         message_sender = message_data.get('nick', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
-        if prompt_id := message_data.get("prompt_id") is not None and \
+        if prompt_id := message_data.get("promptID") is not None and \
                 not is_message_from_proctor:
             self.log.info("Handling non-proctor CCAI message")  # TODO: log.debug
             if conversation_state == ConversationState.RESP:
