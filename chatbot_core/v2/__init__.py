@@ -204,8 +204,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             }
         """
         response = {'shout': '', 'context': {}, 'queue': ''}
-        self.log.info(f'Received incoming shout: {shout} '
-                      f'FROM: {message_sender}')
+        self.log.info(f'Received incoming shout from: {message_sender}. '
+                      f' state={conversation_state}|shout={shout}')
         if self.contextual_api_supported:
             context_kwargs = {'context': self._build_submind_request_context(message_data=message_data,
                                                                              message_sender=message_sender,
@@ -291,7 +291,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param message_data: dict containing message data received
             :param skip_callback: to skip callback after handling shout (default to False)
         """
-        self.log.info(f'Message data: {message_data}')
+        self.log.debug(f'Message data: {message_data}')
         shout = message_data.get('shout') or message_data.get('messageText', '')
         cid = message_data.get('cid', '')
         conversation_state = ConversationState(message_data.get('conversation_state', 0))
