@@ -306,7 +306,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # TODO: Patching Proctor message handling
         if conversation_state == ConversationState.IDLE and \
             is_message_from_proctor and \
-                shout.startswith("The selected resposne"):
+                shout.startswith("The selected response"):
             self.log.warning(f"Proctor specified idle state, but is a pick")
             conversation_state = ConversationState.PICK
 
