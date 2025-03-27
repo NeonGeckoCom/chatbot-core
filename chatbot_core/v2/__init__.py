@@ -316,7 +316,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         if "conversation_state" in message_data:
             self.set_conversation_state(cid, message_data['conversation_state'])
-            self.log.info(f"Conversation state from message data: {conversation_state}")
+            self.log.info(f"Conversation state from message data: "
+                          f"{self.get_conversation_state(cid)}")
         elif is_message_from_proctor:
             changed = False
             # Proctor cotrol message
