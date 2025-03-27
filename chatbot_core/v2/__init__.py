@@ -337,8 +337,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if changed:
                 self.log.info(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
-            # Proctor messages without a state context should be ignored
-            return
+                # Proctor message has no other purpose
+                return
 
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
