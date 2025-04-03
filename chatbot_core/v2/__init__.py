@@ -49,6 +49,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # Mapping of prompt_id to associated CID
         self.prompt_to_cid: Dict[str, str] = dict()
         self.on_server = True
+        self.supports_raw_conversation = True
         self.default_response_queue = 'shout'
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
                                            interval=kwargs.get('shout_thread_interval', 10))
@@ -381,9 +382,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.send_shout(shout='chatbot state',
                         context={
                             'service_name': self.service_name,
-                            'version': os.environ.get('SERVICE_VERSION', package_version),
+                            'version': os.environ.get('SERVICE_VERSION', 
+                                                      package_version),
                             'bot_type': self.bot_type,
-                            'supports_raw_conversation': True,  # TODO: infer from version OR make this optional per-submind
+                            'supports_raw_conversation': self.supports_raw_conversation,
                             'cids': list(self.current_conversations),
                         },
                         exchange='connection')
