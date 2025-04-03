@@ -149,7 +149,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                            f"{body.get('messageID')}")
             return
         if body.get('cid') not in list(self.current_conversations):
-            self.log.info(f"Ignoring message "
+            self.log.debug(f"Ignoring message "
                           f"(messageID={body.get('messageID')}) outside of "
                           f"current conversations "
                           f"({self.current_conversations})")
@@ -204,7 +204,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             }
         """
         response = {'shout': '', 'context': {}, 'queue': ''}
-        self.log.info(f'Received incoming shout from: {message_sender}. '
+        self.log.debug(f'Received incoming shout from: {message_sender}. '
                       f' state={conversation_state}|shout={shout}')
         if self.contextual_api_supported:
             context_kwargs = {'context': self._build_submind_request_context(message_data=message_data,
@@ -313,10 +313,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             message_data.get('userDisplayName', 'anonymous')
         is_message_from_proctor = self._user_is_proctor(message_sender)
 
-
+        # TODO: Refactor to not rely on `conversation_state` context proctor ctx
         if "conversation_state" in message_data:
             self.set_conversation_state(cid, message_data['conversation_state'])
-            self.log.info(f"Conversation state from message data: "
+            self.log.debug(f"Conversation state from message data: "
                           f"{self.get_conversation_state(cid)}")
         elif is_message_from_proctor:
             changed = False
@@ -335,7 +335,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 changed = True
                 self.set_conversation_state(cid, ConversationState.PICK)
             if changed:
-                self.log.info(f"Conversation state set from proctor shout: "
+                self.log.debug(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
                 # Proctor message has no other purpose
                 return
@@ -344,7 +344,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
 
         if prompt_id and not is_message_from_proctor:
-            self.log.info(f"Handling non-proctor CCAI message. state={conversation_state}")
+            self.log.debug(f"Handling non-proctor CCAI message. state={conversation_state}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
             elif conversation_state == ConversationState.DISC:
@@ -380,9 +380,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     def _send_state(self):
         self.send_shout(shout='chatbot state',
                         context={
+                            'service_name': self.service_name,
                             'version': os.environ.get('SERVICE_VERSION', package_version),
                             'bot_type': self.bot_type,
-                            'supports_raw_shouts': True,  # TODO: infer from version OR make this optional per-submind
+                            'supports_raw_conversation': True,  # TODO: infer from version OR make this optional per-submind
                             'cids': list(self.current_conversations),
                         },
                         exchange='connection')
@@ -433,7 +434,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
             return
         prompt_data['proposed_responses'][user] = response
-        self.log.info(f"Received proposed response from {user}: {response}")  # TODO debug
+        self.log.debug(f"Received proposed response from {user}: {response}")
 
     def on_discussion(self, user: str, shout: str, prompt_id: str):
         if prompt_id not in self.prompt_to_cid:
@@ -461,8 +462,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
             return
         prompt_data['votes'][voter] = selected
-        self.log.info(f"Received vote from {voter}: {selected}")  # TODO debug
+        self.log.debug(f"Received vote from {voter}: {selected}")
 
+    # TODO: Implement below methods in place of handling in `get_chatbot_response`
     def on_selection(self, prompt: str, user: str, response: str):
         pass
 
