@@ -370,8 +370,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif conversation_state == ConversationState.VOTE:
                 self.on_vote(prompt_id, shout, message_sender)
         elif conversation_state == ConversationState.PICK:
-                preamble, choice = shout.split(":", 1)
-                winner = preamble.split(" ")[-1]
+                try:
+                    preamble, choice = shout.split(":", 1)
+                    winner = preamble.split(" ")[-1]
+                except ValueError:
+                    self.log.warning(f"Failed to parse winner from: {shout}")
+                    return
                 self.on_selection(prompt_id, winner, choice)
         elif shout:
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
