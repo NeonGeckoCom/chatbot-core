@@ -317,7 +317,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.log.debug(f'Message data: {message_data}')
         # TODO: Backwards-compat. data key handling
         if "shout" in message_data:
-            message.setdefault("message_text", message_data.get('shout', ''))
+            message_data.setdefault("message_text", message_data.get('shout', ''))
         message = ChatbotsMqRequest(**message_data)
         shout = message.message_text
         cid = message.cid
