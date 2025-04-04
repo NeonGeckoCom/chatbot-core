@@ -327,8 +327,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         message_sender = message.username
         is_message_from_proctor = self._user_is_proctor(message_sender)
 
+        # Handle control messages that indicate a change in conversation phase
+        changed = False
         if is_message_from_proctor:
-            changed = False
             # Proctor cotrol message
             # TODO: Better check here
             if "accepting responses" in shout.lower():
@@ -343,20 +344,24 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif "selecting a winner among participants" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.PICK)
-                return
             if changed:
-                self.log.debug(f"Conversation state set from proctor shout: "
+                self.log.info(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
-        elif message.prompt_state and \
-                message.prompt_state != ConversationState.IDLE:
-            old_state = self.get_conversation_state(cid)
-            self.set_conversation_state(cid, message.prompt_state)
-            self.log.debug(f"Conversation state from message data: "
-                          f"{self.get_conversation_state(cid)}")
-            if self.get_conversation_state(cid) != old_state:
-                self.log.warning(f"Conversation state changed by Proctor "
-                                 f"message to {message.prompt_state}")
+            if not changed and message.prompt_state \
+                    and message.prompt_state != ConversationState.IDLE:
+                old_state = self.get_conversation_state(cid)
+                self.set_conversation_state(cid, message.prompt_state)
+                self.log.debug(f"Conversation state from message data: "
+                            f"{self.get_conversation_state(cid)}")
+                if self.get_conversation_state(cid) != old_state:
+                    self.log.warning(f"Conversation state changed by Proctor "
+                                    f"message to {message.prompt_state}")
+                    changed = True
+        if changed:
+            self.log.info(f"State changed by message: {message}")
+            return
 
+        # Handle any other message not related to conversation state handling
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message.prompt_id
 
@@ -365,7 +370,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.info(f"Non-proctored input: {message}")
         elif not is_message_from_proctor:
             # Submind response in proctored conversation
-            self.log.debug(f"Handling non-proctor CCAI message. "
+            self.log.info(f"Handling non-proctor CCAI message. "
                            f"state={conversation_state}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
@@ -390,7 +395,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         #     # Voting phase
 
         elif shout:
-            self.log.info(f"Responding to {shout}")
+            # Proctor shout that wasn't already handled(?)
+            self.log.info(f"Responding to {shout} from {message_sender}")
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
                                                  is_message_from_proctor=is_message_from_proctor,
