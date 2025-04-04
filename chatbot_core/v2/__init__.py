@@ -173,7 +173,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             return
         if self.supports_raw_conversation and \
                 self._user_is_proctor(message.username) and \
-                message.conversation_state is not None:
+                message.prompt_state is not None:
             self.log.info(f"Ignoring proctor state message: {message}")
             return
         self.handle_incoming_shout(message.model_dump())
