@@ -244,27 +244,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             response['conversation_state'] = conversation_state
             message_sender = BotTypes.PROCTOR
 
-            self.current_conversations.setdefault(cid, {})
-            self.current_conversations[cid].setdefault("prompts", {})
-            self.current_conversations[cid].setdefault("prompt_history", [])
             prompt_id = message_data.get('prompt_id') or \
                 message_data.get('promptID') or ''
-            self.set_conversation_state(cid, conversation_state)
+            # self.set_conversation_state(cid, conversation_state)
             if not prompt_id and conversation_state != ConversationState.IDLE:
                 prompt_id = self.current_conversations[cid]['prompt_history'][-1]
-                self.log.info(f"Inferred prompt_id from history: {prompt_id}")
+                self.log.warning(f"Inferred prompt_id from history: {prompt_id}")
 
-            if prompt_id:
-                # Initialize prompt data structure if it doesn't exist
-                if prompt_id not in self.current_conversations[cid]['prompts']:
-                    self.current_conversations[cid]['prompts'][prompt_id] = {
-                        "proposed_responses": {},
-                        "discussion": [{}],
-                        "votes": {}
-                    }
                 current_prompt = self.current_conversations[cid]['prompts'][prompt_id]
-                self.current_conversations[cid]['prompt_history'].append(prompt_id)
-                self.prompt_to_cid[prompt_id] = cid
 
                 # TODO: Include prompt history in context
                 if conversation_state == ConversationState.RESP:
@@ -328,8 +315,21 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         message = ChatbotsMqRequest(**message_data)
         shout = message.message_text
         cid = message.cid
-        # Refactored to track this internally instead of from message context
-        # conversation_state = ConversationState(message_data.get('conversation_state', 0))
+        prompt_id = message.prompt_id
+
+        # Initialize prompt data structure if it doesn't exist
+        if prompt_id and \
+                self.get_conversation_state(cid) == ConversationState.IDLE:
+            if prompt_id not in self.current_conversations[cid]['prompts']:
+                self.current_conversations[cid]['prompts'][prompt_id] = {
+                    "proposed_responses": {},
+                    "discussion": [{}],
+                    "votes": {}
+                }
+            self.current_conversations[cid]['prompt_history'].append(prompt_id)
+            self.prompt_to_cid[prompt_id] = cid
+            self.log.info(f"Starting new prompt: {prompt_id}")
+
 
         message_sender = message.username
         is_message_from_proctor = self._user_is_proctor(message_sender)
@@ -371,7 +371,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         # Handle any other message not related to conversation state handling
         conversation_state = self.get_conversation_state(cid)
-        prompt_id = message.prompt_id
 
         if not prompt_id:
             if is_message_from_proctor:
