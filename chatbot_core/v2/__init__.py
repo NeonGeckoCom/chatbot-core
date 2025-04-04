@@ -155,16 +155,22 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
             MQ handler for requesting message for current bot
         """
+        message = ChatbotsMqRequest(**body)
         if body.get('omit_reply'):
             self.log.debug(f"Explicitly requested no response: messageID="
                            f"{body.get('messageID')}")
             return
-        if body.get('cid') not in list(self.current_conversations):
+        if message.cid not in list(self.current_conversations):
             self.log.debug(f"Ignoring message "
                           f"(messageID={body.get('messageID')}) outside of "
                           f"current conversations "
                           f"({self.current_conversations})")
             self.log.debug(f"{body}")
+            return
+        if self.supports_raw_conversation and \
+                self._user_is_proctor(message.username) and \
+                message.conversation_state is not None:
+            self.log.info(f"Ignoring proctor state message: {message}")
             return
         self.handle_incoming_shout(body)
 
@@ -304,7 +310,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             'prompt_id': message_data.get('prompt_id', ''),
             'message_sender': message_sender,
             'is_message_from_proctor': is_message_from_proctor,
-            'conversation_state': conversation_state,
+            'conversation_state': conversation_state.value,
         }
 
     def handle_shout(self, message_data: dict, skip_callback: bool = False):
