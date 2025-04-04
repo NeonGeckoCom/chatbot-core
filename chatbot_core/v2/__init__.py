@@ -155,6 +155,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
             MQ handler for requesting message for current bot
         """
+        # TODO: Backwards-compat. data key handling
+        if "shout" in body:
+            body.setdefault("message_text", body.get('shout', ''))
+
         message = ChatbotsMqRequest(**body)
         if body.get('omit_reply'):
             self.log.debug(f"Explicitly requested no response: messageID="
@@ -172,7 +176,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 message.conversation_state is not None:
             self.log.info(f"Ignoring proctor state message: {message}")
             return
-        self.handle_incoming_shout(body)
+        self.handle_incoming_shout(message.model_dump())
 
     @create_mq_callback()
     def _on_user_message(self, body: dict):
@@ -321,9 +325,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param skip_callback: to skip callback after handling shout (default to False)
         """
         self.log.debug(f'Message data: {message_data}')
-        # TODO: Backwards-compat. data key handling
-        if "shout" in message_data:
-            message_data.setdefault("message_text", message_data.get('shout', ''))
         message = ChatbotsMqRequest(**message_data)
         shout = message.message_text
         cid = message.cid
