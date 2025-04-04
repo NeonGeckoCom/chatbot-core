@@ -251,8 +251,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 prompt_id = self.current_conversations[cid]['prompt_history'][-1]
                 self.log.warning(f"Inferred prompt_id from history: {prompt_id}")
 
+                
+            if prompt_id:
                 current_prompt = self.current_conversations[cid]['prompts'][prompt_id]
-
                 # TODO: Include prompt history in context
                 if conversation_state == ConversationState.RESP:
                     response['shout'] = self.ask_chatbot(user=message_sender,
