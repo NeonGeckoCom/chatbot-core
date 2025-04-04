@@ -327,15 +327,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         message_sender = message.username
         is_message_from_proctor = self._user_is_proctor(message_sender)
 
-        if message.prompt_state:
-            old_state = self.get_conversation_state(cid)
-            self.set_conversation_state(cid, message.prompt_state)
-            self.log.debug(f"Conversation state from message data: "
-                          f"{self.get_conversation_state(cid)}")
-            if self.get_conversation_state(cid) != old_state:
-                self.log.warning(
-                    f"Conversation state changed by Proctor message")
-        elif is_message_from_proctor:
+        if is_message_from_proctor:
             changed = False
             # Proctor cotrol message
             # TODO: Better check here
@@ -351,11 +343,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif "selecting a winner among participants" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.PICK)
+                return
             if changed:
                 self.log.debug(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
-                # Proctor message has no other purpose
-                return
+        elif message.prompt_state:
+            old_state = self.get_conversation_state(cid)
+            self.set_conversation_state(cid, message.prompt_state)
+            self.log.debug(f"Conversation state from message data: "
+                          f"{self.get_conversation_state(cid)}")
+            if self.get_conversation_state(cid) != old_state:
+                self.log.warning(
+                    f"Conversation state changed by Proctor message")
 
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message.prompt_id
