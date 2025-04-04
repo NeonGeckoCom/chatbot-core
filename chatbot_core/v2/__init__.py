@@ -359,7 +359,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message.prompt_id
 
-        if prompt_id and not is_message_from_proctor:
+        if not prompt_id:
+            # Non-proctored conversation activity
+            self.log.info(f"Non-proctored input: {message}")
+        elif not is_message_from_proctor:
+            # Submind response in proctored conversation
             self.log.debug(f"Handling non-proctor CCAI message. "
                            f"state={conversation_state}")
             if conversation_state == ConversationState.RESP:
@@ -369,13 +373,21 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif conversation_state == ConversationState.VOTE:
                 self.on_vote(prompt_id, shout, message_sender)
         elif conversation_state == ConversationState.PICK:
-                try:
-                    preamble, choice = shout.split(":", 1)
-                    winner = preamble.split(" ")[-1]
-                except ValueError:
-                    self.log.warning(f"Failed to parse winner from: {shout}")
-                    return
-                self.on_selection(prompt_id, winner, choice)
+            # Proctor made a selection
+            try:
+                preamble, choice = shout.split(":", 1)
+                winner = preamble.split(" ")[-1]
+            except ValueError:
+                self.log.warning(f"Failed to parse winner from: {shout}")
+                return
+            self.on_selection(prompt_id, winner, choice)
+        # elif conversation_state == ConversationState.RESP:
+        #     # Proposal phase
+        # elif conversation_state == ConversationState.DISC:
+        #     # Discussion phase
+        # elif conversation_state == ConversationState.VOTE:
+        #     # Voting phase
+
         elif shout:
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
