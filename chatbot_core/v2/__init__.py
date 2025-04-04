@@ -318,8 +318,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_id = message.prompt_id
 
         # Initialize prompt data structure if it doesn't exist
-        if prompt_id and \
-                self.get_conversation_state(cid) == ConversationState.IDLE:
+        if prompt_id and prompt_id not in self.prompt_to_cid:
             self.current_conversations.setdefault(cid, {})
             self.current_conversations[cid].setdefault("prompts", {})
             self.current_conversations[cid].setdefault("prompt_history", [])
