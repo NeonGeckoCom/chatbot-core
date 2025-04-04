@@ -347,14 +347,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if changed:
                 self.log.debug(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
-        elif message.prompt_state:
+        elif message.prompt_state and \
+                message.prompt_state != ConversationState.IDLE:
             old_state = self.get_conversation_state(cid)
             self.set_conversation_state(cid, message.prompt_state)
             self.log.debug(f"Conversation state from message data: "
                           f"{self.get_conversation_state(cid)}")
             if self.get_conversation_state(cid) != old_state:
-                self.log.warning(
-                    f"Conversation state changed by Proctor message")
+                self.log.warning(f"Conversation state changed by Proctor "
+                                 f"message to {message.prompt_state}")
 
         conversation_state = self.get_conversation_state(cid)
         prompt_id = message.prompt_id
@@ -377,10 +378,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             try:
                 preamble, choice = shout.split(":", 1)
                 winner = preamble.split(" ")[-1]
+                self.on_selection(prompt_id, winner, choice)
             except ValueError:
                 self.log.warning(f"Failed to parse winner from: {shout}")
-                return
-            self.on_selection(prompt_id, winner, choice)
+            self.set_conversation_state(cid, ConversationState.IDLE)
         # elif conversation_state == ConversationState.RESP:
         #     # Proposal phase
         # elif conversation_state == ConversationState.DISC:
@@ -389,6 +390,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         #     # Voting phase
 
         elif shout:
+            self.log.info(f"Responding to {shout}")
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
                                                  is_message_from_proctor=is_message_from_proctor,
