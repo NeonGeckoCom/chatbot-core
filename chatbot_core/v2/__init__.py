@@ -345,7 +345,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 changed = True
                 self.set_conversation_state(cid, ConversationState.PICK)
             if changed:
-                self.log.info(f"Conversation state set from proctor shout: "
+                self.log.debug(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
             if not changed and message.prompt_state \
                     and message.prompt_state != ConversationState.IDLE:
@@ -358,7 +358,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                     f"message to {message.prompt_state}")
                     changed = True
         if changed:
-            self.log.info(f"State changed by message: {message}")
+            self.log.info(f"State changed to: "
+                          f"{self.get_conversation_state(cid)}")
             return
 
         # Handle any other message not related to conversation state handling
@@ -366,12 +367,16 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_id = message.prompt_id
 
         if not prompt_id:
+            if is_message_from_proctor:
+                # Proctor control message
+                return
             # Non-proctored conversation activity
             self.log.info(f"Non-proctored input: {message}")
+            # TODO: Get a response
         elif not is_message_from_proctor:
             # Submind response in proctored conversation
-            self.log.info(f"Handling non-proctor CCAI message. "
-                           f"state={conversation_state}")
+            self.log.debug(f"Handling non-proctor CCAI message. "
+                           f"state={conversation_state.name}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
             elif conversation_state == ConversationState.DISC:
@@ -396,7 +401,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         elif shout:
             # Proctor shout that wasn't already handled(?)
-            self.log.info(f"Responding to {shout} from {message_sender}")
+            self.log.info(f"Responding to {message}")
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
                                                  is_message_from_proctor=is_message_from_proctor,
