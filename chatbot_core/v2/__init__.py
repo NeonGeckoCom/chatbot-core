@@ -25,6 +25,7 @@ from neon_mq_connector.utils import RepeatingTimer
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
+from neon_data_models.models.api.mq.chatbots import ChatbotsMqRequest
 
 from chatbot_core.utils.enum import ConversationState, BotTypes, CONVERSATION_STATE_ANNOUNCEMENTS
 from chatbot_core.chatbot_abc import ChatBotABC
@@ -83,12 +84,21 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations[new_cid] = body
             self.set_conversation_state(new_cid, ConversationState.IDLE)
             if announce_invitation:
-                self.send_announcement(f'{self.nick.split("-")[0]} joined', new_cid)
+                self.send_announcement(f'{self.nick.split("-")[0]} joined',
+                                       new_cid)
 
-    def get_conversation_state(self, cid) -> ConversationState:
-        return self.current_conversations.get(cid, {}).get('state', ConversationState.IDLE)
+    def get_conversation_state(self, cid: str) -> ConversationState:
+        """
+        Get the state of a conversation
+        """
+        return self.current_conversations.get(cid,
+                                              {}).get('state', 
+                                                      ConversationState.IDLE)
 
-    def set_conversation_state(self, cid, state):
+    def set_conversation_state(self, cid: str, state: ConversationState):
+        """
+        Set/update the state of a conversation
+        """
         old_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
         self.log.debug(f'State was: {old_state}')
@@ -305,20 +315,23 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             :param skip_callback: to skip callback after handling shout (default to False)
         """
         self.log.debug(f'Message data: {message_data}')
-        shout = message_data.get('shout') or message_data.get('messageText', '')
-        cid = message_data.get('cid', '')
+        message = ChatbotsMqRequest(**message_data)
+        shout = message.message_text
+        cid = message.cid
         # Refactored to track this internally instead of from message context
         # conversation_state = ConversationState(message_data.get('conversation_state', 0))
 
-        message_sender = message_data.get('nick') or \
-            message_data.get('userDisplayName', 'anonymous')
+        message_sender = message.username
         is_message_from_proctor = self._user_is_proctor(message_sender)
 
-        # TODO: Refactor to not rely on `conversation_state` context proctor ctx
-        if "conversation_state" in message_data:
-            self.set_conversation_state(cid, message_data['conversation_state'])
+        if message.prompt_state:
+            old_state = self.get_conversation_state(cid)
+            self.set_conversation_state(cid, message.prompt_state)
             self.log.debug(f"Conversation state from message data: "
                           f"{self.get_conversation_state(cid)}")
+            if self.get_conversation_state(cid) != old_state:
+                self.log.warning(
+                    f"Conversation state changed by Proctor message")
         elif is_message_from_proctor:
             changed = False
             # Proctor cotrol message
@@ -342,17 +355,21 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 return
 
         conversation_state = self.get_conversation_state(cid)
-        prompt_id = message_data.get("promptID") or message_data.get('prompt_id')
+        prompt_id = message.prompt_id
 
         if prompt_id and not is_message_from_proctor:
-            self.log.debug(f"Handling non-proctor CCAI message. state={conversation_state}")
+            self.log.debug(f"Handling non-proctor CCAI message. "
+                           f"state={conversation_state}")
             if conversation_state == ConversationState.RESP:
                 self.on_proposed_response(prompt_id, shout, message_sender)
             elif conversation_state == ConversationState.DISC:
                 self.on_discussion(message_sender, shout, prompt_id)
             elif conversation_state == ConversationState.VOTE:
                 self.on_vote(prompt_id, shout, message_sender)
-
+        elif conversation_state == ConversationState.PICK:
+                preamble, choice = shout.split(":", 1)
+                winner = preamble.split(" ")[-1]
+                self.on_selection(prompt_id, winner, choice)
         elif shout:
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
@@ -466,10 +483,17 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_data['votes'][voter] = selected
         self.log.debug(f"Received vote from {voter}: {selected}")
 
-    # TODO: Implement below methods in place of handling in `get_chatbot_response`
-    def on_selection(self, prompt: str, user: str, response: str):
-        pass
+    def on_selection(self, prompt_id: str, user: str, response: str):
+        if prompt_id not in self.prompt_to_cid:
+            self.log.warning(f"Unknown prompt id: {prompt_id}")
+            return
+        cid = self.prompt_to_cid[prompt_id]
+        current_prompt = self.current_conversations[cid]['prompts'][prompt_id]
+        current_prompt["response"] = response
+        current_prompt["winner"] = user
+        self.log.info(f"Completed prompt: {current_prompt}")
 
+    # TODO: Implement below methods in place of handling in `get_chatbot_response`
     def on_ready_for_next(self, user: str):
         pass
 
