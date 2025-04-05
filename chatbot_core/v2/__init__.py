@@ -260,7 +260,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                          shout=shout,
                                                          timestamp=str(message_data.get('timeCreated', int(time.time()))),
                                                          **context_kwargs)
-                    current_prompt["prompt"] = message_data.get('shout', '')
                     current_prompt["proposal"] = response['shout']
 
                 elif conversation_state == ConversationState.DISC:
@@ -318,6 +317,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations[cid].setdefault("prompt_history", [])
             if prompt_id not in self.current_conversations[cid]['prompts']:
                 self.current_conversations[cid]['prompts'][prompt_id] = {
+                    "prompt": message.message_text,
                     "participating_subminds": [],
                     "proposed_responses": {},
                     "discussion": [{}],
@@ -325,7 +325,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 }
             self.current_conversations[cid]['prompt_history'].append(prompt_id)
             self.prompt_to_cid[prompt_id] = cid
-            self.log.info(f"Starting new prompt: {prompt_id}")
+            self.log.info(
+                f"Starting new prompt: {prompt_id}: {message.message_text}")
 
 
         message_sender = message.username
