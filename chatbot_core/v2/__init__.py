@@ -105,7 +105,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.current_conversations.setdefault(cid, {})['state'] = state
         new_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
-        self.log.debug(f'State become: {new_state}')
+        self.log.debug(f'State became: {new_state}')
 
     def _setup_listeners(self):
         KlatAPIMQ._setup_listeners(self)
@@ -262,28 +262,21 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                                          **context_kwargs)
                     current_prompt["prompt"] = message_data.get('shout', '')
                     current_prompt["proposal"] = response['shout']
-                    current_prompt["participating_subminds"] = message_data.get(
-                        'participating_subminds', [])
+
                 elif conversation_state == ConversationState.DISC:
-                    current_prompt.setdefault("discussion", [{}])
-                    # TODO: Get `proposed_responses` from internal reference
-                    options: dict = message_data.get('proposed_responses', {})
-                    current_prompt['proposed_responses'] = options
+                    options: dict = current_prompt.get('proposed_responses', {})
+                    # current_prompt['proposed_responses'] = options
                     response['shout'] = self.ask_discusser(options, **context_kwargs)
                 elif conversation_state == ConversationState.VOTE:
-                    # TODO: Get `proposed_responses` from internal reference
-                    options = message_data.get('proposed_responses', {})
+                    options: dict = current_prompt.get('proposed_responses', {})
                     selected = self.ask_appraiser(options=options, **context_kwargs)
                     response['shout'] = self.vote_response(selected)
                     if 'abstain' in response['shout'].lower():
                         selected = "abstain"
                     response['context']['selected'] = selected
-                    current_prompt['selected'] = selected
+                    # current_prompt['selected'] = selected
                 elif conversation_state == ConversationState.PICK:
-                    preamble, choice = shout.split(":", 1)
-                    current_prompt["response"] = choice.strip().strip('"')
-                    current_prompt["winner"] = preamble.split(" ")[-1]
-                    self.log.info(f"Completed prompt: {current_prompt}")
+                    self.log.error("This should not be reached")
                     return {}
                 elif conversation_state == ConversationState.WAIT:
                     response['shout'] = 'I am ready for the next prompt'
@@ -325,6 +318,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations[cid].setdefault("prompt_history", [])
             if prompt_id not in self.current_conversations[cid]['prompts']:
                 self.current_conversations[cid]['prompts'][prompt_id] = {
+                    "participating_subminds": [],
                     "proposed_responses": {},
                     "discussion": [{}],
                     "votes": {}
@@ -492,6 +486,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if not prompt_data:
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
             return
+        if user not in prompt_data['participating_subminds']:
+            prompt_data['participating_subminds'].append(user)
         prompt_data['proposed_responses'][user] = response
         self.log.debug(f"Received proposed response from {user}: {response}")
 
