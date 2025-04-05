@@ -317,7 +317,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations[cid].setdefault("prompt_history", [])
             if prompt_id not in self.current_conversations[cid]['prompts']:
                 self.current_conversations[cid]['prompts'][prompt_id] = {
-                    "prompt": message.message_text,
                     "participating_subminds": [],
                     "proposed_responses": {},
                     "discussion": [{}],
@@ -406,6 +405,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         elif shout:
             # Proctor shout that wasn't already handled(?)
             self.log.info(f"Responding to {message}")
+            if conversation_state == ConversationState.RESP:
+                self.current_conversations[cid]['prompts'][prompt_id]\
+                    ["prompt"] = message.message_text
             response = self.get_chatbot_response(cid=cid, message_data=message_data,
                                                  shout=shout, message_sender=message_sender,
                                                  is_message_from_proctor=is_message_from_proctor,
