@@ -368,7 +368,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             context = {'selected': selected}
 
         if response:
-            self.log.info(f"Responding to {message}")
+            self.log.info(f"Responding to {message.message_text}")
             response = ChatbotsMqSubmindResponse(
                 cid=message.cid,
                 user_id=self.uid,
@@ -388,6 +388,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                             to_discussion=response.to_discussion,
                             is_announcement=response.is_announcement,
                             prompt_id=response.prompt_id)
+            self.log.info(f"Sent response to {response.cid}: "
+                          f"{response.message_text} ")
         else:
             self.log.warning(
                 f'No response generated with state={conversation_state.name} '
