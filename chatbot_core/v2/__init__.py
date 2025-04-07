@@ -173,7 +173,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.debug(f"{body}")
             return
         if self.supports_raw_conversation and \
-                message.requested_participants and \
+                message.requested_participants is not None and \
                 self._user_is_proctor(message.username):
             self.log.info(f"Ignoring targeted message: {message.message_text}")
             return
@@ -294,7 +294,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     changed = True
         if changed:
             self.log.info(f"State changed to: "
-                          f"{self.get_conversation_state(cid)}")
+                          f"{self.get_conversation_state(cid).name}")
             return
 
         # Handle any other message not related to conversation state handling
