@@ -173,7 +173,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.debug(f"{body}")
             return
         if self.supports_raw_conversation and \
-                message.requested_participants is not None and \
+                message.requested_participants is None and \
                 self._user_is_proctor(message.username):
             self.log.info(f"Ignoring targeted message: {message.message_text}")
             return
@@ -282,12 +282,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if changed:
                 self.log.debug(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
-            if not changed and message.prompt_state \
-                    and message.prompt_state != ConversationState.IDLE:
+            if not changed and \
+                    message.prompt_state not in (None, ConversationState.IDLE):
                 old_state = self.get_conversation_state(cid)
                 self.set_conversation_state(cid, message.prompt_state)
-                self.log.debug(f"Conversation state from message data: "
-                            f"{self.get_conversation_state(cid)}")
+                self.log.warning(f"Conversation state from message data: "
+                                 f"{self.get_conversation_state(cid)}")
                 if self.get_conversation_state(cid) != old_state:
                     self.log.warning(f"Conversation state changed by Proctor "
                                     f"message to {message.prompt_state}")
@@ -388,7 +388,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                             is_announcement=response.is_announcement,
                             prompt_id=response.prompt_id)
         else:
-            self.log.warning(f'No response generated for message data: {message_data}')
+            self.log.warning(
+                f'No response generated with state={conversation_state.name} '
+                f'{message_data=}.')
 
     def _send_state(self):
         self.send_shout(shout='chatbot state',
