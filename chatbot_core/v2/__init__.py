@@ -466,7 +466,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             # repeated user as a signal that a new round of discussion started
             self.log.debug(f"{user} has started a new round of discussion")
             prompt_data["cycles"][-1]['discussion'].append({})
-        prompt_data['discussion'][-1][user] = shout
+        prompt_data["cycles"][-1]['discussion'][-1][user] = shout
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
         if prompt_id not in self.prompt_to_cid:
