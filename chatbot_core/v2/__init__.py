@@ -198,10 +198,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             Handles an incoming shout into the current conversation
             :param message_data: data of incoming message
         """
-        if message_data.get("prompt_state") is not None and \
-            self.supports_raw_conversation:
-            # Raw conversation does not need the extra proctor messages
-            return
         self.shout_queue.put(message_data)
 
     @property
@@ -392,7 +388,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                             is_announcement=response.is_announcement,
                             prompt_id=response.prompt_id)
         else:
-            self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
+            self.log.warning(f'No response generated for message data: {message_data}')
 
     def _send_state(self):
         self.send_shout(shout='chatbot state',
