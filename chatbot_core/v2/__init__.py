@@ -172,8 +172,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                           f"({self.current_conversations})")
             self.log.debug(f"{body}")
             return
-        if self.supports_raw_conversation and \
-                message.prompt_state is not None and \
+        # `routing_key` check is a hack to exclude old messages from Proctor
+        if self.supports_raw_conversation and "routing_key" not in body and \
                 self._user_is_proctor(message.username):
             self.log.info(f"Ignoring proctor message: {body=}")
             return
