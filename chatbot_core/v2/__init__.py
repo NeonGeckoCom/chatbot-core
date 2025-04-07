@@ -177,7 +177,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self._user_is_proctor(message.username):
             self.log.info(f"Ignoring proctor message: {message.message_text}")
             return
-        if self._user_is_proctor(message.usewrname):
+        if self._user_is_proctor(message.username):
             self.log.info(f"Received proctor message: {message.message_text}")
         self.handle_incoming_shout(message.model_dump())
 
