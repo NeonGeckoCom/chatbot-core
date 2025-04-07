@@ -237,7 +237,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_id = message.prompt_id
         context = {}  # TODO: Only used as a default for non-voting phases
         response = None
-        
+
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
             self.current_conversations.setdefault(cid, {})
@@ -245,11 +245,13 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations[cid].setdefault("prompt_history", [])
             if prompt_id not in self.current_conversations[cid]['prompts']:
                 self.current_conversations[cid]['prompts'][prompt_id] = {
-                    "bot_name": self.nick,
+                    "bot_name": self.service_name,
                     "participating_subminds": [],
-                    "proposed_responses": {},
-                    "discussion": [{}],
-                    "votes": {}
+                    "cycles": [{
+                        "proposed_responses": {},
+                        "discussion": [{}],
+                        "votes": {}
+                    }]
                 }
             self.current_conversations[cid]['prompt_history'].append(prompt_id)
             self.prompt_to_cid[prompt_id] = cid
@@ -331,6 +333,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self.on_discussion(message_sender, shout, prompt_id)
             elif conversation_state == ConversationState.VOTE:
                 self.on_vote(prompt_id, shout, message_sender)
+            return
         elif conversation_state == ConversationState.PICK:
             # Proctor made a selection
             try:
@@ -340,6 +343,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             except ValueError:
                 self.log.warning(f"Failed to parse winner from: {shout}")
             self.set_conversation_state(cid, ConversationState.IDLE)
+            return
         elif conversation_state == ConversationState.RESP:
             # Proposal phase
             self.current_conversations[cid]['prompts'][prompt_id]\
@@ -348,15 +352,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                                         shout=shout,
                                         timestamp=str(message.time_created.timestamp()))
             # TODO: Remove `proposal` as it is per-cycle
-            current_prompt["proposal"] = response
+            current_prompt["cycles"][-1]["proposal"] = response
         elif conversation_state == ConversationState.DISC:
             # Discussion phase
-            options: dict = current_prompt.get('proposed_responses', {})
-            current_prompt['proposed_responses'] = options
+            options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
+            current_prompt["cycles"][-1]['proposed_responses'] = options
             response = self.ask_discusser(options)
         elif conversation_state == ConversationState.VOTE:
             # Voting phase
-            options: dict = current_prompt.get('proposed_responses', {})
+            options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
             selected = self.ask_appraiser(options=options)
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
@@ -445,7 +449,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             return
         if user not in prompt_data['participating_subminds']:
             prompt_data['participating_subminds'].append(user)
-        prompt_data['proposed_responses'][user] = response
+        prompt_data["cycles"][-1]['proposed_responses'][user] = response
         self.log.debug(f"Received proposed response from {user}: {response}")
 
     def on_discussion(self, user: str, shout: str, prompt_id: str):
@@ -461,7 +465,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             # Users can only send one discussion message per round. Use this
             # repeated user as a signal that a new round of discussion started
             self.log.debug(f"{user} has started a new round of discussion")
-            prompt_data['discussion'].append({})
+            prompt_data["cycles"][-1]['discussion'].append({})
         prompt_data['discussion'][-1][user] = shout
 
     def on_vote(self, prompt_id: str, selected: str, voter: str):
@@ -473,7 +477,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if not prompt_data:
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
             return
-        prompt_data['votes'][voter] = selected
+        prompt_data["cycles"][-1]['votes'][voter] = selected
         self.log.debug(f"Received vote from {voter}: {selected}")
 
     def on_selection(self, prompt_id: str, user: str, response: str):
