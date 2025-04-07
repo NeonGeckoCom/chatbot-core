@@ -175,7 +175,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if self.supports_raw_conversation and \
                 message.requested_participants is None and \
                 self._user_is_proctor(message.username):
-            self.log.info(f"Ignoring targeted message: {message.message_text}")
+            self.log.info(f"Ignoring proctor message: {message.message_text}")
             return
         self.handle_incoming_shout(message.model_dump())
 
@@ -286,7 +286,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     message.prompt_state not in (None, ConversationState.IDLE):
                 old_state = self.get_conversation_state(cid)
                 self.set_conversation_state(cid, message.prompt_state)
-                self.log.warning(f"Conversation state from message data: "
+                self.log.debug(f"Conversation state from message data: "
                                  f"{self.get_conversation_state(cid)}")
                 if self.get_conversation_state(cid) != old_state:
                     self.log.warning(f"Conversation state changed by Proctor "
@@ -370,6 +370,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if response:
             self.log.info(f"Responding to {message}")
             response = ChatbotsMqSubmindResponse(
+                cid=message.cid,
                 user_id=self.uid,
                 username=self.nick,
                 message_text=response,
