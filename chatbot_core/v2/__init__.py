@@ -386,8 +386,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             )
             self.send_shout(responded_message=response.replied_message,
                             **response.model_dump())
-            self.log.info(f"Sent response to {response.cid}: "
-                          f"{response.message_text} ")
+            self.log.info(f"Sent response:{response}")
         else:
             self.log.warning(
                 f'No response generated with state={conversation_state.name} '
