@@ -236,7 +236,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         cid = message.cid
         prompt_id = message.prompt_id
         context = {}  # TODO: Only used as a default for non-voting phases
-
+        response = None
+        
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
             self.current_conversations.setdefault(cid, {})
