@@ -461,7 +461,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if not prompt_data:
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
             return
-        if user in prompt_data['discussion'][-1]:
+        if user in prompt_data["cycles"][-1]['discussion'][-1]:
             # Users can only send one discussion message per round. Use this
             # repeated user as a signal that a new round of discussion started
             self.log.debug(f"{user} has started a new round of discussion")
