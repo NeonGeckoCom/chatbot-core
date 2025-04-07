@@ -25,9 +25,10 @@ from neon_mq_connector.utils import RepeatingTimer
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
-from neon_data_models.models.api.mq.chatbots import ChatbotsMqRequest
+from neon_data_models.models.api.mq.chatbots import ChatbotsMqRequest, \
+    ChatbotsMqSubmindResponse
 
-from chatbot_core.utils.enum import ConversationState, BotTypes, CONVERSATION_STATE_ANNOUNCEMENTS
+from chatbot_core.utils.enum import ConversationState, BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
 from chatbot_core.version import __version__ as package_version
 
@@ -205,86 +206,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # TODO: make it defaulting to True once all the related subminds are migrated (Kirill)
         return False
 
-    def get_chatbot_response(self, cid: str, message_data: dict, shout: str,
-                             message_sender: str, is_message_from_proctor: bool,
-                             conversation_state: ConversationState) -> dict:
-        """
-        Makes response based on incoming message data and its context
-        :param cid: current conversation id
-        :param message_data: message data received
-        :param shout: incoming shout data
-        :param message_sender: nick of message sender
-        :param is_message_from_proctor: is message sender a Proctor
-        :param conversation_state: state of the conversation
-
-        :returns response data as a dictionary, example:
-            {
-                "shout": "I vote for Wolfram",
-                "context": {"selected": "wolfram"},
-                "queue": "pat_user_message"
-            }
-        """
-        response = {'shout': '', 'context': {}, 'queue': ''}
-        self.log.debug(f'Received incoming shout from: {message_sender}. '
-                      f' state={conversation_state}|shout={shout}')
-        if self.contextual_api_supported:
-            context_kwargs = {'context': self._build_submind_request_context(message_data=message_data,
-                                                                             message_sender=message_sender,
-                                                                             is_message_from_proctor=is_message_from_proctor,
-                                                                             conversation_state=conversation_state)}
-        else:
-            context_kwargs = {}
-        if not is_message_from_proctor:
-            response['shout'] = self.ask_chatbot(user=message_sender,
-                                                 shout=shout,
-                                                 timestamp=str(message_data.get('timeCreated', int(time.time()))),
-                                                 **context_kwargs)
-        else:
-            response['to_discussion'] = '1'
-            response['conversation_state'] = conversation_state
-            message_sender = BotTypes.PROCTOR
-
-            prompt_id = message_data.get('prompt_id') or \
-                message_data.get('promptID') or ''
-            # self.set_conversation_state(cid, conversation_state)
-            if not prompt_id and conversation_state != ConversationState.IDLE:
-                prompt_id = self.current_conversations[cid]['prompt_history'][-1]
-                self.log.warning(f"Inferred prompt_id from history: {prompt_id}")
-
-                
-            if prompt_id:
-                current_prompt = self.current_conversations[cid]['prompts'][prompt_id]
-                # TODO: Include prompt history in context
-                if conversation_state == ConversationState.RESP:
-                    response['shout'] = self.ask_chatbot(user=message_sender,
-                                                         shout=shout,
-                                                         timestamp=str(message_data.get('timeCreated', int(time.time()))),
-                                                         **context_kwargs)
-                    current_prompt["proposal"] = response['shout']
-
-                elif conversation_state == ConversationState.DISC:
-                    options: dict = current_prompt.get('proposed_responses', {})
-                    # current_prompt['proposed_responses'] = options
-                    response['shout'] = self.ask_discusser(options, **context_kwargs)
-                elif conversation_state == ConversationState.VOTE:
-                    options: dict = current_prompt.get('proposed_responses', {})
-                    selected = self.ask_appraiser(options=options, **context_kwargs)
-                    response['shout'] = self.vote_response(selected)
-                    if 'abstain' in response['shout'].lower():
-                        selected = "abstain"
-                    response['context']['selected'] = selected
-                    # current_prompt['selected'] = selected
-                elif conversation_state == ConversationState.PICK:
-                    self.log.error("This should not be reached")
-                    return {}
-                elif conversation_state == ConversationState.WAIT:
-                    response['shout'] = 'I am ready for the next prompt'
-            else:
-                self.log.warning(f"No prompt id found in message data: "
-                                 f"{message_data}")
-            response['context']['prompt_id'] = message_data.get('prompt_id', '')
-        return response
-
     @staticmethod
     def _build_submind_request_context(message_data: dict,
                                        message_sender: str,
@@ -297,7 +218,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             'conversation_state': conversation_state.value,
         }
 
-    def handle_shout(self, message_data: dict, skip_callback: bool = False):
+    def handle_shout(self, message_data: dict):
         """
             Handles shout for bot. If receives response - emits message into "bot_response" queue
 
@@ -306,9 +227,15 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         self.log.debug(f'Message data: {message_data}')
         message = ChatbotsMqRequest(**message_data)
+
+        # Remove suffix from username if it's really a `user_id`
+        if '-' in message.username:
+            message.username = message.username.rsplit('-', 1)[0]
+
         shout = message.message_text
         cid = message.cid
         prompt_id = message.prompt_id
+        context = {}  # TODO: Only used as a default for non-voting phases
 
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
@@ -317,6 +244,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.current_conversations[cid].setdefault("prompt_history", [])
             if prompt_id not in self.current_conversations[cid]['prompts']:
                 self.current_conversations[cid]['prompts'][prompt_id] = {
+                    "bot_name": self.nick,
                     "participating_subminds": [],
                     "proposed_responses": {},
                     "discussion": [{}],
@@ -368,6 +296,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         # Handle any other message not related to conversation state handling
         conversation_state = self.get_conversation_state(cid)
+        if prompt_id:
+            current_prompt = \
+                self.current_conversations[cid]['prompts'][prompt_id]
 
         if not prompt_id:
             if is_message_from_proctor:
@@ -375,7 +306,20 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 return
             # Non-proctored conversation activity
             self.log.info(f"Non-proctored input: {message}")
-            # TODO: Get a response
+            response = self.ask_chatbot(
+                user=message_sender, shout=shout,
+                timestamp=str(round(message.time_created.timestamp)))
+            response = ChatbotsMqSubmindResponse(
+                user_id=self.uid,
+                username=self.nick,
+                message_text=response,
+                replied_message=message.message_id,
+                bot='1',
+                prompt_id=prompt_id,
+                source="chatbot",
+                to_discussion=True,
+                prompt_state=conversation_state,
+            )
         elif not is_message_from_proctor:
             # Submind response in proctored conversation
             self.log.debug(f"Handling non-proctor CCAI message. "
@@ -395,40 +339,49 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             except ValueError:
                 self.log.warning(f"Failed to parse winner from: {shout}")
             self.set_conversation_state(cid, ConversationState.IDLE)
-        # elif conversation_state == ConversationState.RESP:
-        #     # Proposal phase
-        # elif conversation_state == ConversationState.DISC:
-        #     # Discussion phase
-        # elif conversation_state == ConversationState.VOTE:
-        #     # Voting phase
-
-        elif shout:
-            # Proctor shout that wasn't already handled(?)
-            self.log.info(f"Responding to {message}")
-            if conversation_state == ConversationState.RESP:
-                self.current_conversations[cid]['prompts'][prompt_id]\
+        elif conversation_state == ConversationState.RESP:
+            # Proposal phase
+            self.current_conversations[cid]['prompts'][prompt_id]\
                     ["prompt"] = message.message_text
-            response = self.get_chatbot_response(cid=cid, message_data=message_data,
-                                                 shout=shout, message_sender=message_sender,
-                                                 is_message_from_proctor=is_message_from_proctor,
-                                                 conversation_state=conversation_state)
-            shout = response.get('shout', "")
-            if shout and not skip_callback:
-                self.log.info(f'Sending response: {response}')
-                prompt_id = response.get('context', {}).get('prompt_id')
-                self.send_shout(shout=shout,
-                                responded_message=message_data.get('messageID', ''),
-                                cid=cid,
-                                to_discussion=response.get('to_discussion', '0'),
-                                queue_name=response.get('queue', ""),
-                                context=response.get('context', None),
-                                is_announcement=response.get('is_announcement', False),
-                                prompt_id=prompt_id,
-                                **response.get('kwargs', {}))
-            else:
-                self.log.debug(
-                    f'{self.nick}: No response was sent as no data was '
-                    f'received from message data: {message_data}')
+            response = self.ask_chatbot(user=message_sender,
+                                        shout=shout,
+                                        timestamp=str(message.time_created.timestamp()))
+            # TODO: Remove `proposal` as it is per-cycle
+            current_prompt["proposal"] = response
+        elif conversation_state == ConversationState.DISC:
+            # Discussion phase
+            options: dict = current_prompt.get('proposed_responses', {})
+            current_prompt['proposed_responses'] = options
+            response = self.ask_discusser(options)
+        elif conversation_state == ConversationState.VOTE:
+            # Voting phase
+            options: dict = current_prompt.get('proposed_responses', {})
+            selected = self.ask_appraiser(options=options)
+            response = self.vote_response(selected)
+            if 'abstain' in response.lower():
+                selected = "abstain"
+            context = {'selected': selected}
+
+        if response:
+            self.log.info(f"Responding to {message}")
+            response = ChatbotsMqSubmindResponse(
+                user_id=self.uid,
+                username=self.nick,
+                message_text=response,
+                replied_message=message.message_id,
+                bot='1',
+                prompt_id=prompt_id,
+                source="chatbot",
+                to_discussion=True,
+                prompt_state=conversation_state,
+                context=context
+            )
+            self.send_shout(shout=response.message_text,
+                            responded_message=response.replied_message,
+                            cid=cid,
+                            to_discussion=response.to_discussion,
+                            is_announcement=response.is_announcement,
+                            prompt_id=response.prompt_id)
         else:
             self.log.warning(f'{self.nick}: Missing "shout" in received message data: {message_data}')
 
