@@ -372,7 +372,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             response = ChatbotsMqSubmindResponse(
                 cid=message.cid,
                 user_id=self.uid,
-                username=self.nick,
+                username=self.service_name,
                 message_text=response,
                 replied_message=message.message_id,
                 bot='1',
@@ -384,10 +384,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             )
             self.send_shout(shout=response.message_text,
                             responded_message=response.replied_message,
-                            cid=cid,
-                            to_discussion=response.to_discussion,
-                            is_announcement=response.is_announcement,
-                            prompt_id=response.prompt_id)
+                            **response.model_dump())
             self.log.info(f"Sent response to {response.cid}: "
                           f"{response.message_text} ")
         else:
