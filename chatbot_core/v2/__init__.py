@@ -173,7 +173,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.debug(f"{body}")
             return
         if self.supports_raw_conversation and \
-                message.requested_participants is None and \
+                message.requested_participants and \
                 self._user_is_proctor(message.username):
             self.log.info(f"Ignoring proctor message: {message.message_text}")
             return
@@ -380,10 +380,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 source="chatbot",
                 to_discussion=True,
                 prompt_state=conversation_state,
-                context=context
+                context=context,
+                omit_reply=False,
+                no_save=False
             )
-            self.send_shout(shout=response.message_text,
-                            responded_message=response.replied_message,
+            self.send_shout(responded_message=response.replied_message,
                             **response.model_dump())
             self.log.info(f"Sent response to {response.cid}: "
                           f"{response.message_text} ")
