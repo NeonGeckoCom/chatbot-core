@@ -173,7 +173,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.debug(f"{body}")
             return
         if self.supports_raw_conversation and \
-                message.requested_participants and \
                 message.prompt_state is not None and \
                 self._user_is_proctor(message.username):
             self.log.info(f"Ignoring proctor message: {message.message_text}")
