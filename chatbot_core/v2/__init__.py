@@ -27,8 +27,9 @@ from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
 from neon_data_models.models.api.mq.chatbots import ChatbotsMqRequest, \
     ChatbotsMqSubmindResponse
+from neon_data_models.enum import CcaiState as ConversationState
 
-from chatbot_core.utils.enum import ConversationState, BotTypes
+from chatbot_core.utils.enum import BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
 from chatbot_core.version import __version__ as package_version
 
@@ -177,8 +178,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self._user_is_proctor(message.username):
             self.log.debug(f"Ignoring proctor message: {body=}")
             return
-        if self._user_is_proctor(message.username):
-            self.log.info(f"Received proctor message: {body=}")
         self.handle_incoming_shout(message.model_dump())
 
     @create_mq_callback()
@@ -341,6 +340,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             try:
                 preamble, choice = shout.split(":", 1)
                 winner = preamble.split(" ")[-1]
+                choice = choice.strip().strip('"')
                 self.on_selection(prompt_id, winner, choice)
             except ValueError:
                 self.log.warning(f"Failed to parse winner from: {shout}")
