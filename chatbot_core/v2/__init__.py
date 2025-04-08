@@ -236,7 +236,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         shout = message.message_text
         cid = message.cid
         prompt_id = message.prompt_id
-        context = {}  # TODO: Only used as a default for non-voting phases
         response = None
 
         # Initialize prompt data structure if it doesn't exist
@@ -365,7 +364,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
                 selected = "abstain"
-            context = {'selected': selected}
 
         if response:
             self.log.info(f"Responding to: {message.message_text}")
@@ -380,7 +378,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 source="chatbot",
                 to_discussion=True,
                 prompt_state=conversation_state,
-                # context=context,
                 omit_reply=False,
                 no_save=False
             )
