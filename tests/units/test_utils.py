@@ -189,6 +189,17 @@ class TestConversationUtils(unittest.TestCase):
         self.assertEqual(next(convo), ConversationState.IDLE)
         self.assertEqual(next(convo), ConversationState.RESP)
 
+        # Multi-discussion
+        cycle = create_conversation_cycle(2)
+        self.assertEqual(next(cycle), ConversationState.RESP)
+        self.assertEqual(next(cycle), ConversationState.DISC)
+        self.assertEqual(next(cycle), ConversationState.DISC)
+        self.assertEqual(next(cycle), ConversationState.VOTE)
+        self.assertEqual(next(cycle), ConversationState.PICK)
+        self.assertEqual(next(cycle), ConversationState.IDLE)
+        self.assertEqual(next(cycle), ConversationState.RESP)
+
+
 
 class TestEnum(unittest.TestCase):
     def test_conversation_controls(self):

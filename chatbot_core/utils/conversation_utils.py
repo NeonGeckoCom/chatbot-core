@@ -20,12 +20,15 @@
 from itertools import cycle
 
 
-def create_conversation_cycle() -> cycle:
+def create_conversation_cycle(discussion_rounds: int = 1) -> cycle:
     """Cycle through conversation states"""
     from chatbot_core.utils.enum import ConversationState
 
-    return cycle([ConversationState.RESP,
-                  ConversationState.DISC,
-                  ConversationState.VOTE,
-                  ConversationState.PICK,
-                  ConversationState.IDLE])
+
+    flow = [ConversationState.RESP] + \
+        [ConversationState.DISC] * discussion_rounds + \
+        [ConversationState.VOTE,
+         ConversationState.PICK,
+         ConversationState.IDLE]
+
+    return cycle(flow)
