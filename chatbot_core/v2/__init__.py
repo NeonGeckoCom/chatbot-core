@@ -175,7 +175,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # `routing_key` check is a hack to exclude old messages from Proctor
         if self.supports_raw_conversation and "routing_key" not in body and \
                 self._user_is_proctor(message.username):
-            self.log.info(f"Ignoring proctor message: {body=}")
+            self.log.debug(f"Ignoring proctor message: {body=}")
             return
         if self._user_is_proctor(message.username):
             self.log.info(f"Received proctor message: {body=}")

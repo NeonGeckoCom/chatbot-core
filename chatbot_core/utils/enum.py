@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 from enum import IntEnum
+from neon_data_models.enum import CcaiState as ConversationState
 
 
 class ConversationControls:
@@ -28,15 +29,6 @@ class ConversationControls:
     NEXT = "I'm ready for the next prompt."
     HIST = "history"
     WAIT = " may respond to the next prompt."
-
-
-class ConversationState(IntEnum):
-    IDLE = 0  # No active prompt
-    RESP = 1  # Gathering responses to prompt
-    DISC = 2  # Discussing responses
-    VOTE = 3  # Voting on responses
-    PICK = 4  # Proctor will select response
-    WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
 class BotTypes:
