@@ -368,7 +368,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             context = {'selected': selected}
 
         if response:
-            self.log.info(f"Responding to {message}")
+            self.log.info(f"Responding to: {message.message_text}")
             response = ChatbotsMqSubmindResponse(
                 cid=message.cid,
                 user_id=self.uid,
