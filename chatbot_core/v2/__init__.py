@@ -353,8 +353,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             response = self.ask_chatbot(user=message_sender,
                                         shout=shout,
                                         timestamp=str(message.time_created.timestamp()))
-            # TODO: Remove `proposal` as it is per-cycle
-            current_prompt["cycles"][-1]["proposal"] = response
         elif conversation_state == ConversationState.DISC:
             # Discussion phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
@@ -382,7 +380,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 source="chatbot",
                 to_discussion=True,
                 prompt_state=conversation_state,
-                context=context,
+                # context=context,
                 omit_reply=False,
                 no_save=False
             )
