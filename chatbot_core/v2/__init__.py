@@ -314,6 +314,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.info(f"Proctor selected next subminds: {next_subminds}")
                     self.current_conversations.setdefault(cid, {})
                     self.current_conversations[cid]['next_subminds'] = next_subminds
+                else:
+                    self.log.warning(f"Not handling proctor message: {shout}")
                 return
             # Non-proctored conversation activity
             self.log.info(f"Non-proctored input: {message}")
