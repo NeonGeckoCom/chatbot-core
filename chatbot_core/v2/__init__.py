@@ -240,13 +240,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
+            # TODO: Participants were announced prior to this message
             self.current_conversations.setdefault(cid, {})
             self.current_conversations[cid].setdefault("prompts", {})
             self.current_conversations[cid].setdefault("prompt_history", [])
             if prompt_id not in self.current_conversations[cid]['prompts']:
                 self.current_conversations[cid]['prompts'][prompt_id] = {
                     "bot_name": self.service_name,
-                    "participating_subminds": [],
+                    "participating_subminds": self.current_conversations[cid].pop('next_subminds', []),
                     "cycles": [{
                         "proposed_responses": {},
                         "discussion": [{}],
@@ -270,10 +271,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if "accepting responses" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.RESP)
-                subminds = message_data.get("participating_subminds", [])
-                self.current_conversations[cid]['prompts'][prompt_id]\
-                    ["participating_subminds"] = subminds
-                self.log.info(f"Participating subminds set to: {subminds}")
             elif "discussing responses" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.DISC)
@@ -296,10 +293,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.warning(f"Conversation state changed by Proctor "
                                     f"message to {message.prompt_state}")
                     changed = True
-            if prompt_id and ("participating_subminds" in message_data):
-                self.log.info(f"Got participants from: {message_data}")
-            elif prompt_id and ("requested_subminds" in message_data):
-                self.log.info(f"Got requested participants from: {message_data}")
         if changed:
             self.log.info(f"State changed to: "
                           f"{self.get_conversation_state(cid).name}")
@@ -315,6 +308,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if is_message_from_proctor:
                 # Proctor control message
                 # TODO: Can we re-define the proctor to always specify a prompt_id?
+                if "are selected for current prompt" in shout:
+                    next_subminds = shout.split("are selected")[0].split(',')
+                    next_subminds = [s.replace('and', '').strip() for s in next_subminds]
+                    self.log.info(f"Proctor selected next subminds: {next_subminds}")
+                    self.current_conversations.setdefault(cid, {})
+                    self.current_conversations[cid]['next_subminds'] = next_subminds
                 return
             # Non-proctored conversation activity
             self.log.info(f"Non-proctored input: {message}")
