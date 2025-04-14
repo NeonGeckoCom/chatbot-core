@@ -270,6 +270,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if "accepting responses" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.RESP)
+                subminds = message_data.get("participating_subminds")
+                self.current_conversations[cid]['prompts'][prompt_id]\
+                    ["participating_subminds"] = subminds
+                self.log.info(f"Participating subminds set to: {subminds}")
             elif "discussing responses" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.DISC)
@@ -306,6 +310,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if not prompt_id:
             if is_message_from_proctor:
                 # Proctor control message
+                # TODO: Can we re-define the proctor to always specify a prompt_id?
                 return
             # Non-proctored conversation activity
             self.log.info(f"Non-proctored input: {message}")
@@ -447,7 +452,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
             return
         if user not in prompt_data['participating_subminds']:
-            prompt_data['participating_subminds'].append(user)
+            self.log.warning(f"{user} is not participating in this prompt")
+            return
         prompt_data["cycles"][-1]['proposed_responses'][user] = response
         self.log.debug(f"Received proposed response from {user}: {response}")
 
@@ -459,6 +465,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             .get('prompts', {}).get(prompt_id, {})
         if not prompt_data:
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
+            return
+        if user not in prompt_data['participating_subminds']:
+            self.log.warning(f"{user} is not participating in this prompt")
             return
         if user in prompt_data["cycles"][-1]['discussion'][-1]:
             # Users can only send one discussion message per round. Use this
@@ -475,6 +484,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             .get('prompts', {}).get(prompt_id, {})
         if not prompt_data:
             self.log.error(f"prompt data unexpectedly None for id={prompt_id}")
+            return
+        if voter not in prompt_data['participating_subminds']:
+            self.log.warning(f"{voter} is not participating in this prompt")
             return
         prompt_data["cycles"][-1]['votes'][voter] = selected
         self.log.debug(f"Received vote from {voter}: {selected}")
