@@ -270,7 +270,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             if "accepting responses" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.RESP)
-                subminds = message_data.get("participating_subminds")
+                subminds = message_data.get("participating_subminds", [])
                 self.current_conversations[cid]['prompts'][prompt_id]\
                     ["participating_subminds"] = subminds
                 self.log.info(f"Participating subminds set to: {subminds}")
@@ -296,6 +296,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.warning(f"Conversation state changed by Proctor "
                                     f"message to {message.prompt_state}")
                     changed = True
+            if prompt_id and "participating_subminds" in message_data:
+                self.log.info(f"Got participants from: {message_data}")
         if changed:
             self.log.info(f"State changed to: "
                           f"{self.get_conversation_state(cid).name}")
