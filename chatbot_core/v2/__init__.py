@@ -296,8 +296,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.warning(f"Conversation state changed by Proctor "
                                     f"message to {message.prompt_state}")
                     changed = True
-            if prompt_id and "participating_subminds" in message_data:
+            if prompt_id and ("participating_subminds" in message_data):
                 self.log.info(f"Got participants from: {message_data}")
+            elif prompt_id and ("requested_subminds" in message_data):
+                self.log.info(f"Got requested participants from: {message_data}")
         if changed:
             self.log.info(f"State changed to: "
                           f"{self.get_conversation_state(cid).name}")
