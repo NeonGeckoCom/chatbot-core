@@ -240,6 +240,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
         if "are selected for current prompt" in shout:
             self.log.info(f"Proctor selected next subminds: {message}")
+            message.prompt_state = ConversationState.IDLE
 
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
