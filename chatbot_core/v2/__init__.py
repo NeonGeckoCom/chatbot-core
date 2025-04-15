@@ -238,6 +238,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_id = message.prompt_id
         response = None
 
+        if message.requested_participants:
+            self.log.info(f"Got requested participants: {message}")
+
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
             # TODO: Participants were announced prior to this message
@@ -280,13 +283,6 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             elif "selecting a winner among participants" in shout.lower():
                 changed = True
                 self.set_conversation_state(cid, ConversationState.PICK)
-            elif "are selected for current prompt" in shout.lower():
-                self.log.info(f"Proctor selected next subminds: {shout}")
-                next_subminds = shout.split("are selected")[0].split(',')
-                next_subminds = [s.replace('and', '').strip() for s in next_subminds]
-                self.log.info(f"Proctor selected next subminds: {next_subminds}")
-                self.current_conversations.setdefault(cid, {})
-                self.current_conversations[cid]['next_subminds'] = next_subminds
             if changed:
                 self.log.debug(f"Conversation state set from proctor shout: "
                             f"{self.get_conversation_state(cid)}")
