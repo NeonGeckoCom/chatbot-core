@@ -238,8 +238,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         prompt_id = message.prompt_id
         response = None
 
-        if message.requested_participants:
-            self.log.info(f"Got requested participants: {message}")
+        if "are selected for current prompt" in shout:
+            self.log.info(f"Proctor selected next subminds: {message}")
 
         # Initialize prompt data structure if it doesn't exist
         if prompt_id and prompt_id not in self.prompt_to_cid:
