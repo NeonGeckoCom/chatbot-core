@@ -76,11 +76,14 @@ class ChatBotABC(ABC):
         pass
 
     @abstractmethod
-    def on_discussion(self, user: str, shout: str):
+    def on_discussion(self, user: str, shout: str,
+                       prompt_id: Optional[str] = None):
         """
-        Override in any bot to handle discussion from other subminds. This may inform voting for the current prompt
+        Override in any bot to handle discussion from other subminds. 
+        This may inform voting for the current prompt
         :param user: user associated with shout
         :param shout: shout to be considered
+        :param prompt_id: id of prompt being discussed
         """
         pass
 
