@@ -23,6 +23,7 @@ from typing import Dict
 
 from neon_mq_connector.utils import RepeatingTimer
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
+from neon_mq_connector.connector import MQConnector
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
 from neon_data_models.models.api.mq.chatbots import ChatbotsMqRequest, \
@@ -63,7 +64,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self._status.set_ready()
 
     def check_health(self) -> bool:
-        if not super().check_health():
+        if not MQConnector.check_health(self):
             self.log.error("MQ connection is not healthy")
             self._status.set_error("MQ connection is not healthy")
             return False
