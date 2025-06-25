@@ -21,6 +21,7 @@ import os
 import argparse
 import click
 
+from typing import Optional
 from os.path import expanduser, relpath
 
 from ovos_utils import wait_for_exit_signal
@@ -40,11 +41,17 @@ def chatbot_core_cli(version: bool = False):
 
 
 @chatbot_core_cli.command(help="Start an MQ chatbot")
+@click.option("--health-check-server-port", "-hp", type=int, default=None,
+              help="Port for health check server to listen on")
 @click.argument("bot_entrypoint")
-def start_mq_bot(bot_entrypoint):
+def start_mq_bot(bot_entrypoint, health_check_server_port: Optional[int] = None):
     os.environ['CHATBOT_VERSION'] = 'v2'
     from chatbot_core.utils.bot_utils import run_mq_bot
     bot = run_mq_bot(bot_entrypoint)
+    if health_check_server_port:
+        from neon_utils.process_utils import start_health_check_server
+        start_health_check_server(bot.status, health_check_server_port, 
+                                  bot.check_health)
     wait_for_exit_signal()
     bot.stop()
 

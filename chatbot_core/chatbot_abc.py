@@ -28,6 +28,7 @@ from ovos_config.config import Configuration
 
 from neon_utils.log_utils import init_log
 from ovos_utils.log import LOG
+from ovos_utils.process_utils import ProcessStatus
 
 
 class ChatBotABC(ABC):
@@ -44,6 +45,13 @@ class ChatBotABC(ABC):
                                                         {}).get(bot_id) or {}
         self.shout_queue = Queue(maxsize=256)
         self.__log = None
+
+    @property
+    def status(self) -> Optional[ProcessStatus]:
+        """"Get a ProcessStatus object for this bot"""
+        if hasattr(self, '_status'):
+            return self._status
+        return None
 
     @property
     def log(self):
