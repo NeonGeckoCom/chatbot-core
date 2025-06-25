@@ -35,7 +35,7 @@ from chatbot_core.chatbot_abc import ChatBotABC
 
 class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):
-        self._status = ProcessStatus()
+        self._status = ProcessStatus("chatbot")
         self._status.set_alive()
         socket, domain, username, password, on_server, is_prompter = \
             self.parse_init(*args, **kwargs)

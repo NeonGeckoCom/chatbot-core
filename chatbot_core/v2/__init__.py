@@ -41,9 +41,9 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
     async_consumers_enabled = True
 
     def __init__(self, *args, **kwargs):
-        self._status = ProcessStatus()
-        self._status.set_alive()
         config, service_name, vhost, bot_type = self.parse_init(*args, **kwargs)
+        self._status = ProcessStatus(service_name)
+        self._status.set_alive()
         mq_config = config.get("MQ") or config
         bot_config = config.get("chatbots", {}).get(service_name)
         KlatAPIMQ.__init__(self, mq_config, service_name, vhost)
