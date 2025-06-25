@@ -26,7 +26,7 @@ from engineio.socket import Socket
 from threading import Thread
 from klat_connector.klat_api import KlatApi
 from klat_connector import start_socket
-from ovos_utils.log import LOG
+from ovos_utils.process_utils import ProcessStatus
 
 from chatbot_core.utils.enum import ConversationState, ConversationControls, BotTypes
 from chatbot_core.utils.string_utils import remove_prefix
@@ -35,6 +35,8 @@ from chatbot_core.chatbot_abc import ChatBotABC
 
 class ChatBot(KlatApi, ChatBotABC):
     def __init__(self, *args, **kwargs):
+        self._status = ProcessStatus()
+        self._status.set_alive()
         socket, domain, username, password, on_server, is_prompter = \
             self.parse_init(*args, **kwargs)
         ChatBotABC.__init__(self, username)
@@ -94,6 +96,11 @@ class ChatBot(KlatApi, ChatBotABC):
 
         self.shout_thread = Thread(target=self._handle_next_shout, daemon=True)
         self.shout_thread.start()
+        self._status.set_ready()
+
+    def check_health(self) -> bool:
+        # Unimplemented health check, assume service is healthy
+        return True
 
     def parse_init(self, *args, **kwargs) -> tuple:
         """Parses dynamic params input to ChatBot v1"""
@@ -637,6 +644,7 @@ class ChatBot(KlatApi, ChatBotABC):
         from chatbot_core.utils.bot_utils import clean_up_bot
         # import sys
         # self.socket.disconnect()
+        self._status.set_stopping()
         while not self.shout_queue.empty():
             self.shout_queue.get(timeout=1)
         clean_up_bot(self)
