@@ -23,11 +23,13 @@ from typing import Dict
 
 from neon_mq_connector.utils import RepeatingTimer
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
+from neon_mq_connector.connector import MQConnector
 from klat_connector.mq_klat_api import KlatAPIMQ
 from pika.exchange_type import ExchangeType
 from neon_data_models.models.api.mq.chatbots import ChatbotsMqRequest, \
     ChatbotsMqSubmindResponse
 from neon_data_models.enum import CcaiState as ConversationState
+from ovos_utils.process_utils import ProcessStatus
 
 from chatbot_core.utils.enum import BotTypes
 from chatbot_core.chatbot_abc import ChatBotABC
@@ -41,6 +43,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
 
     def __init__(self, *args, **kwargs):
         config, service_name, vhost, bot_type = self.parse_init(*args, **kwargs)
+        self._status = ProcessStatus(service_name)
+        self._status.set_alive()
         mq_config = config.get("MQ") or config
         bot_config = config.get("chatbots", {}).get(service_name)
         KlatAPIMQ.__init__(self, mq_config, service_name, vhost)
@@ -57,6 +61,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.shout_thread = RepeatingTimer(function=self._handle_next_shout,
                                            interval=kwargs.get('shout_thread_interval', 10))
         self.shout_thread.start()
+        self._status.set_ready()
+
+    def check_health(self) -> bool:
+        if not MQConnector.check_health(self):
+            self.log.error("MQ connection is not healthy")
+            self._status.set_error("MQ connection is not healthy")
+            return False
+        if not self.shout_thread.is_alive():
+            self.log.error("Shout thread is not alive")
+            self._status.set_error("Shout thread is not alive")
+            return False
+        return True
 
     def parse_init(self, *args, **kwargs) -> tuple:
         """Parses dynamic params input to ChatBot v2"""
@@ -620,10 +636,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.shout_thread = None
 
     def shutdown(self):
+        # TODO: not used?
         self.shout_thread.cancel()
         self.shout_thread.join()
 
     def stop(self):
+        self._status.set_stopping()
         self.stop_shout_thread()
         KlatAPIMQ.stop(self)
 
