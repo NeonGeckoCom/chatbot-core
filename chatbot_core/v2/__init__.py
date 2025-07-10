@@ -352,6 +352,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 source="chatbot",
                 to_discussion=True,
                 prompt_state=conversation_state,
+                context=self._build_submind_request_context(
+                    message_data,
+                    message_sender,
+                    is_message_from_proctor,
+                    conversation_state)
             )
         elif not is_message_from_proctor:
             # Submind response in proctored conversation
