@@ -122,7 +122,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         self.current_conversations.setdefault(cid, {})['state'] = state
         new_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
-        self.log.debug(f'State chanted from {old_state} -> {new_state}')
+        self.log.debug(f'State changed from {old_state} -> {new_state}')
 
     def _setup_listeners(self):
         KlatAPIMQ._setup_listeners(self)
@@ -177,6 +177,12 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             body.setdefault("message_text", body.get('shout', ''))
         if "conversation_state" in body:
             body.setdefault("prompt_state", body.get('conversation_state'))
+        if "proposed_responses" in body:
+            body.setdefault("context", {})
+            body["context"].setdefault("proposed_responses", body.get('proposed_responses'))
+        if "submind_discussion_history" in body:
+            body.setdefault("context", {})
+            body["context"].setdefault("submind_discussion_history", body.get('submind_discussion_history'))
 
         self.log.debug(f"Incoming message has keys: {body.keys()}")
 
@@ -396,6 +402,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
             if not options:
                 self.log.warning(f"No proposed responses to discuss: {message}")
+                options = message.context.get('proposed_responses', {})
             current_prompt["cycles"][-1]['proposed_responses'] = options
             response = self.ask_discusser(options)
         elif conversation_state == ConversationState.VOTE:
@@ -403,6 +410,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
             if not options:
                 self.log.warning(f"No proposed responses to discuss: {message}")
+                options = message.context.get('proposed_responses', {})
             selected = self.ask_appraiser(options=options)
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
