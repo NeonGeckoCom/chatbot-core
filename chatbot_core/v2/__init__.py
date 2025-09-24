@@ -176,8 +176,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # TODO: Backwards-compat. data key handling
         if "shout" in body:
             body.setdefault("message_text", body.get('shout', ''))
+        if "conversation_state" in body:
+            body.setdefault("prompt_state", body.get('conversation_state'))
 
-        self.log.info(f"Incoming message has keys: {body.keys()}")
+        self.log.debug(f"Incoming message has keys: {body.keys()}")
 
         message = ChatbotsMqRequest(**body)
         if body.get('omit_reply'):
@@ -315,7 +317,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.warning(f"Conversation state changed by Proctor "
                                     f"message to {message.prompt_state}")
                     changed = True
-        if changed:
+        if changed and self.supports_raw_conversation:
             self.log.info(f"State changed to: "
                           f"{self.get_conversation_state(cid).name}")
             return
