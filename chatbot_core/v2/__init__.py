@@ -119,11 +119,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         old_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
-        self.log.debug(f'State was: {old_state}')
         self.current_conversations.setdefault(cid, {})['state'] = state
         new_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
-        self.log.debug(f'State became: {new_state}')
+        self.log.debug(f'State chanted from {old_state} -> {new_state}')
 
     def _setup_listeners(self):
         KlatAPIMQ._setup_listeners(self)
@@ -290,7 +289,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # Handle control messages that indicate a change in conversation phase
         changed = False
         if is_message_from_proctor:
-            # Proctor cotrol message
+            # Proctor control message
             # TODO: Better check here
             if "accepting responses" in shout.lower():
                 changed = True
@@ -388,17 +387,22 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             # Proposal phase
             self.current_conversations[cid]['prompts'][prompt_id]\
                     ["prompt"] = message.message_text
+            self.log.info(f"Responding to: {shout}")
             response = self.ask_chatbot(user=message_sender,
                                         shout=shout,
                                         timestamp=str(message.time_created.timestamp()))
         elif conversation_state == ConversationState.DISC:
             # Discussion phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
+            if not options:
+                self.log.warning(f"No proposed responses to discuss: {message}")
             current_prompt["cycles"][-1]['proposed_responses'] = options
             response = self.ask_discusser(options)
         elif conversation_state == ConversationState.VOTE:
             # Voting phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
+            if not options:
+                self.log.warning(f"No proposed responses to discuss: {message}")
             selected = self.ask_appraiser(options=options)
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
