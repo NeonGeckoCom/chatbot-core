@@ -177,6 +177,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         if "shout" in body:
             body.setdefault("message_text", body.get('shout', ''))
 
+        self.log.info(f"Incoming message has keys: {body.keys()}")
+
         message = ChatbotsMqRequest(**body)
         if body.get('omit_reply'):
             self.log.debug(f"Explicitly requested no response: messageID="
