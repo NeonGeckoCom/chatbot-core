@@ -396,7 +396,8 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             self.log.info(f"Responding to: {shout}")
             response = self.ask_chatbot(user=message_sender,
                                         shout=shout,
-                                        timestamp=str(message.time_created.timestamp()))
+                                        timestamp=str(message.time_created.timestamp()),
+                                        context={"prompt_id": prompt_id})
         elif conversation_state == ConversationState.DISC:
             # Discussion phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
