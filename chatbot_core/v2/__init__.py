@@ -119,11 +119,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         """
         old_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
-        self.log.debug(f'State was: {old_state}')
         self.current_conversations.setdefault(cid, {})['state'] = state
         new_state = self.current_conversations.setdefault(cid, {}).get(
             "state", ConversationState.IDLE)
-        self.log.debug(f'State became: {new_state}')
+        self.log.debug(f'State changed from {old_state} -> {new_state}')
 
     def _setup_listeners(self):
         KlatAPIMQ._setup_listeners(self)
@@ -174,8 +173,18 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             MQ handler for requesting message for current bot
         """
         # TODO: Backwards-compat. data key handling
+        body.setdefault("context", {})
         if "shout" in body:
             body.setdefault("message_text", body.get('shout', ''))
+        if "conversation_state" in body:
+            body.setdefault("prompt_state", body.get('conversation_state'))
+        if "proposed_responses" in body:
+            body["context"].setdefault("proposed_responses", body.get('proposed_responses'))
+        if "submind_discussion_history" in body:
+            body["context"].setdefault("submind_discussion_history", body.get('submind_discussion_history'))
+        body["context"].setdefault("prompt_id", body.get('prompt_id'))
+
+        self.log.debug(f"Incoming message has keys: {body.keys()}")
 
         message = ChatbotsMqRequest(**body)
         if body.get('omit_reply'):
@@ -286,7 +295,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
         # Handle control messages that indicate a change in conversation phase
         changed = False
         if is_message_from_proctor:
-            # Proctor cotrol message
+            # Proctor control message
             # TODO: Better check here
             if "accepting responses" in shout.lower():
                 changed = True
@@ -313,7 +322,7 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     self.log.warning(f"Conversation state changed by Proctor "
                                     f"message to {message.prompt_state}")
                     changed = True
-        if changed:
+        if changed and self.supports_raw_conversation:
             self.log.info(f"State changed to: "
                           f"{self.get_conversation_state(cid).name}")
             return
@@ -352,6 +361,11 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 source="chatbot",
                 to_discussion=True,
                 prompt_state=conversation_state,
+                context=self._build_submind_request_context(
+                    message_data,
+                    message_sender,
+                    is_message_from_proctor,
+                    conversation_state)
             )
         elif not is_message_from_proctor:
             # Submind response in proctored conversation
@@ -381,16 +395,23 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                     ["prompt"] = message.message_text
             response = self.ask_chatbot(user=message_sender,
                                         shout=shout,
-                                        timestamp=str(message.time_created.timestamp()))
+                                        timestamp=str(message.time_created.timestamp()),
+                                        context=message.context)
         elif conversation_state == ConversationState.DISC:
             # Discussion phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
+            if not options:
+                self.log.warning(f"No proposed responses to discuss: {message}")
+                options = message.context.get('proposed_responses', {})
             current_prompt["cycles"][-1]['proposed_responses'] = options
-            response = self.ask_discusser(options)
+            response = self.ask_discusser(options, context=message.context)
         elif conversation_state == ConversationState.VOTE:
             # Voting phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
-            selected = self.ask_appraiser(options=options)
+            if not options:
+                self.log.warning(f"No proposed responses to discuss: {message}")
+                options = message.context.get('proposed_responses', {})
+            selected = self.ask_appraiser(options=options, context=message.context)
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
                 selected = "abstain"
