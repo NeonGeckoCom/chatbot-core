@@ -404,14 +404,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self.log.warning(f"No proposed responses to discuss: {message}")
                 options = message.context.get('proposed_responses', {})
             current_prompt["cycles"][-1]['proposed_responses'] = options
-            response = self.ask_discusser(options)
+            response = self.ask_discusser(options, context={"prompt_id": prompt_id})
         elif conversation_state == ConversationState.VOTE:
             # Voting phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
             if not options:
                 self.log.warning(f"No proposed responses to discuss: {message}")
                 options = message.context.get('proposed_responses', {})
-            selected = self.ask_appraiser(options=options)
+            selected = self.ask_appraiser(options=options, context={"prompt_id": prompt_id})
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
                 selected = "abstain"
