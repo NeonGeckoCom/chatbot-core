@@ -173,16 +173,16 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             MQ handler for requesting message for current bot
         """
         # TODO: Backwards-compat. data key handling
+        body.setdefault("context", {})
         if "shout" in body:
             body.setdefault("message_text", body.get('shout', ''))
         if "conversation_state" in body:
             body.setdefault("prompt_state", body.get('conversation_state'))
         if "proposed_responses" in body:
-            body.setdefault("context", {})
             body["context"].setdefault("proposed_responses", body.get('proposed_responses'))
         if "submind_discussion_history" in body:
-            body.setdefault("context", {})
             body["context"].setdefault("submind_discussion_history", body.get('submind_discussion_history'))
+        body["context"].setdefault("prompt_id", body.get('prompt_id'))
 
         self.log.debug(f"Incoming message has keys: {body.keys()}")
 
@@ -393,11 +393,10 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
             # Proposal phase
             self.current_conversations[cid]['prompts'][prompt_id]\
                     ["prompt"] = message.message_text
-            self.log.info(f"Responding to: {shout}")
             response = self.ask_chatbot(user=message_sender,
                                         shout=shout,
                                         timestamp=str(message.time_created.timestamp()),
-                                        context={"prompt_id": prompt_id})
+                                        context=message.context)
         elif conversation_state == ConversationState.DISC:
             # Discussion phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
@@ -405,14 +404,14 @@ class ChatBot(KlatAPIMQ, ChatBotABC):
                 self.log.warning(f"No proposed responses to discuss: {message}")
                 options = message.context.get('proposed_responses', {})
             current_prompt["cycles"][-1]['proposed_responses'] = options
-            response = self.ask_discusser(options, context={"prompt_id": prompt_id})
+            response = self.ask_discusser(options, context=message.context)
         elif conversation_state == ConversationState.VOTE:
             # Voting phase
             options: dict = current_prompt["cycles"][-1].get('proposed_responses', {})
             if not options:
                 self.log.warning(f"No proposed responses to discuss: {message}")
                 options = message.context.get('proposed_responses', {})
-            selected = self.ask_appraiser(options=options, context={"prompt_id": prompt_id})
+            selected = self.ask_appraiser(options=options, context=message.context)
             response = self.vote_response(selected)
             if 'abstain' in response.lower():
                 selected = "abstain"
